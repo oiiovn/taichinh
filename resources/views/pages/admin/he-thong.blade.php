@@ -20,6 +20,92 @@
     @endif
 
     <div class="space-y-6">
+        {{-- Cấu hình gói --}}
+        @php
+            $planConfig = $planConfig ?? \App\Models\PlanConfig::getFullConfig();
+            $planList = $planConfig['list'] ?? [];
+            $planListSorted = collect($planList)->sortBy(fn($p) => (int) ($p['max_accounts'] ?? 0))->keys();
+        @endphp
+        <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/5 p-5 md:p-6">
+            <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Cấu hình gói</h3>
+            <p class="mb-5 text-sm text-gray-500 dark:text-gray-400">Giá, tên và số tài khoản tối đa từng gói. Kỳ hạn mặc định và các kỳ cho phép chọn.</p>
+
+            {{-- Điều chỉnh đồng loạt giá --}}
+            <div class="mb-6 rounded-xl border border-gray-100 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                <h4 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Điều chỉnh đồng loạt giá (theo công thức)</h4>
+                <form action="{{ route('admin.he-thong.plans.adjust-prices') }}" method="POST" class="flex flex-wrap items-end gap-3">
+                    @csrf
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Công thức</label>
+                        <select name="type" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                            <option value="add">Cộng thêm (VND)</option>
+                            <option value="subtract">Trừ bớt (VND)</option>
+                            <option value="multiply">Nhân với</option>
+                            <option value="divide">Chia cho</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Giá trị</label>
+                        <input type="number" name="value" step="any" min="0.0001" placeholder="VD: 50000 hoặc 1.1" required
+                            class="w-40 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                    </div>
+                    <button type="submit" class="rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white hover:bg-primary-600 dark:bg-primary-600 dark:hover:bg-primary-500">Áp dụng cho tất cả gói</button>
+                </form>
+            </div>
+
+            <form action="{{ route('admin.he-thong.plans.update') }}" method="POST">
+                @csrf
+                @method('PUT')
+                <div class="mb-4 flex gap-4">
+                    <div>
+                        <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Kỳ hạn mặc định (tháng)</label>
+                        <input type="number" name="term_months" value="{{ old('term_months', $planConfig['term_months'] ?? 3) }}" min="1" max="24"
+                            class="w-24 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                    </div>
+                    <div class="flex-1">
+                        <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Kỳ hạn cho phép chọn (tháng, cách nhau dấu phẩy)</label>
+                        <input type="text" name="term_options_str" value="{{ old('term_options_str', implode(', ', $planConfig['term_options'] ?? [3, 6, 12])) }}" placeholder="3, 6, 12"
+                            class="w-full max-w-xs rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-[600px] text-sm">
+                        <thead>
+                            <tr class="border-b border-gray-200 dark:border-gray-700">
+                                <th class="pb-2 text-left font-medium text-gray-700 dark:text-gray-300">Gói (key)</th>
+                                <th class="pb-2 text-left font-medium text-gray-700 dark:text-gray-300">Tên hiển thị</th>
+                                <th class="pb-2 text-left font-medium text-gray-700 dark:text-gray-300">Giá (VND)</th>
+                                <th class="pb-2 text-left font-medium text-gray-700 dark:text-gray-300">Số TK tối đa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach ($planListSorted as $key)
+                                @php $p = $planList[$key] ?? []; @endphp
+                                <tr class="border-b border-gray-100 dark:border-gray-700/50">
+                                        <td class="py-2.5 font-mono text-gray-500">{{ $key }}</td>
+                                        <td class="py-2.5">
+                                            <input type="text" name="list[{{ $key }}][name]" value="{{ old("list.{$key}.name", $p['name'] ?? '') }}"
+                                                class="w-full max-w-[120px] rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                                        </td>
+                                        <td class="py-2.5">
+                                            <input type="number" name="list[{{ $key }}][price]" value="{{ old("list.{$key}.price", $p['price'] ?? 0) }}" min="0"
+                                                class="w-28 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                                        </td>
+                                        <td class="py-2.5">
+                                            <input type="number" name="list[{{ $key }}][max_accounts]" value="{{ old("list.{$key}.max_accounts", $p['max_accounts'] ?? 1) }}" min="1"
+                                                class="w-20 rounded-lg border border-gray-200 bg-white px-2.5 py-1.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                                        </td>
+                                    </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-5">
+                    <button type="submit" class="rounded-lg bg-success-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-success-600 dark:bg-success-600 dark:hover:bg-success-500">Lưu cấu hình gói</button>
+                </div>
+            </form>
+        </div>
+
         {{-- Cấu hình thanh toán web (dùng cho hiển thị QR thanh toán khi user mua gói) --}}
         <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/5 p-5 md:p-6">
             <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Cấu hình thanh toán web</h3>

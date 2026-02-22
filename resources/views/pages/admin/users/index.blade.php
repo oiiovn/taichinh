@@ -17,6 +17,15 @@
         <div class="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">{{ session('error') }}</div>
     @endif
 
+    @if (!empty($filter))
+        <div class="mb-4 flex items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm dark:border-amber-800 dark:bg-amber-900/20">
+            <span class="text-amber-800 dark:text-amber-200">
+                Đang lọc: {{ $filter === 'expiring' ? 'Gói sắp hết hạn (7 ngày)' : 'Gói đã hết hạn' }}
+            </span>
+            <a href="{{ route('admin.users.index') }}" class="font-medium text-primary hover:underline dark:text-primary-400">Xem tất cả</a>
+        </div>
+    @endif
+
     <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]" x-data="{ showConfirmDelete: false, formIdToSubmit: null }" @confirm-delete-open.window="showConfirmDelete = true; formIdToSubmit = $event.detail.formId" @confirm-delete.window="if (formIdToSubmit) { const f = document.getElementById(formIdToSubmit); if (f) f.submit(); } formIdToSubmit = null; showConfirmDelete = false">
         <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
             <h3 class="font-medium text-gray-800 dark:text-white">Danh sách user</h3>
@@ -24,21 +33,39 @@
         </div>
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm">
+                @php $plansList = $plansList ?? \App\Models\PlanConfig::getList(); @endphp
                 <thead>
                     <tr class="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800/50">
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">ID</th>
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Tên</th>
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Email</th>
+                        <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Gói</th>
+                        <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Hết hạn gói</th>
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Admin</th>
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse ($users as $u)
+                        @php
+                            $planKey = $u->plan ?? null;
+                            $planLabel = $planKey && isset($plansList[$planKey]) ? $plansList[$planKey]['name'] ?? $planKey : '—';
+                            $expiresAt = $u->plan_expires_at;
+                            $expiresLabel = $expiresAt ? $expiresAt->format('d/m/Y') : '—';
+                            $isExpired = $expiresAt && $expiresAt->isPast();
+                        @endphp
                         <tr class="border-b border-gray-100 dark:border-gray-800 last:border-0">
                             <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ $u->id }}</td>
                             <td class="px-4 py-3 font-medium text-gray-800 dark:text-white">{{ $u->name }}</td>
                             <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ $u->email }}</td>
+                            <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ $planLabel }}</td>
+                            <td class="px-4 py-3">
+                                @if ($isExpired)
+                                    <span class="text-red-600 dark:text-red-400" title="Đã hết hạn">{{ $expiresLabel }}</span>
+                                @else
+                                    <span class="text-gray-600 dark:text-gray-400">{{ $expiresLabel }}</span>
+                                @endif
+                            </td>
                             <td class="px-4 py-3">
                                 @if ($u->is_admin)
                                     <span class="rounded-full bg-success-100 px-2 py-0.5 text-xs font-medium text-success-700 dark:bg-success-500/20 dark:text-success-400">Admin</span>
@@ -62,7 +89,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có user nào.</td>
+                            <td colspan="7" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có user nào.</td>
                         </tr>
                     @endforelse
                 </tbody>

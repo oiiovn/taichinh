@@ -13,7 +13,7 @@
     </div>
 
     <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/[0.03] md:p-6 max-w-xl">
-        <form action="{{ route('admin.users.update', $user) }}" method="POST">
+        <form action="{{ route('admin.users.update', $user) }}" method="POST" autocomplete="off">
             @csrf
             @method('PUT')
             <div class="space-y-4">
@@ -33,16 +33,36 @@
                 </div>
                 <div>
                     <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Mật khẩu mới (để trống nếu không đổi)</label>
-                    <input type="password" name="password"
+                    <input type="password" name="password" autocomplete="new-password" readonly
                         class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                        placeholder="••••••••">
+                        placeholder="••••••••"
+                        onfocus="this.removeAttribute('readonly')">
                     @error('password')<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
                 </div>
                 <div>
                     <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Xác nhận mật khẩu mới</label>
-                    <input type="password" name="password_confirmation"
+                    <input type="password" name="password_confirmation" autocomplete="new-password" readonly
                         class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
-                        placeholder="••••••••">
+                        placeholder="••••••••"
+                        onfocus="this.removeAttribute('readonly')">
+                </div>
+                @php $plansList = $plansList ?? \App\Models\PlanConfig::getList(); @endphp
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Gói</label>
+                    <select name="plan" id="plan_select" data-default-term-months="{{ \App\Models\PlanConfig::getTermMonths() }}" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                        <option value="">— Không gói —</option>
+                        @foreach($plansList as $key => $info)
+                            <option value="{{ $key }}" {{ old('plan', $user->plan) === $key ? 'selected' : '' }}>{{ $info['name'] ?? $key }} (tối đa {{ $info['max_accounts'] ?? 0 }} TK)</option>
+                        @endforeach
+                    </select>
+                    @error('plan')<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Hết hạn gói</label>
+                    <input type="date" name="plan_expires_at" id="plan_expires_at" value="{{ old('plan_expires_at', $user->plan_expires_at?->format('Y-m-d')) }}"
+                        class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white"
+                        placeholder="Để trống = chưa set">
+                    @error('plan_expires_at')<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
                 </div>
                 <div class="flex items-center gap-2">
                     <input type="hidden" name="is_admin" value="0">
@@ -74,4 +94,18 @@
             </div>
         </form>
     </div>
+    <script>
+        (function(){
+            var sel = document.getElementById('plan_select');
+            var exp = document.getElementById('plan_expires_at');
+            if (!sel || !exp) return;
+            sel.addEventListener('change', function(){
+                if (!this.value) return;
+                var months = parseInt(sel.getAttribute('data-default-term-months') || '3', 10);
+                var d = new Date();
+                d.setMonth(d.getMonth() + months);
+                exp.value = d.toISOString().slice(0, 10);
+            });
+        })();
+    </script>
 @endsection

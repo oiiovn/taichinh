@@ -11,9 +11,11 @@ use App\Http\Controllers\ProfileController;
 */
 
 Route::middleware('auth')->group(function () {
-    Route::get('/notifications/unread-count', function () {
-        return response()->json(['unread_count' => auth()->user()->unreadNotifications()->count()]);
-    })->name('notifications.unread-count');
+    Route::get('/notifications/unread-count', [\App\Http\Controllers\NotificationUnreadCountController::class, 'index'])->name('notifications.unread-count');
+
+    Route::get('/thong-bao', [\App\Http\Controllers\BroadcastViewController::class, 'index'])->name('thong-bao.index');
+    Route::get('/thong-bao/{broadcast}', [\App\Http\Controllers\BroadcastViewController::class, 'show'])->name('thong-bao.show');
+    Route::post('/thong-bao/{broadcast}/mark-read', [\App\Http\Controllers\BroadcastViewController::class, 'markRead'])->name('thong-bao.mark-read');
 
     // Tạm thời: trang chủ điều hướng đến Tài chính → Chiến lược
     Route::get('/', function () {
@@ -33,8 +35,8 @@ Route::middleware('auth')->group(function () {
         $user = auth()->user();
         return view('pages.goi-hien-tai', [
             'title' => 'Gói hiện tại',
-            'plans' => config('plans.list', []),
-            'termOptions' => config('plans.term_options', [3, 6, 12]),
+            'plans' => \App\Models\PlanConfig::getList(),
+            'termOptions' => \App\Models\PlanConfig::getTermOptions(),
             'currentPlan' => $user ? $user->plan : null,
             'planExpiresAt' => $user ? $user->plan_expires_at : null,
         ]);

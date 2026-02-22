@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PackagePaymentMapping;
 use App\Models\PaymentConfig;
+use App\Models\PlanConfig;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 
@@ -12,7 +13,7 @@ class GoiHienTaiController extends Controller
     /** Chỉ cho phép nâng cấp lên gói cao hơn (so sánh theo config plans.order). */
     public static function isPlanHigherThan(string $targetPlanKey, ?string $currentPlanKey): bool
     {
-        $order = config('plans.order', []);
+        $order = PlanConfig::getOrder();
         $targetOrder = $order[$targetPlanKey] ?? -1;
         $currentOrder = $currentPlanKey !== null ? ($order[$currentPlanKey] ?? -1) : -1;
         return $targetOrder > $currentOrder;
@@ -39,8 +40,8 @@ class GoiHienTaiController extends Controller
     public function thanhToan(Request $request, string $plan)
     {
         $planKey = strtolower($plan);
-        $plans = config('plans.list', []);
-        $order = config('plans.order', []);
+        $plans = PlanConfig::getList();
+        $order = PlanConfig::getOrder();
         if (!isset($plans[$planKey])) {
             abort(404, 'Gói không tồn tại.');
         }
@@ -60,10 +61,10 @@ class GoiHienTaiController extends Controller
         }
 
         $planData = $plans[$planKey];
-        $termOptions = config('plans.term_options', [3, 6, 12]);
-        $termMonths = (int) $request->query('term', config('plans.term_months', 3));
+        $termOptions = PlanConfig::getTermOptions();
+        $termMonths = (int) $request->query('term', PlanConfig::getTermMonths());
         if (!in_array($termMonths, $termOptions, true)) {
-            $termMonths = config('plans.term_months', 3);
+            $termMonths = PlanConfig::getTermMonths();
         }
         $fullPrice = $planData['price'] * $termMonths;
         if ($termMonths === 12) {

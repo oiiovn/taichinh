@@ -169,4 +169,11 @@ class User extends Authenticatable
         return $this->hasMany(EstimatedExpense::class);
     }
 
+    public function broadcasts(): BelongsToMany
+    {
+        return $this->belongsToMany(Broadcast::class, 'broadcast_user')
+            ->withPivot('read_at')
+            ->withTimestamps();
+    }
+
 }

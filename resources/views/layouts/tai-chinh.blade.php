@@ -63,4 +63,28 @@
     @if((request('tab') === 'no-khoan-vay') || request()->routeIs('tai-chinh.loans.index'))
     <script>(function(){if(window.self!==window.top){try{window.parent.postMessage({type:'no-khoan-vay-done'},'*');}catch(e){}}})();</script>
     @endif
+
+    {{-- Popup chặn thao tác khi gói hết hạn, chỉ áp dụng tab Giao dịch --}}
+    @php
+        $planExpired = isset($planExpiresAt) && $planExpiresAt && !$planExpiresAt->isFuture();
+        $showExpiredModal = $activeTab === 'giao-dich' && $planExpired;
+    @endphp
+    @if($showExpiredModal)
+    <div class="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4" role="dialog" aria-modal="true" aria-labelledby="expired-modal-title">
+        <div class="w-full max-w-md rounded-2xl border border-red-200 bg-white p-6 shadow-xl dark:border-red-800 dark:bg-gray-900 dark:text-white">
+            <div class="flex items-center gap-3 text-red-600 dark:text-red-400">
+                <span class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/40">
+                    <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </span>
+                <h2 id="expired-modal-title" class="text-xl font-semibold">Gói đã hết hạn</h2>
+            </div>
+            <p class="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                Bạn không thể xem hoặc thao tác với giao dịch khi gói đã hết hạn. Gia hạn gói để tiếp tục sử dụng tính năng Giao dịch.
+            </p>
+            <div class="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end">
+                <a href="{{ route('goi-hien-tai') }}" class="inline-flex justify-center rounded-lg bg-success-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-success-600 dark:bg-success-600 dark:hover:bg-success-500">Gia hạn gói</a>
+            </div>
+        </div>
+    </div>
+    @endif
 @endsection

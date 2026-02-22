@@ -63,7 +63,7 @@ class TaiChinhIndexViewDataBuilder
             : TransactionHistory::whereRaw('1 = 0')->paginate(50)->withQueryString();
 
         $userCategories = $user ? $user->userCategories()->withCount('transactionHistories')->orderByDesc('transaction_histories_count')->orderBy('type')->orderBy('name')->get() : collect();
-        $plans = config('plans.list', []);
+        $plans = \App\Models\PlanConfig::getList();
         $currentPlan = $user?->plan;
         $planExpiresAt = $user?->plan_expires_at;
         $planExpiringSoon = $user && $currentPlan && $planExpiresAt && GoiHienTaiController::planExpiresWithinDays($planExpiresAt, 3);

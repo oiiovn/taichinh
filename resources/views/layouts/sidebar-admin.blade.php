@@ -3,6 +3,7 @@
     $menuItems = [
         ['name' => 'Trang chủ', 'path' => route('admin.index'), 'icon' => 'dashboard'],
         ['name' => 'Quản lý user', 'path' => route('admin.users.index'), 'icon' => 'user-profile'],
+        ['name' => 'Thông báo', 'path' => route('admin.broadcasts.index'), 'icon' => 'email'],
         ['name' => 'Lịch sử giao dịch', 'path' => route('admin.lich-su-giao-dich.index'), 'icon' => 'chart-bar'],
         ['name' => 'Hệ thống', 'path' => route('admin.he-thong'), 'icon' => 'settings'],
     ];
@@ -42,6 +43,7 @@
                     @php
                         $isActive = ($item['path'] === route('admin.index') && request()->path() === 'admin')
                             || (str_contains($item['path'], 'users') && request()->is('admin/users*'))
+                            || (str_contains($item['path'], 'broadcasts') && request()->is('admin/broadcasts*'))
                             || (str_contains($item['path'], 'lich-su-giao-dich') && request()->is('admin/lich-su-giao-dich*'))
                             || (str_contains($item['path'], 'he-thong') && request()->is('admin/he-thong*'));
                     @endphp

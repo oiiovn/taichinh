@@ -21,7 +21,7 @@ class BankAccountController extends Controller
             return redirect()->route('tai-chinh')->with('error', 'Vui lòng đăng nhập.');
         }
 
-        $plans = config('plans.list', []);
+        $plans = \App\Models\PlanConfig::getList();
         $currentPlan = $user->plan;
         $planExpiresAt = $user->plan_expires_at;
         $maxAccounts = $currentPlan && isset($plans[$currentPlan])

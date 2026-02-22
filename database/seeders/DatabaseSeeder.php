@@ -29,5 +29,6 @@ class DatabaseSeeder extends Seeder
         $this->call(BrainFourProfilesSeeder::class);
         $this->call(SimulationPersonaSeeder::class);
         $this->call(CongViecFourStagesSeeder::class);
+        $this->call(PlanConfigSeeder::class);
     }
 }

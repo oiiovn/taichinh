@@ -15,7 +15,7 @@
     </div>
 
     @php
-        $plansList = $plans ?? config('plans.list', []);
+        $plansList = $plans ?? \App\Models\PlanConfig::getList();
         if (empty($plansList)) {
             $plansList = [
                 'basic' => ['name' => 'BASIC', 'price' => 150000, 'max_accounts' => 1],
@@ -26,11 +26,13 @@
                 'corporate' => ['name' => 'CORPORATE', 'price' => 3250000, 'max_accounts' => 50],
             ];
         }
-        $termOptions = $termOptions ?? config('plans.term_options', [3, 6, 12]);
+        $termOptions = $termOptions ?? \App\Models\PlanConfig::getTermOptions();
+        $plansSortedByPrice = collect($plansList)->sortBy(fn($p) => (int) ($p['price'] ?? 0))->keys();
     @endphp
 
     <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        @foreach ($plansList as $planKey => $plan)
+        @foreach ($plansSortedByPrice as $planKey)
+            @php $plan = $plansList[$planKey] ?? []; @endphp
             @php
                 $isCurrentPlan = !empty($currentPlan) && $planExpiresAt && $planExpiresAt->isFuture() && $planKey === $currentPlan;
                 $needsRenewal = $isCurrentPlan && \App\Http\Controllers\GoiHienTaiController::planExpiresWithinDays($planExpiresAt, 3);
