@@ -8,8 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasColumn('users', 'volatility_score_income')) {
+            return;
+        }
         Schema::table('users', function (Blueprint $table) {
-            $table->decimal('volatility_score_income', 5, 4)->nullable()->after('week_anomaly_pct')->comment('0..1, cao = biến động mạnh');
+            $table->decimal('volatility_score_income', 5, 4)->nullable()->comment('0..1, cao = biến động mạnh');
             $table->decimal('volatility_score_expense', 5, 4)->nullable()->after('volatility_score_income');
             $table->unsignedBigInteger('avg_transaction_size')->nullable()->after('volatility_score_expense')->comment('VND');
             $table->unsignedBigInteger('median_daily_spend')->nullable()->after('avg_transaction_size')->comment('VND');
@@ -20,6 +23,9 @@ return new class extends Migration
 
     public function down(): void
     {
+        if (! Schema::hasColumn('users', 'volatility_score_income')) {
+            return;
+        }
         Schema::table('users', function (Blueprint $table) {
             $table->dropColumn([
                 'volatility_score_income',
