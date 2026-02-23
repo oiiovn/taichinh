@@ -39,7 +39,9 @@
                 $balanceDelta = $perAcc['balance_delta']['total'] ?? null;
                 $balance = (int) ($accountBalances[$stk] ?? 0);
                 $syncInfo = $dashboardSyncStatus['by_account'][$stk] ?? ['ok' => true, 'label' => null];
-                $weekAnomaly = isset($weekSummary['pct_out']) && abs($weekSummary['pct_out']) >= 50;
+                $pctOutVal = $weekSummary['pct_out'] ?? null;
+                $isZeroChiThisWeek = $pctOutVal !== null && (float)$pctOutVal <= -99.5 && (float)$pctOutVal >= -100.5;
+                $weekAnomaly = isset($weekSummary['pct_out']) && abs($weekSummary['pct_out']) >= 50 && !$isZeroChiThisWeek;
                 $cardEvents = $perAcc['events'] ?? array_values(array_filter($dashboardCardEvents, function ($ev) use ($stk, $index) {
                     $evStks = $ev['account_numbers'] ?? null;
                     if (is_array($evStks) && in_array($stk, $evStks, true)) return true;
@@ -85,14 +87,22 @@
                         </div>
                     </div>
 
-                    @php $pctOut = $weekSummary['pct_out'] ?? null; @endphp
+                    @php
+                        $pctOut = $weekSummary['pct_out'] ?? null;
+                        $daysCompared = $weekSummary['days_compared'] ?? 7;
+                        $weekCompareLabel = $daysCompared < 7 ? 'Tuần này so với tuần trước (' . $daysCompared . ' ngày đầu tuần)' : 'Tuần này so với tuần trước';
+                    @endphp
                     <div class="border-t border-white/10 pt-2">
-                        <p class="text-[10px] text-slate-500">Tuần này so với tuần trước</p>
+                        <p class="text-[10px] text-slate-500">{{ $weekCompareLabel }}</p>
                         @if($pctOut !== null)
-                            <p class="text-xs {{ $pctOut > 0 ? 'text-amber-300' : 'text-emerald-300' }}">
-                                Chi {{ $pctOut >= 0 ? '+' : '' }}{{ number_format($pctOut, 0) }}%
-                                @if($weekAnomaly)<span class="ml-1 text-amber-200">(Khác thường)</span>@endif
-                            </p>
+                            @if($isZeroChiThisWeek)
+                                <p class="text-xs text-emerald-300">Chi tuần này: 0 ₫ (giảm 100% so với tuần trước)</p>
+                            @else
+                                <p class="text-xs {{ $pctOut > 0 ? 'text-amber-300' : 'text-emerald-300' }}">
+                                    Chi {{ $pctOut >= 0 ? '+' : '' }}{{ number_format($pctOut, 0) }}%
+                                    @if($weekAnomaly)<span class="ml-1 text-amber-200">(Khác thường)</span>@endif
+                                </p>
+                            @endif
                         @else
                             <p class="text-xs text-slate-400">Chưa có dữ liệu</p>
                         @endif

@@ -217,39 +217,70 @@ class TaiChinhController extends Controller
 
         $validator = Validator::make($request->all(), [
             'insight_hash' => 'required|string|size:64',
-            'feedback_type' => 'required|in:agree,infeasible,incorrect,alternative',
+            'feedback_type' => 'required|in:agree,infeasible,incorrect,alternative,learn_from_edit',
             'reason_code' => 'nullable|in:cannot_increase_income,cannot_reduce_expense,no_more_borrowing,no_asset_sale',
             'root_cause' => 'nullable|string|max:64',
             'suggested_action_type' => 'nullable|string|max:64',
+            'category' => 'nullable|string|max:64',
+            'feedback_text' => 'nullable|string|max:2000',
+            'edited_narrative' => 'nullable|string|max:15000',
+            'context_snapshot' => 'nullable|array',
+            'context_snapshot.structural_state' => 'nullable|string',
+            'context_snapshot.priority_mode' => 'nullable|string',
+            'context_snapshot.brain_mode' => 'nullable|string',
         ]);
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        if ($request->input('feedback_type') === FinancialInsightFeedback::TYPE_INFEASIBLE && ! $request->filled('reason_code')) {
+        $feedbackType = $request->input('feedback_type');
+
+        if ($feedbackType === FinancialInsightFeedback::TYPE_INFEASIBLE && ! $request->filled('reason_code')) {
             return response()->json(['errors' => ['reason_code' => ['Vui lòng chọn lý do khi đánh dấu Không khả thi.']]], 422);
         }
 
+        if ($feedbackType === FinancialInsightFeedback::TYPE_LEARN_FROM_EDIT) {
+            if (! $request->filled('edited_narrative')) {
+                return response()->json(['errors' => ['edited_narrative' => ['Vui lòng gửi nội dung đã chỉnh sửa.']]], 422);
+            }
+        }
+
         try {
+            $contextSnapshot = $request->input('context_snapshot');
+            if (is_array($contextSnapshot)) {
+                $contextSnapshot = array_filter($contextSnapshot, fn ($v) => $v !== null && $v !== '');
+            } else {
+                $contextSnapshot = null;
+            }
+
             FinancialInsightFeedback::create([
                 'user_id' => $user->id,
                 'insight_hash' => $request->input('insight_hash'),
                 'root_cause' => $request->input('root_cause'),
                 'suggested_action_type' => $request->input('suggested_action_type'),
-                'feedback_type' => $request->input('feedback_type'),
+                'feedback_type' => $feedbackType,
                 'reason_code' => $request->input('reason_code'),
+                'category' => $request->input('category'),
+                'feedback_text' => $request->filled('feedback_text') ? $request->input('feedback_text') : null,
+                'edited_narrative' => $feedbackType === FinancialInsightFeedback::TYPE_LEARN_FROM_EDIT ? $request->input('edited_narrative') : null,
+                'context_snapshot' => $contextSnapshot,
             ]);
 
-            app(\App\Services\InsightFeedbackToBehaviorLogService::class)->logFromFeedback(
-                $user,
-                $request->input('feedback_type'),
-                $request->input('reason_code'),
-                $request->input('root_cause')
-            );
+            if ($feedbackType !== FinancialInsightFeedback::TYPE_LEARN_FROM_EDIT) {
+                app(\App\Services\InsightFeedbackToBehaviorLogService::class)->logFromFeedback(
+                    $user,
+                    $feedbackType,
+                    $request->input('reason_code'),
+                    $request->input('root_cause')
+                );
+                app(\App\Services\UserStrategyProfileService::class)->refreshProfileAfterFeedback($user->id);
+            }
 
-            app(\App\Services\UserStrategyProfileService::class)->refreshProfileAfterFeedback($user->id);
+            $message = $feedbackType === FinancialInsightFeedback::TYPE_LEARN_FROM_EDIT
+                ? 'Đã ghi nhận. Hệ thống sẽ học theo phiên bản bạn chỉnh.'
+                : 'Đã ghi nhận. Hệ thống sẽ điều chỉnh chiến lược.';
 
-            return response()->json(['success' => true, 'message' => 'Đã ghi nhận. Hệ thống sẽ điều chỉnh chiến lược.']);
+            return response()->json(['success' => true, 'message' => $message]);
         } catch (\Throwable $e) {
             Log::error('TaiChinhController@storeInsightFeedback: ' . $e->getMessage(), [
                 'user_id' => $user->id,

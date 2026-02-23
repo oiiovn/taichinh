@@ -93,7 +93,7 @@ class DashboardCardService
         $deltaToday = (float) TransactionHistory::where('user_id', $userId)
             ->whereIn('account_number', $linkedAccountNumbers)
             ->whereBetween('transaction_date', [$todayStart, $todayEnd])
-            ->selectRaw("SUM(amount) as delta")
+            ->selectRaw("SUM(CASE WHEN type = 'IN' THEN amount ELSE -amount END) as delta")
             ->value('delta');
         $totalNow = array_sum(array_intersect_key($accountBalances, array_flip($linkedAccountNumbers)));
         $totalYesterday = $totalNow - ($deltaToday ?? 0);
@@ -131,26 +131,32 @@ class DashboardCardService
     }
 
     /**
-     * Tuần này vs tuần trước: tổng thu, tổng chi, % thay đổi.
+     * Tuần này vs tuần trước: so sánh cùng số ngày đầu tuần (N ngày đầu tuần này vs N ngày đầu tuần trước)
+     * để tránh so sánh 2 ngày với 7 ngày.
      */
     public function getWeekSummary(int $userId, array $linkedAccountNumbers): array
     {
         if (empty($linkedAccountNumbers)) {
-            return ['this_week' => ['in' => 0, 'out' => 0], 'last_week' => ['in' => 0, 'out' => 0], 'pct_in' => null, 'pct_out' => null];
+            return ['this_week' => ['in' => 0, 'out' => 0], 'last_week' => ['in' => 0, 'out' => 0], 'pct_in' => null, 'pct_out' => null, 'days_compared' => 0];
         }
-        $thisWeekStart = Carbon::now()->startOfWeek();
-        $thisWeekEnd = Carbon::now()->endOfWeek();
-        $lastWeekStart = Carbon::now()->subWeek()->startOfWeek();
-        $lastWeekEnd = Carbon::now()->subWeek()->endOfWeek();
+        $today = Carbon::today();
+        $thisWeekStart = $today->copy()->startOfWeek();
+        $lastWeekStart = $today->copy()->subWeek()->startOfWeek();
+
+        $daysIntoThisWeek = (int) $thisWeekStart->diffInDays($today, false) + 1;
+        $daysCompared = min(7, max(1, $daysIntoThisWeek));
+
+        $thisWeekEndCompare = $today->copy()->endOfDay();
+        $lastWeekEndCompare = $lastWeekStart->copy()->addDays($daysCompared - 1)->endOfDay();
 
         $thisRow = TransactionHistory::where('user_id', $userId)
             ->whereIn('account_number', $linkedAccountNumbers)
-            ->whereBetween('transaction_date', [$thisWeekStart, $thisWeekEnd])
+            ->whereBetween('transaction_date', [$thisWeekStart, $thisWeekEndCompare])
             ->selectRaw("SUM(CASE WHEN type = 'IN' THEN amount ELSE 0 END) as in_sum, SUM(CASE WHEN type = 'OUT' THEN amount ELSE 0 END) as out_sum")
             ->first();
         $lastRow = TransactionHistory::where('user_id', $userId)
             ->whereIn('account_number', $linkedAccountNumbers)
-            ->whereBetween('transaction_date', [$lastWeekStart, $lastWeekEnd])
+            ->whereBetween('transaction_date', [$lastWeekStart, $lastWeekEndCompare])
             ->selectRaw("SUM(CASE WHEN type = 'IN' THEN amount ELSE 0 END) as in_sum, SUM(CASE WHEN type = 'OUT' THEN amount ELSE 0 END) as out_sum")
             ->first();
 
@@ -166,6 +172,7 @@ class DashboardCardService
             'last_week' => ['in' => $lastIn, 'out' => $lastOut],
             'pct_in' => $pctIn,
             'pct_out' => $pctOut,
+            'days_compared' => $daysCompared,
         ];
     }
 
@@ -313,12 +320,14 @@ class DashboardCardService
 
         $weekAnomalyPct = $weekAnomalyPctThreshold ?? 50;
         $weekOutPct = $weekSummary['pct_out'] ?? null;
+        $daysCompared = $weekSummary['days_compared'] ?? 7;
+        $weekCompareSuffix = $daysCompared < 7 ? ' (' . $daysCompared . ' ngày đầu tuần)' : '';
         if ($weekOutPct !== null && abs($weekOutPct) >= $weekAnomalyPct) {
             $events[] = $this->withSeverity([
                 'type' => 'week_anomaly',
                 'icon' => '📊',
                 'label' => $weekOutPct > 0 ? 'Chi tuần này tăng mạnh' : 'Chi tuần này giảm mạnh',
-                'description' => ($weekOutPct >= 0 ? '+' : '') . $weekOutPct . '% so với tuần trước',
+                'description' => ($weekOutPct >= 0 ? '+' : '') . $weekOutPct . '% so với tuần trước' . $weekCompareSuffix,
                 'url' => $giaoDichUrl,
             ]);
         }
@@ -871,7 +880,7 @@ class DashboardCardService
                 'action' => 'Xem lại danh sách giao dịch chi trong ngày, xác nhận từng khoản. Nếu đúng là chi có chủ đích, có thể bỏ qua; nếu có giao dịch lạ thì xử lý như cảnh báo bảo mật.',
             ],
             'week_anomaly' => [
-                'explanation' => 'Tổng chi tuần này chênh lệch lớn (trên 50%) so với tuần trước. Cho thấy mức chi đang khác thường so với thói quen.',
+                'explanation' => 'Tổng chi trong cùng số ngày đầu tuần này chênh lệch lớn (trên 50%) so với cùng kỳ tuần trước. Cho thấy mức chi đang khác thường so với thói quen.',
                 'action' => 'Xem tab Phân tích để nắm chi tiết theo danh mục. Điều chỉnh chi tiêu những ngày còn lại trong tuần hoặc lên kế hoạch bù đắp nếu đã chi vượt.',
             ],
             'unknown_merchant' => [

@@ -1,12 +1,15 @@
 @php
     $analytics = $analyticsData ?? null;
     $monthly = $analytics['monthly'] ?? null;
+    $daily = $analytics['daily'] ?? null;
     $byCategory = $analytics['byCategory'] ?? [];
     $categoryItems = $byCategory['items'] ?? [];
     $concentration = $byCategory['concentration'] ?? [];
     $linkedAccountNumbers = $linkedAccountNumbers ?? [];
     $hasMonthly = $monthly && !empty($monthly['monthly']);
     $monthlyList = $hasMonthly ? $monthly['monthly'] : [];
+    $hasDaily = $daily && !empty($daily['daily']);
+    $dailyList = $hasDaily ? $daily['daily'] : [];
     $summary = $monthly['summary'] ?? null;
     $trajectory = $monthly['trajectory'] ?? null;
     $stability = $monthly['stability'] ?? null;
@@ -160,31 +163,49 @@
             @endif
             @endif
 
-            {{-- Biểu đồ: cột Thu/Chi + đường Net overlay --}}
-            @if($hasMonthly)
-            <div class="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6">
-                <div class="mb-4">
-                    <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">Thu, chi và dòng tiền ròng theo tháng</h3>
-                    <p class="mt-1 text-theme-sm text-gray-500 dark:text-gray-400">Cột: Thu / Chi · Đường: Net (IN − OUT).</p>
+            {{-- Biểu đồ: cột Thu/Chi + đường Net overlay (theo tháng hoặc theo ngày) --}}
+            @if($hasMonthly || $hasDaily)
+            <div class="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6" x-data="{ chartMode: '{{ $hasMonthly ? 'month' : 'day' }}' }">
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">Thu, chi và dòng tiền ròng</h3>
+                    </div>
+                    @if($hasMonthly && $hasDaily)
+                    <div class="flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800/50">
+                        <button type="button" @click="chartMode = 'month'; window.switchPhanTichChart && window.switchPhanTichChart('month')" :class="chartMode === 'month' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 dark:text-gray-400'" class="rounded-md px-3 py-1.5 text-theme-sm font-medium transition-colors">Theo tháng</button>
+                        <button type="button" @click="chartMode = 'day'; window.switchPhanTichChart && window.switchPhanTichChart('day')" :class="chartMode === 'day' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 dark:text-gray-400'" class="rounded-md px-3 py-1.5 text-theme-sm font-medium transition-colors">Theo ngày</button>
+                    </div>
+                    @endif
                 </div>
                 <div class="max-w-full overflow-x-auto custom-scrollbar">
                     <div id="chartPhanTichThuChi" class="-ml-4 min-h-[300px] min-w-[600px] pl-2 xl:min-w-full" data-chart-ready="0"></div>
                 </div>
                 <script type="application/json" id="chartPhanTichThuChiData">{!! json_encode([
-                    'categories' => array_column($monthlyList, 'month_label'),
-                    'thu' => array_map(fn($m) => (float) $m['thu'], $monthlyList),
-                    'chi' => array_map(fn($m) => (float) $m['chi'], $monthlyList),
-                    'net' => array_map(fn($m) => (float) $m['surplus'], $monthlyList),
+                    'month' => [
+                        'categories' => array_column($monthlyList, 'month_label'),
+                        'thu' => array_map(fn($m) => (float) $m['thu'], $monthlyList),
+                        'chi' => array_map(fn($m) => (float) $m['chi'], $monthlyList),
+                        'net' => array_map(fn($m) => (float) $m['surplus'], $monthlyList),
+                    ],
+                    'day' => [
+                        'categories' => array_column($dailyList, 'date_label'),
+                        'thu' => array_map(fn($d) => (float) $d['thu'], $dailyList),
+                        'chi' => array_map(fn($d) => (float) $d['chi'], $dailyList),
+                        'net' => array_map(fn($d) => (float) $d['surplus'], $dailyList),
+                    ],
                 ]) !!}</script>
                 <script>
                     document.addEventListener('DOMContentLoaded', function() {
                         var el = document.getElementById('chartPhanTichThuChi');
                         var dataEl = document.getElementById('chartPhanTichThuChiData');
                         if (!el || !dataEl || el.getAttribute('data-chart-ready') === '1') return;
-                        var data = JSON.parse(dataEl.textContent);
-                        if (!data.categories || data.categories.length === 0) return;
+                        var all = JSON.parse(dataEl.textContent);
+                        var hasMonth = all.month && all.month.categories && all.month.categories.length > 0;
+                        var hasDay = all.day && all.day.categories && all.day.categories.length > 0;
+                        if (!hasMonth && !hasDay) return;
                         el.setAttribute('data-chart-ready', '1');
                         if (typeof window.ApexCharts === 'undefined') return;
+                        var data = hasMonth ? all.month : all.day;
                         var opts = {
                             series: [
                                 { name: 'Thu', type: 'column', data: data.thu || [] },
@@ -203,7 +224,19 @@
                             fill: { opacity: 1 },
                             tooltip: { y: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' ₫'; } } }
                         };
-                        new window.ApexCharts(el, opts).render();
+                        var chart = new window.ApexCharts(el, opts);
+                        chart.render();
+                        window.chartPhanTichThuChiInstance = chart;
+                        window.switchPhanTichChart = function(mode) {
+                            var d = (mode === 'day' && hasDay) ? all.day : (hasMonth ? all.month : all.day);
+                            if (!d || !d.categories) return;
+                            chart.updateOptions({ xaxis: { categories: d.categories } });
+                            chart.updateSeries([
+                                { name: 'Thu', type: 'column', data: d.thu || [] },
+                                { name: 'Chi', type: 'column', data: d.chi || [] },
+                                { name: 'Dòng tiền ròng', type: 'line', data: d.net || [] }
+                            ]);
+                        };
                     });
                 </script>
             </div>

@@ -119,6 +119,61 @@ class AnalyticsAggregateService
         ];
     }
 
+    /**
+     * Thu/chi theo ngày (chronological): tổng thu, tổng chi, surplus mỗi ngày trong N ngày gần nhất.
+     *
+     * @param  array<string>  $linkedAccountNumbers
+     * @return array{daily: array<int, array{date_key: string, date_label: string, thu: float, chi: float, surplus: float}>}
+     */
+    public function dailyInOut(int $userId, array $linkedAccountNumbers = [], int $days = 60): array
+    {
+        $end = Carbon::now()->endOfDay();
+        $start = Carbon::now()->subDays($days)->startOfDay();
+
+        $query = TransactionHistory::query()
+            ->where('user_id', $userId)
+            ->whereBetween('transaction_date', [$start, $end]);
+
+        if (! empty($linkedAccountNumbers)) {
+            $query->where(function ($q) use ($linkedAccountNumbers) {
+                $q->whereIn('account_number', $linkedAccountNumbers)
+                    ->orWhereHas('bankAccount', fn ($q2) => $q2->whereIn('account_number', $linkedAccountNumbers));
+            });
+        }
+
+        $rows = $query->selectRaw("
+            DATE(transaction_date) as date_key,
+            SUM(CASE WHEN type = 'IN' THEN amount ELSE 0 END) as thu,
+            SUM(CASE WHEN type = 'OUT' THEN ABS(amount) ELSE 0 END) as chi
+        ")->groupBy('date_key')->orderBy('date_key')->get();
+
+        $byDate = [];
+        $byDateMap = [];
+        foreach ($rows as $r) {
+            $byDateMap[$r->date_key] = [
+                'date_key' => $r->date_key,
+                'date_label' => Carbon::parse($r->date_key)->format('d/m'),
+                'thu' => (float) $r->thu,
+                'chi' => (float) $r->chi,
+                'surplus' => (float) $r->thu - (float) $r->chi,
+            ];
+        }
+
+        for ($i = 0; $i <= $days; $i++) {
+            $d = $start->copy()->addDays($i);
+            $key = $d->format('Y-m-d');
+            $byDate[] = $byDateMap[$key] ?? [
+                'date_key' => $key,
+                'date_label' => $d->format('d/m'),
+                'thu' => 0.0,
+                'chi' => 0.0,
+                'surplus' => 0.0,
+            ];
+        }
+
+        return ['daily' => $byDate];
+    }
+
     private function netCashflowPrevPeriod(int $userId, array $linkedAccountNumbers, int $months): array
     {
         $endPrev = Carbon::now()->startOfMonth()->subMonth()->endOfMonth();
