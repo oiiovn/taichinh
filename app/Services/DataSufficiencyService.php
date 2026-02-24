@@ -54,7 +54,7 @@ class DataSufficiencyService
                     0,
                     0,
                     false,
-                    'Chưa có tài khoản ngân hàng liên kết hoặc khoản nợ/khoản cho vay. Liên kết tài khoản để hệ thống đồng bộ giao dịch và đưa ra nhận định. Khi đủ dữ liệu, hệ thống sẽ phân tích và gợi ý chiến lược phù hợp.'
+                    'Chưa có tài khoản ngân hàng liên kết hoặc khoản nợ/khoản cho vay. Liên kết tài khoản để hệ thống đồng bộ giao dịch và đưa ra nhận định.'
                 );
             }
             if ($count < self::MIN_TRANSACTION_COUNT) {

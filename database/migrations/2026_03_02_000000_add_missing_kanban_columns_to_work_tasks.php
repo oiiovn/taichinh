@@ -25,13 +25,11 @@ return new class extends Migration
 
     public function down(): void
     {
-        if (! Schema::hasTable('work_tasks')) {
+        if (! Schema::hasTable('work_tasks') || ! Schema::hasColumn('work_tasks', 'kanban_status')) {
             return;
         }
         Schema::table('work_tasks', function (Blueprint $table) {
-            if (Schema::hasColumn('work_tasks', 'kanban_status')) {
-                $table->dropColumn(['kanban_status', 'category', 'estimated_duration', 'actual_duration', 'impact']);
-            }
+            $table->dropColumn(['kanban_status', 'category', 'estimated_duration', 'actual_duration', 'impact']);
         });
     }
 };
