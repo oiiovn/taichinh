@@ -6,7 +6,7 @@
 
 @section('content')
     @php
-        $validTabs = ['dashboard', 'tai-khoan', 'giao-dich', 'phan-tich', 'chien-luoc', 'nguong-ngan-sach', 'no-khoan-vay'];
+        $validTabs = ['dashboard', 'tai-khoan', 'giao-dich', 'phan-tich', 'chien-luoc', 'nguong-ngan-sach', 'lich-thanh-toan', 'no-khoan-vay'];
         $activeTab = request()->routeIs('tai-chinh.loans.*') ? 'no-khoan-vay' : (in_array(request('tab'), $validTabs) ? request('tab') : 'dashboard');
         $navItems = [
             ['id' => 'dashboard', 'icon' => 'dashboard', 'label' => 'Dashboard'],
@@ -15,6 +15,7 @@
             ['id' => 'phan-tich', 'icon' => 'chart-trend', 'label' => 'Phân tích'],
             ['id' => 'chien-luoc', 'icon' => 'target', 'label' => 'Chiến lược'],
             ['id' => 'nguong-ngan-sach', 'icon' => 'chart-bar', 'label' => 'Ngưỡng ngân sách'],
+            ['id' => 'lich-thanh-toan', 'icon' => 'calendar', 'label' => 'Lịch thanh toán'],
             ['id' => 'no-khoan-vay', 'icon' => 'finance', 'label' => 'Nợ & Khoản vay'],
         ];
     @endphp

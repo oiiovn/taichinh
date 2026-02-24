@@ -476,6 +476,7 @@ class Pay2sApiService
                     $model->pay2s_bank_account_id = $ids['pay2s_bank_account_id'] ?? $model->pay2s_bank_account_id;
                     $model->user_id = $ids['user_id'];
                     $model->save();
+                    app(\App\Services\PaymentScheduleMatchService::class)->tryMatch($model->fresh());
                 }
             }
 
@@ -483,6 +484,7 @@ class Pay2sApiService
             $matchService->tryMatchPackagePayment($model);
             app(\App\Services\LoanPendingPaymentService::class)->tryMatchBankTransaction($model);
             if ($model->user_id) {
+                app(\App\Services\PaymentScheduleMatchService::class)->tryMatch($model);
                 app(TransactionClassifier::class)->classify($model->fresh());
             }
         }

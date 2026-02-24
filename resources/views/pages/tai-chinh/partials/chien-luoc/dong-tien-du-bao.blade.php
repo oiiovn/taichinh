@@ -114,6 +114,7 @@
                 <tr class="border-b border-gray-200 dark:border-gray-700">
                     <th class="bg-gray-50 px-3 py-2 text-left font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">Tháng</th>
                     <th class="bg-gray-50 px-3 py-2 text-right font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">Thu dự kiến</th>
+                    <th class="bg-gray-50 px-3 py-2 text-right font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">Thu đòi nợ</th>
                     <th class="bg-gray-50 px-3 py-2 text-right font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">Chi dự kiến</th>
                     <th class="bg-gray-50 px-3 py-2 text-right font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">Trả nợ</th>
                     <th class="bg-gray-50 px-3 py-2 text-right font-semibold text-gray-700 dark:bg-gray-800 dark:text-gray-300">Số dư cuối tháng</th>
@@ -126,6 +127,8 @@
                         if (($row['flag'] ?? '') === 'negative') $trClass .= ' bg-error-50 dark:bg-error-900/20';
                         elseif (($row['flag'] ?? '') === 'risk') $trClass .= ' bg-warning-50 dark:bg-warning-900/20';
                         elseif (($row['flag'] ?? '') === 'surplus') $trClass .= ' bg-success-50 dark:bg-success-900/20';
+                        $thuDuKien = $row['thu_du_kien'] ?? $row['thu'] ?? 0;
+                        $thuDoiNo = $row['thu_doi_no'] ?? 0;
                     @endphp
                     <tr class="{{ $trClass }}">
                         <td class="px-3 py-2">
@@ -134,7 +137,8 @@
                             @if(($row['flag'] ?? '') === 'risk') <span class="text-warning-600 dark:text-warning-400">(rủi ro)</span> @endif
                             @if(($row['flag'] ?? '') === 'surplus') <span class="text-success-600 dark:text-success-400">(dư mạnh)</span> @endif
                         </td>
-                        <td class="px-3 py-2 text-right tabular-nums text-gray-800 dark:text-gray-200">{{ number_format($row['thu']) }} ₫</td>
+                        <td class="px-3 py-2 text-right tabular-nums text-gray-800 dark:text-gray-200">{{ number_format($thuDuKien) }} ₫</td>
+                        <td class="px-3 py-2 text-right tabular-nums text-gray-600 dark:text-gray-400">{{ number_format($thuDoiNo) }} ₫</td>
                         <td class="px-3 py-2 text-right tabular-nums text-gray-800 dark:text-gray-200">{{ number_format($row['chi']) }} ₫</td>
                         <td class="px-3 py-2 text-right tabular-nums text-gray-800 dark:text-gray-200">{{ number_format($row['tra_no']) }} ₫</td>
                         <td class="px-3 py-2 text-right tabular-nums font-medium {{ ($row['so_du_cuoi'] ?? 0) >= 0 ? 'text-gray-900 dark:text-white' : 'text-error-600 dark:text-error-400' }}">{{ number_format($row['so_du_cuoi']) }} ₫</td>

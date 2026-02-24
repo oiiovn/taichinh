@@ -33,7 +33,7 @@ class IncomePurityService
             $query->whereIn('account_number', $linkedAccountNumbers);
         }
         $txs = $query->with('systemCategory')
-            ->select('id', 'amount', 'transaction_date', 'description', 'system_category_id', 'classification_status', 'classification_confidence')
+            ->select('id', 'user_id', 'amount', 'transaction_date', 'description', 'merchant_key', 'merchant_group', 'system_category_id', 'classification_status', 'classification_confidence')
             ->get();
 
         if ($txs->isEmpty()) {

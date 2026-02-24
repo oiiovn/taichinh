@@ -5,6 +5,7 @@ namespace App\Http\Controllers\TaiChinh;
 use App\Http\Controllers\Controller;
 use App\Models\IncomeGoal;
 use App\Models\IncomeGoalEvent;
+use App\Services\GoalIncomeSourceSyncService;
 use App\Services\IncomeGoalService;
 use App\Services\UserFinancialContextService;
 use Illuminate\Http\RedirectResponse;
@@ -44,6 +45,7 @@ class IncomeGoalController extends Controller
                 'period_end' => $periodEnd,
                 'category_bindings' => $g->category_bindings ?? [],
                 'expense_category_bindings' => $g->expense_category_bindings ?? [],
+                'income_source_keywords' => $g->income_source_keywords ?? [],
             ],
         ]);
     }
@@ -78,6 +80,8 @@ class IncomeGoalController extends Controller
             $request->merge(['expense_category_bindings' => $expenseBindings]);
         }
 
+        $incomeSourceKeywords = $this->normalizeIncomeSourceKeywordsInput($request->input('income_source_keywords'));
+
         $validator = Validator::make($request->all(), [
             'name' => 'required|string|max:255',
             'amount_target_vnd' => 'required|integer|min:1000',
@@ -106,6 +110,7 @@ class IncomeGoalController extends Controller
             'period_type' => $request->input('period_type'),
             'category_bindings' => $request->input('category_bindings'),
             'expense_category_bindings' => $request->input('expense_category_bindings') ?: null,
+            'income_source_keywords' => $incomeSourceKeywords,
             'is_active' => true,
         ];
 
@@ -129,6 +134,8 @@ class IncomeGoalController extends Controller
             'event_type' => 'goal_created',
             'payload' => ['name' => $goal->name, 'amount_target_vnd' => $goal->amount_target_vnd],
         ]);
+
+        app(GoalIncomeSourceSyncService::class)->syncForGoal($goal);
 
         $msg = 'Đã tạo mục tiêu thu.';
         return $wantsJson ? response()->json(['success' => true, 'message' => $msg]) : redirect()->route('tai-chinh', ['tab' => 'nguong-ngan-sach'])->with('success', $msg);
@@ -187,12 +194,15 @@ class IncomeGoalController extends Controller
 
         $goal = IncomeGoal::where('user_id', $user->id)->where('id', $id)->firstOrFail();
 
+        $incomeSourceKeywords = $this->normalizeIncomeSourceKeywordsInput($request->input('income_source_keywords'));
+
         $data = [
             'name' => $request->input('name'),
             'amount_target_vnd' => (int) $request->input('amount_target_vnd'),
             'period_type' => $request->input('period_type'),
             'category_bindings' => $request->input('category_bindings'),
             'expense_category_bindings' => $request->input('expense_category_bindings') ?: null,
+            'income_source_keywords' => $incomeSourceKeywords,
         ];
 
         if ($request->input('period_type') === 'month') {
@@ -214,6 +224,8 @@ class IncomeGoalController extends Controller
             'event_type' => 'goal_updated',
             'payload' => ['name' => $goal->name, 'amount_target_vnd' => $goal->amount_target_vnd],
         ]);
+
+        app(GoalIncomeSourceSyncService::class)->syncForGoal($goal->fresh());
 
         $msg = 'Đã cập nhật mục tiêu thu.';
         return $wantsJson ? response()->json(['success' => true, 'message' => $msg]) : redirect()->route('tai-chinh', ['tab' => 'nguong-ngan-sach'])->with('success', $msg);
@@ -238,6 +250,26 @@ class IncomeGoalController extends Controller
 
         $msg = 'Đã xóa mục tiêu thu.';
         return $wantsJson ? response()->json(['success' => true, 'message' => $msg]) : redirect()->route('tai-chinh', ['tab' => 'nguong-ngan-sach'])->with('success', $msg);
+    }
+
+    /**
+     * Chuẩn hóa input income_source_keywords: string (phân tách dấu phẩy) hoặc array → array.
+     *
+     * @param  mixed  $input
+     * @return array<int, string>
+     */
+    private function normalizeIncomeSourceKeywordsInput($input): array
+    {
+        if (is_array($input)) {
+            return array_values(array_filter(array_map(function ($v) {
+                return is_string($v) ? trim($v) : '';
+            }, $input), fn ($v) => $v !== ''));
+        }
+        if (is_string($input)) {
+            return array_values(array_filter(array_map('trim', explode(',', $input)), fn ($v) => $v !== ''));
+        }
+
+        return [];
     }
 
     public function mucTieuThuTable(Request $request)

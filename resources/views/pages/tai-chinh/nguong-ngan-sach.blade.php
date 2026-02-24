@@ -584,6 +584,13 @@
                     </div>
                 </div>
                 <div>
+                    <label for="income_source_keywords" class="block text-theme-sm font-medium text-gray-700 dark:text-gray-300">Kênh thu / từ khóa</label>
+                    <input type="text" name="income_source_keywords" id="income_source_keywords" value="{{ old('income_source_keywords', '') }}"
+                        class="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                        placeholder="VD: grabfood, shopeefood (để Thu dự kiến nhận diện thêm nguồn thu)">
+                    <p class="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">Phân cách bằng dấu phẩy. Dùng để nhận diện giao dịch thu từ kênh này.</p>
+                </div>
+                <div>
                     <label for="amount_target_vnd" class="block text-theme-sm font-medium text-gray-700 dark:text-gray-300">Số tiền mục tiêu (₫)</label>
                     <input type="text" name="amount_target_vnd" id="amount_target_vnd" value="{{ old('amount_target_vnd', '') }}" required inputmode="numeric" data-format-vnd
                         class="mt-1 block w-full max-w-xs rounded-lg border border-gray-300 px-3 py-2 text-gray-900 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
@@ -814,6 +821,11 @@
         });
         updateGoalBindings();
         updateGoalExpenseBindings();
+        var kwInp = document.getElementById('income_source_keywords');
+        if (kwInp) {
+            var kw = d.income_source_keywords;
+            kwInp.value = Array.isArray(kw) ? kw.join(', ') : (kw || '');
+        }
         var titleEl = document.getElementById('modal-muc-tieu-title');
         var btnEl = document.getElementById('modal-muc-tieu-submit-btn');
         if (titleEl) titleEl.textContent = 'Sửa mục tiêu thu';

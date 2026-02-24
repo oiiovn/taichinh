@@ -6,6 +6,7 @@ use App\Models\LoanContract;
 use App\Models\LoanPendingPayment;
 use App\Models\TransactionHistory;
 use App\Models\UserRecurringPattern;
+use App\Services\PaymentScheduleObligationService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
@@ -52,6 +53,10 @@ class CashflowProjectionService
         array $runContext = []
     ): array {
         $linkedAccountNumbers = $runContext['linked_account_numbers'] ?? [];
+        $obligationService = app(PaymentScheduleObligationService::class);
+        $obligation30 = $obligationService->obligationsNext30Days($userId);
+        $scheduleByMonth = $obligationService->timelineByMonth($userId, $months);
+
         $incomeResult = $this->adaptiveIncome->estimate($userId, $linkedAccountNumbers);
         $projectedIncome = (float) ($incomeResult['projected_income_per_month'] ?? 0);
         $recurringExpense = $this->recurringExpensePerMonth($userId);
@@ -68,7 +73,7 @@ class CashflowProjectionService
         $start = Carbon::now()->startOfMonth();
         $firstMonthKey = $start->format('Y-m');
         $debtFirstMonth = (float) ($debtByMonth[$firstMonthKey] ?? 0);
-        $committedOutflows30d = $debtFirstMonth + $recurringExpense;
+        $committedOutflows30d = $debtFirstMonth + $recurringExpense + (float) ($obligation30['total'] ?? 0);
         $availableLiquidity = $liquidBalance - $committedOutflows30d;
         $lockedLiquidity = $committedOutflows30d;
         $effectiveLiquidity = $availableLiquidity;
@@ -85,8 +90,11 @@ class CashflowProjectionService
             $monthStart = $start->copy()->addMonths($i);
             $key = $monthStart->format('Y-m');
 
-            $thu = $projectedIncome + ($receivableByMonth[$key] ?? 0) + $extraIncome;
-            $chi = ($behaviorExpense + $recurringExpense) * (1 - $expenseReductionPct);
+            $thuDuKien = $projectedIncome + $extraIncome;
+            $thuDoiNo = (float) ($receivableByMonth[$key] ?? 0);
+            $thu = $thuDuKien + $thuDoiNo;
+            $scheduleChi = (float) ($scheduleByMonth[$key] ?? 0);
+            $chi = ($behaviorExpense + $recurringExpense) * (1 - $expenseReductionPct) + $scheduleChi;
             $traNo = $debtByMonth[$key] ?? 0;
             if ($extraPaymentLoanId && $extraPaymentAmount > 0) {
                 $traNo += $extraPaymentAmount;
@@ -106,8 +114,11 @@ class CashflowProjectionService
             $timeline[] = [
                 'month' => $key,
                 'month_label' => $monthStart->locale('vi')->monthName . ' ' . $monthStart->year,
+                'thu_du_kien' => round($thuDuKien),
+                'thu_doi_no' => round($thuDoiNo),
                 'thu' => round($thu),
                 'chi' => round($chi),
+                'chi_lich' => round($scheduleChi),
                 'tra_no' => round($traNo),
                 'so_du_dau' => round($soDuDau),
                 'so_du_cuoi' => round($soDuCuoi),
@@ -118,12 +129,13 @@ class CashflowProjectionService
         }
 
         $monthlyExpense = $behaviorExpense + $recurringExpense;
+        $avgScheduleByMonth = $months > 0 ? array_sum($scheduleByMonth) / $months : 0.0;
         $minBalance = $timeline ? min(array_column($timeline, 'so_du_cuoi')) : 0;
         $runwayMonths = $this->computeRunwayMonths($timeline);
 
         $operatingIncomeForDeficit = $projectedIncome + array_sum($receivableByMonth) / max(1, $months);
         $avgMonthlyDebtForDeficit = $months > 0 ? array_sum($debtByMonth) / $months : 0;
-        $monthlyDeficitAbsolute = max(0, $monthlyExpense + $avgMonthlyDebtForDeficit - ($operatingIncomeForDeficit + $extraIncome));
+        $monthlyDeficitAbsolute = max(0, $monthlyExpense + $avgMonthlyDebtForDeficit + $avgScheduleByMonth - ($operatingIncomeForDeficit + $extraIncome));
         $runwayFromLiquidityMonths = $monthlyDeficitAbsolute > 0 && $availableLiquidity > 0
             ? (int) floor($availableLiquidity / $monthlyDeficitAbsolute) : null;
         $monthlyDeficitPctIncome = $operatingIncomeForDeficit > 0 && $monthlyDeficitAbsolute > 0

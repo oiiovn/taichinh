@@ -2,7 +2,7 @@
 
 @section('taiChinhContent')
 @php
-        $validTabs = ['dashboard', 'tai-khoan', 'giao-dich', 'phan-tich', 'chien-luoc', 'nguong-ngan-sach', 'no-khoan-vay'];
+        $validTabs = ['dashboard', 'tai-khoan', 'giao-dich', 'phan-tich', 'chien-luoc', 'nguong-ngan-sach', 'lich-thanh-toan', 'no-khoan-vay'];
         $tab = in_array(request('tab'), $validTabs) ? request('tab') : 'dashboard';
     @endphp
     @if(session('error'))
@@ -29,6 +29,8 @@
         @include('pages.tai-chinh.chien-luoc')
     @elseif($tab === 'nguong-ngan-sach')
         @include('pages.tai-chinh.nguong-ngan-sach')
+    @elseif($tab === 'lich-thanh-toan')
+        @include('pages.tai-chinh.lich-thanh-toan')
     @elseif($tab === 'no-khoan-vay')
         @include('pages.tai-chinh.no-khoan-vay')
     @endif

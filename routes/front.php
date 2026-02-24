@@ -115,6 +115,10 @@ Route::middleware('auth')->group(function () {
         Route::post('/tai-chinh/danh-muc', [\App\Http\Controllers\TaiChinh\UserCategoryController::class, 'store'])->name('tai-chinh.danh-muc.store');
         Route::put('/tai-chinh/danh-muc/{id}', [\App\Http\Controllers\TaiChinh\UserCategoryController::class, 'update'])->name('tai-chinh.danh-muc.update');
         Route::delete('/tai-chinh/danh-muc/{id}', [\App\Http\Controllers\TaiChinh\UserCategoryController::class, 'destroy'])->name('tai-chinh.danh-muc.destroy');
+        Route::post('/tai-chinh/lich-thanh-toan', [\App\Http\Controllers\TaiChinh\PaymentScheduleController::class, 'store'])->name('tai-chinh.payment-schedules.store');
+        Route::get('/tai-chinh/lich-thanh-toan/{id}/edit', [\App\Http\Controllers\TaiChinh\PaymentScheduleController::class, 'edit'])->name('tai-chinh.payment-schedules.edit');
+        Route::put('/tai-chinh/lich-thanh-toan/{id}', [\App\Http\Controllers\TaiChinh\PaymentScheduleController::class, 'update'])->name('tai-chinh.payment-schedules.update');
+        Route::delete('/tai-chinh/lich-thanh-toan/{id}', [\App\Http\Controllers\TaiChinh\PaymentScheduleController::class, 'destroy'])->name('tai-chinh.payment-schedules.destroy');
         Route::post('/tai-chinh/tai-khoan', [\App\Http\Controllers\TaiChinh\BankAccountController::class, 'store'])->name('tai-chinh.tai-khoan.store');
         Route::post('/tai-chinh/tai-khoan/cap-nhat-so-du', [\App\Http\Controllers\TaiChinh\BankAccountController::class, 'updateAccountBalance'])->name('tai-chinh.tai-khoan.update-balance');
         Route::post('/tai-chinh/tai-khoan/unlink', [\App\Http\Controllers\TaiChinh\BankAccountController::class, 'unlink'])->name('tai-chinh.tai-khoan.unlink');

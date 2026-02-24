@@ -21,12 +21,14 @@ class IncomeGoal extends Model
         'period_end',
         'category_bindings',
         'expense_category_bindings',
+        'income_source_keywords',
         'is_active',
     ];
 
     protected $casts = [
         'category_bindings' => 'array',
         'expense_category_bindings' => 'array',
+        'income_source_keywords' => 'array',
         'amount_target_vnd' => 'integer',
         'is_active' => 'boolean',
     ];
@@ -39,5 +41,10 @@ class IncomeGoal extends Model
     public function snapshots(): HasMany
     {
         return $this->hasMany(IncomeGoalSnapshot::class);
+    }
+
+    public function userIncomeSources(): HasMany
+    {
+        return $this->hasMany(UserIncomeSource::class, 'income_goal_id');
     }
 }

@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\TransactionHistory;
+use App\Services\IncomeSourceResolverService;
 use App\Services\TransactionClassifier;
 use Illuminate\Console\Command;
 
@@ -14,7 +15,7 @@ class ReclassifyTransactionCommand extends Command
 
     protected $description = 'Xóa phân loại cũ và chạy lại classifier từ đầu cho một hoặc vài giao dịch.';
 
-    public function handle(TransactionClassifier $classifier): int
+    public function handle(TransactionClassifier $classifier, IncomeSourceResolverService $incomeSourceResolver): int
     {
         $id = $this->option('id');
         $desc = $this->option('description');
@@ -35,32 +36,34 @@ class ReclassifyTransactionCommand extends Command
         }
 
         foreach ($transactions as $tx) {
-            $this->reclassifyOne($classifier, $tx);
+            $this->reclassifyOne($classifier, $incomeSourceResolver, $tx);
         }
 
         return 0;
     }
 
-    private function reclassifyOne(TransactionClassifier $classifier, TransactionHistory $tx): void
+    private function reclassifyOne(TransactionClassifier $classifier, IncomeSourceResolverService $incomeSourceResolver, TransactionHistory $tx): void
     {
         $this->line('---');
         $this->line('ID: ' . $tx->id . ' | ' . ($tx->transaction_date ? $tx->transaction_date->format('d/m/Y H:i') : '') . ' | ' . $tx->amount . ' | ' . ($tx->description ?? ''));
-        $this->line('Trước: merchant_key=' . ($tx->merchant_key ?? 'null') . ', merchant_group=' . ($tx->merchant_group ?? 'null') . ', category_id=' . ($tx->user_category_id ?? 'null') . ', status=' . ($tx->classification_status ?? 'null') . ', source=' . ($tx->classification_source ?? 'null'));
+        $this->line('Trước: merchant_key=' . ($tx->merchant_key ?? 'null') . ', merchant_group=' . ($tx->merchant_group ?? 'null') . ', category_id=' . ($tx->user_category_id ?? 'null') . ', income_source_id=' . ($tx->income_source_id ?? 'null') . ', status=' . ($tx->classification_status ?? 'null') . ', source=' . ($tx->classification_source ?? 'null'));
 
         $tx->merchant_key = null;
         $tx->merchant_group = null;
         $tx->amount_bucket = null;
         $tx->user_category_id = null;
         $tx->system_category_id = null;
+        $tx->income_source_id = null;
         $tx->classification_status = 'pending';
         $tx->classification_source = null;
         $tx->classification_confidence = null;
         $tx->save();
 
         $classifier->classify($tx->fresh());
+        $incomeSourceResolver->resolveAndAssign($tx->fresh());
 
         $tx->refresh();
         $catName = $tx->userCategory ? $tx->userCategory->name : ($tx->systemCategory ? $tx->systemCategory->name : null);
-        $this->info('Sau:  merchant_key=' . ($tx->merchant_key ?? 'null') . ', merchant_group=' . ($tx->merchant_group ?? 'null') . ', category=' . ($catName ?? 'null') . ' (id=' . ($tx->user_category_id ?? $tx->system_category_id) . '), status=' . $tx->classification_status . ', source=' . ($tx->classification_source ?? 'null') . ', confidence=' . ($tx->classification_confidence ?? ''));
+        $this->info('Sau:  merchant_key=' . ($tx->merchant_key ?? 'null') . ', merchant_group=' . ($tx->merchant_group ?? 'null') . ', category=' . ($catName ?? 'null') . ' (id=' . ($tx->user_category_id ?? $tx->system_category_id) . '), income_source_id=' . ($tx->income_source_id ?? 'null') . ', status=' . $tx->classification_status . ', source=' . ($tx->classification_source ?? 'null') . ', confidence=' . ($tx->classification_confidence ?? ''));
     }
 }

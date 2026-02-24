@@ -23,6 +23,7 @@ class TransactionHistory extends Model
         'classification_source',
         'system_category_id',
         'user_category_id',
+        'income_source_id',
         'classification_status',
         'classification_confidence',
         'classification_version',
@@ -75,5 +76,10 @@ class TransactionHistory extends Model
     public function userCategory(): BelongsTo
     {
         return $this->belongsTo(UserCategory::class);
+    }
+
+    public function userIncomeSource(): BelongsTo
+    {
+        return $this->belongsTo(UserIncomeSource::class, 'income_source_id');
     }
 }

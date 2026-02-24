@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\TransactionHistory;
+use App\Services\IncomeSourceResolverService;
 use App\Services\Pay2sApiService;
 use App\Services\TransactionClassifier;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -16,7 +17,7 @@ class ClassifyTransactionJob implements ShouldQueue
         public int $transactionId
     ) {}
 
-    public function handle(TransactionClassifier $classifier, Pay2sApiService $pay2sService): void
+    public function handle(TransactionClassifier $classifier, Pay2sApiService $pay2sService, IncomeSourceResolverService $incomeSourceResolver): void
     {
         $transaction = TransactionHistory::find($this->transactionId);
 
@@ -37,5 +38,7 @@ class ClassifyTransactionJob implements ShouldQueue
         }
 
         $classifier->classify($transaction);
+
+        $incomeSourceResolver->resolveAndAssign($transaction->fresh());
     }
 }

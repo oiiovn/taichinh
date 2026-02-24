@@ -87,7 +87,10 @@
 | FinancialInsightPipeline, InsightPayloadService | Pipeline và payload cho Insight AI |
 | TransactionClassifier, TransactionSemanticLayer | Phân loại giao dịch, semantic layer |
 | LoanLedgerService, UnifiedLoansBuilderService | Sổ cái khoản vay, gom nợ + vay |
+| PaymentScheduleObligationService | Nghĩa vụ lịch 30/90 ngày, timelineByMonth, trạng thái thực thi |
+| CashflowProjectionService | Projection dòng tiền (thu/chi/lịch/nợ), runway, cảnh báo (dùng obligation + scheduleByMonth) |
 | BudgetThresholdService, IncomeGoalService | Ngưỡng ngân sách, mục tiêu thu nhập |
+| FinancialRoleClassifier | Phân vai trò giao dịch (IN/OUT); match user_income_sources (bảng không có thì fallback an toàn) |
 | AdaptiveThresholdService, DualAxisAwarenessService | Ngưỡng thích nghi, nhận thức hai trục |
 
 ## 3. Cơ sở dữ liệu
@@ -100,7 +103,10 @@
 | user_bank_accounts, pay2s_* | Tài khoản ngân hàng, cấu hình API Pay2s |
 | loan_contracts, loan_ledger_entries, loan_pending_payments | Khoản vay, sổ cái, lịch trả |
 | user_liabilities, liability_payments, liability_accruals | Nợ, thanh toán, phát sinh |
-| budget_thresholds, budget_threshold_events | Ngưỡng ngân sách, sự kiện vượt ngưỡng |
+| budget_thresholds, budget_threshold_snapshots, budget_threshold_events | Ngưỡng ngân sách, snapshot kỳ, sự kiện vượt ngưỡng |
+| income_goals, income_goal_snapshots, income_goal_events | Mục tiêu thu, snapshot đạt %, sự kiện |
+| user_income_sources, income_source_keywords | Nguồn thu (gắn mục tiêu/keyword), từ khóa match giao dịch IN |
+| payment_schedules | Lịch thanh toán định kỳ (nghĩa vụ 30/90 ngày, timeline projection) |
 | financial_state_snapshots, financial_insight_ai_cache | Snapshot trạng thái tài chính, cache insight AI |
 | work_tasks, labels, projects | Công việc, nhãn, dự án (behavior/kanban) |
 | behavior_* | Các bảng behavior intelligence (events, aggregates, trust, …) |
@@ -161,6 +167,14 @@ npm run build
 - **Log channel:** config `config/logging.php` (stack, single, level)
 - Không ghi mật khẩu/token vào log.
 
+### 6.1 Khắc phục lỗi trang Tài chính ("Không tải được dữ liệu tài chính")
+
+- **Nguyên nhân thường gặp:** thiếu bảng DB, exception trong pipeline/build (FinancialInsightPipeline, CashflowProjectionService, BudgetThresholdService, IncomeGoalService, FinancialRoleClassifier).
+- **Cách xử lý:**
+  1. Chạy đủ migration: `php artisan migrate` (hoặc `php artisan migrate --force` trên production). Các bảng liên quan: `budget_threshold_snapshots`, `income_goals`, `income_goal_snapshots`, `user_income_sources`, `payment_schedules`.
+  2. Xem log: `storage/logs/laravel.log` — tìm dòng `TaiChinhController@index` hoặc `local.ERROR` để biết exception (table not found, undefined variable, out of range, …).
+  3. **Resilience:** Ứng dụng đã bọc một số nhánh trong try-catch hoặc fallback: thiếu bảng budget/income → attachBudgetAndIncomeGoalData ghi warning, trang vẫn load; thiếu `user_income_sources` → FinancialRoleClassifier bỏ qua match nguồn thu; snapshot mục tiêu thu âm → clamp về 0 tránh lỗi cột UNSIGNED. Nếu vẫn lỗi, sửa theo stack trace (ví dụ thiếu biến `scheduleByMonth` trong CashflowProjectionService đã được bổ sung từ PaymentScheduleObligationService).
+
 ## 7. Changelog kỹ thuật
 
 | Ngày | Thay đổi |
@@ -168,6 +182,7 @@ npm run build
 | 2026-02-24 | Cập nhật doc: stack, env, migration, service, Vite bypass. |
 | 2026-02-24 | Bổ sung bảng route chính (tai-chinh, thu-chi, cong-viec, tribeos, admin), API nội bộ, lệnh triển khai (queue, scheduler), test, log. |
 | 2026-02-24 | Chuẩn bị API cho app mobile: Laravel Sanctum, routes/api.php v1 (login, logout, tai-chinh/insight-payload, projection, insight-feedback, giao-dich), GiaoDichController@giaoDichJson, doc mục 2.3. |
+| 2026-02-24 | Bổ sung bảng: budget_threshold_snapshots, income_goals, income_goal_snapshots, user_income_sources, income_source_keywords, payment_schedules. Service: PaymentScheduleObligationService, CashflowProjectionService (scheduleByMonth/obligation30), FinancialRoleClassifier. Mục 6.1: Khắc phục lỗi "Không tải được dữ liệu tài chính" (migration, log, resilience). |
 
 ---
 *Cập nhật lần cuối: 2026-02-24.*

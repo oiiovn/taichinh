@@ -4,6 +4,8 @@ namespace App\Services\TaiChinh;
 
 use App\Models\BudgetThreshold;
 use App\Models\IncomeGoal;
+use App\Models\PaymentSchedule;
+use App\Services\PaymentScheduleObligationService;
 use App\Models\SystemCategory;
 use App\Models\TransactionHistory;
 use App\Services\AdaptiveThresholdService;
@@ -145,6 +147,29 @@ class TaiChinhIndexViewDataBuilder
         $viewData['title'] = 'Tài chính';
         $viewData['insightGptPrompt'] = InsightPayloadService::GPT_SYSTEM_PROMPT;
         $this->attachBudgetAndIncomeGoalData($user, $linkedAccountNumbers, $request, $viewData);
+        $viewData['paymentSchedules'] = $user ? PaymentSchedule::where('user_id', $user->id)->orderBy('next_due_date')->get() : collect();
+        if ($user) {
+            $obligationService = app(PaymentScheduleObligationService::class);
+            $viewData['paymentScheduleObligation30'] = $obligationService->obligationsNext30Days($user->id);
+            $viewData['paymentScheduleObligation90'] = $obligationService->obligationsNext90Days($user->id);
+            $viewData['paymentScheduleExecutionStatus'] = [];
+            foreach ($viewData['paymentSchedules'] as $s) {
+                $viewData['paymentScheduleExecutionStatus'][$s->id] = $obligationService->getExecutionStatus($s);
+            }
+            $bySchedule30 = [];
+            foreach ($viewData['paymentScheduleObligation30']['items'] ?? [] as $item) {
+                $sid = (int) ($item['schedule_id'] ?? 0);
+                if ($sid) {
+                    $bySchedule30[$sid] = ($bySchedule30[$sid] ?? 0) + (float) ($item['amount'] ?? 0);
+                }
+            }
+            $viewData['scheduleObligation30dAmount'] = $bySchedule30;
+        } else {
+            $viewData['paymentScheduleObligation30'] = ['total' => 0, 'items' => []];
+            $viewData['paymentScheduleObligation90'] = ['total' => 0, 'items' => []];
+            $viewData['paymentScheduleExecutionStatus'] = [];
+            $viewData['scheduleObligation30dAmount'] = [];
+        }
 
         return $viewData;
     }
@@ -258,26 +283,34 @@ class TaiChinhIndexViewDataBuilder
 
     private function attachBudgetAndIncomeGoalData(?object $user, array $linkedAccountNumbers, Request $request, array &$viewData): void
     {
-        $viewData['budgetThresholds'] = $user ? BudgetThreshold::where('user_id', $user->id)->where('is_active', true)->orderByDesc('created_at')->get() : collect();
-        $viewData['editThreshold'] = null;
-        if ($user && $request->integer('edit') > 0 && $request->get('tab') === 'nguong-ngan-sach') {
-            $viewData['editThreshold'] = BudgetThreshold::where('user_id', $user->id)->where('id', $request->integer('edit'))->first();
-        }
-        $viewData['openModalNguong'] = $request->get('tab') === 'nguong-ngan-sach' && $request->boolean('openModal');
         $viewData['systemCategoriesExpense'] = SystemCategory::whereIn('type', ['expense'])->orderBy('name')->get();
-        $viewData['budgetThresholdSummary'] = [];
-        if ($user && ! empty($linkedAccountNumbers)) {
-            $viewData['budgetThresholdSummary'] = $this->budgetThresholdService->getThresholdSummaryForUser($user->id, $linkedAccountNumbers);
-        }
-        $viewData['incomeGoals'] = $user ? IncomeGoal::where('user_id', $user->id)->where('is_active', true)->orderByDesc('created_at')->get() : collect();
-        $viewData['editIncomeGoal'] = null;
-        if ($user && $request->integer('edit_goal') > 0 && $request->get('tab') === 'nguong-ngan-sach') {
-            $viewData['editIncomeGoal'] = IncomeGoal::where('user_id', $user->id)->where('id', $request->integer('edit_goal'))->first();
-        }
+        $viewData['openModalNguong'] = $request->get('tab') === 'nguong-ngan-sach' && $request->boolean('openModal');
         $viewData['openModalMucTieuThu'] = $request->get('tab') === 'nguong-ngan-sach' && $request->boolean('openModalGoal');
+        $viewData['budgetThresholds'] = collect();
+        $viewData['editThreshold'] = null;
+        $viewData['budgetThresholdSummary'] = [];
+        $viewData['incomeGoals'] = collect();
+        $viewData['editIncomeGoal'] = null;
         $viewData['incomeGoalSummary'] = [];
-        if ($user && ! empty($linkedAccountNumbers)) {
-            $viewData['incomeGoalSummary'] = $this->incomeGoalService->getGoalSummaryForUser($user->id, $linkedAccountNumbers);
+
+        try {
+            $viewData['budgetThresholds'] = $user ? BudgetThreshold::where('user_id', $user->id)->where('is_active', true)->orderByDesc('created_at')->get() : collect();
+            if ($user && $request->integer('edit') > 0 && $request->get('tab') === 'nguong-ngan-sach') {
+                $viewData['editThreshold'] = BudgetThreshold::where('user_id', $user->id)->where('id', $request->integer('edit'))->first();
+            }
+            if ($user && ! empty($linkedAccountNumbers)) {
+                $viewData['budgetThresholdSummary'] = $this->budgetThresholdService->getThresholdSummaryForUser($user->id, $linkedAccountNumbers);
+            }
+
+            $viewData['incomeGoals'] = $user ? IncomeGoal::where('user_id', $user->id)->where('is_active', true)->orderByDesc('created_at')->get() : collect();
+            if ($user && $request->integer('edit_goal') > 0 && $request->get('tab') === 'nguong-ngan-sach') {
+                $viewData['editIncomeGoal'] = IncomeGoal::where('user_id', $user->id)->where('id', $request->integer('edit_goal'))->first();
+            }
+            if ($user && ! empty($linkedAccountNumbers)) {
+                $viewData['incomeGoalSummary'] = $this->incomeGoalService->getGoalSummaryForUser($user->id, $linkedAccountNumbers);
+            }
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('attachBudgetAndIncomeGoalData failed', ['message' => $e->getMessage()]);
         }
     }
 

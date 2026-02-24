@@ -1,7 +1,7 @@
 @php
     $userCategories = $userCategories ?? collect();
-    $txItems = isset($transactionHistory) && method_exists($transactionHistory, 'items') ? $transactionHistory->items() : (is_array($transactionHistory ?? null) ? $transactionHistory : []);
-    $hasPending = $userCategories->isNotEmpty() && collect($txItems)->contains(fn ($t) => is_object($t) && ($t->classification_status ?? null) === 'pending');
+    $txItems = isset($transactionHistory) && method_exists($transactionHistory, 'items') ? $transactionHistory->items() : (is_array($transactionHistory ?? null) && isset($transactionHistory['data']) ? $transactionHistory['data'] : []);
+    $hasPending = $userCategories->isNotEmpty() && collect($txItems)->filter(fn ($t) => is_object($t))->contains(fn ($t) => ($t->classification_status ?? null) === 'pending');
     $hasCategories = $userCategories->isNotEmpty();
     $showStkColumn = count($linkedAccountNumbers ?? []) > 1;
 @endphp

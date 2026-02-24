@@ -2,12 +2,14 @@
 
 namespace App\Services;
 
+use App\Models\IncomeSourceKeyword;
 use App\Models\TransactionHistory;
+use App\Models\UserIncomeSource;
 
 /**
  * Semantic Layer: gán vai trò dòng tiền cho từng giao dịch.
  * Transaction → Financial Role → Income/Expense Purity chỉ dùng operating.
- * Pending đi qua behavior inference (keywords, amount) thay vì hardcode weight.
+ * Khi truyền userId: merge keywords từ user_income_sources → trả thêm income_source_id nếu match.
  */
 class FinancialRoleClassifier
 {
@@ -22,20 +24,21 @@ class FinancialRoleClassifier
     public const UNKNOWN = 'UNKNOWN';
 
     /**
-     * Phân loại giao dịch → role + confidence [0,1]. Pending dùng behavior inference.
+     * Phân loại giao dịch → role + confidence [0,1]. Khi có userId: match user_income_sources → trả thêm income_source_id.
      *
-     * @return array{role: string, confidence: float}
+     * @return array{role: string, confidence: float, income_source_id?: int|null}
      */
-    public function classify(TransactionHistory $t, float $medianMonthlyAmount = 0): array
+    public function classify(TransactionHistory $t, float $medianMonthlyAmount = 0, ?int $userId = null): array
     {
         $isIn = strtoupper((string) ($t->type ?? 'IN')) === 'IN';
         $cfg = config('financial_roles', []);
         $desc = strtolower((string) ($t->description ?? ''));
         $categoryName = $t->systemCategory?->name;
         $isPending = ($t->classification_status ?? '') === TransactionHistory::CLASSIFICATION_STATUS_PENDING;
+        $uid = $userId ?? (int) ($t->user_id ?? 0);
 
         if ($isIn) {
-            $roleConf = $this->classifyInflow($categoryName, $desc, $isPending, $t, $medianMonthlyAmount, $cfg);
+            $roleConf = $this->classifyInflow($categoryName, $desc, $isPending, $t, $medianMonthlyAmount, $cfg, $uid);
         } else {
             $roleConf = $this->classifyOutflow($categoryName, $desc, $isPending, $t, $medianMonthlyAmount, $cfg);
         }
@@ -43,9 +46,17 @@ class FinancialRoleClassifier
         return $roleConf;
     }
 
-    private function classifyInflow(?string $categoryName, string $desc, bool $isPending, TransactionHistory $t, float $median, array $cfg): array
+    private function classifyInflow(?string $categoryName, string $desc, bool $isPending, TransactionHistory $t, float $median, array $cfg, int $userId = 0): array
     {
         $inflow = $cfg['inflow_roles'] ?? [];
+
+        if ($userId > 0) {
+            $userSourceMatch = $this->matchUserIncomeSource($userId, $desc, (string) ($t->merchant_key ?? ''), $t->merchant_group);
+            if ($userSourceMatch !== null) {
+                $conf = $this->dynamicConfidence($t, $median, true);
+                return ['role' => self::OPERATING_INCOME, 'confidence' => $conf, 'income_source_id' => $userSourceMatch];
+            }
+        }
 
         if ($categoryName !== null) {
             foreach ($inflow as $role => $data) {
@@ -85,6 +96,43 @@ class FinancialRoleClassifier
         }
 
         return ['role' => self::UNKNOWN, 'confidence' => 0.3];
+    }
+
+    /**
+     * Match description/merchant với user_income_sources (active) + keywords. Trả về income_source_id hoặc null.
+     */
+    private function matchUserIncomeSource(int $userId, string $desc, string $merchantKey, ?string $merchantGroup): ?int
+    {
+        try {
+            $sources = UserIncomeSource::where('user_id', $userId)
+                ->where('is_active', true)
+                ->with('keywords')
+                ->get();
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        $search = $desc . ' ' . strtolower($merchantKey ?? '') . ' ' . strtolower($merchantGroup ?? '');
+
+        foreach ($sources as $source) {
+            foreach ($source->keywords as $kw) {
+                $keyword = $kw->keyword;
+                $matchType = $kw->match_type ?? IncomeSourceKeyword::MATCH_TYPE_CONTAINS;
+                $matched = false;
+                if ($matchType === IncomeSourceKeyword::MATCH_TYPE_EXACT) {
+                    $matched = strtolower(trim($search)) === strtolower($keyword);
+                } elseif ($matchType === IncomeSourceKeyword::MATCH_TYPE_REGEX) {
+                    $matched = @preg_match('/' . $keyword . '/iu', $search) === 1;
+                } else {
+                    $matched = str_contains($search, strtolower($keyword));
+                }
+                if ($matched) {
+                    return (int) $source->id;
+                }
+            }
+        }
+
+        return null;
     }
 
     private function classifyOutflow(?string $categoryName, string $desc, bool $isPending, TransactionHistory $t, float $median, array $cfg): array

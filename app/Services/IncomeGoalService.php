@@ -266,6 +266,7 @@ class IncomeGoalService
 
     private function upsertSnapshot(int $goalId, string $periodKey, Carbon $start, Carbon $end, int $target, int $earned, float $achievementPct, bool $met): void
     {
+        $totalEarnedVnd = $earned < 0 ? 0 : $earned;
         IncomeGoalSnapshot::updateOrCreate(
             [
                 'income_goal_id' => $goalId,
@@ -274,8 +275,8 @@ class IncomeGoalService
             [
                 'period_start' => $start,
                 'period_end' => $end,
-                'amount_target_vnd' => $target,
-                'total_earned_vnd' => $earned,
+                'amount_target_vnd' => $target >= 0 ? $target : 0,
+                'total_earned_vnd' => $totalEarnedVnd,
                 'achievement_pct' => $achievementPct,
                 'met' => $met,
             ]
