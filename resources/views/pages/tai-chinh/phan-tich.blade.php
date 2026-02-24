@@ -7,6 +7,7 @@
     $categoryItems = $byCategory['items'] ?? [];
     $concentration = $byCategory['concentration'] ?? [];
     $linkedAccountNumbers = $linkedAccountNumbers ?? [];
+    $hasActualData = $analytics['has_actual_data'] ?? true;
     $hasMonthly = $monthly && !empty($monthly['monthly']);
     $monthlyList = $hasMonthly ? $monthly['monthly'] : [];
     $hasDaily = $daily && !empty($daily['daily']);
@@ -27,7 +28,8 @@
         <h2 class="text-theme-xl font-semibold text-gray-900 dark:text-white">Phân tích thu chi</h2>
     </div>
 
-    {{-- Lọc --}}
+    {{-- Lọc (chỉ hiện khi đã có dữ liệu) --}}
+    @if($hasActualData)
     <form method="GET" action="{{ route('tai-chinh') }}" class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 dark:text-white">
         <input type="hidden" name="tab" value="phan-tich">
         <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -48,22 +50,23 @@
             </div>
         </div>
     </form>
+    @endif
 
     @guest
         <div class="rounded-xl border border-gray-200 bg-white p-8 text-center dark:border-gray-800 dark:bg-gray-900 dark:text-white">
             <p class="text-theme-sm text-gray-500 dark:text-gray-400">Vui lòng đăng nhập để xem phân tích thu chi.</p>
         </div>
     @else
-        @if(!$hasMonthly && empty($categoryItems))
-            <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 py-10 text-center dark:border-gray-700 dark:bg-gray-800/50 dark:text-white">
-                <p class="text-theme-sm text-gray-500 dark:text-gray-400">Chưa có dữ liệu giao dịch trong kỳ đã chọn. Hãy liên kết tài khoản và đồng bộ giao dịch ở tab Tài khoản và Giao dịch.</p>
+        @if(!$hasActualData || (!$hasMonthly && empty($categoryItems)))
+            <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-6 py-10 text-center dark:border-gray-700 dark:bg-gray-800/50 dark:text-white">
+                <p class="text-theme-sm text-gray-500 dark:text-gray-400">Chưa có dữ liệu giao dịch trong kỳ đã chọn. Hãy liên kết tài khoản và đồng bộ giao dịch ở tab Tài khoản và Giao dịch để xem phân tích thu chi và đánh giá ổn định.</p>
             </div>
         @else
             {{-- Trạng thái tài chính tổng hợp (đầu trang) --}}
             @if($healthStatus)
             <div class="rounded-xl border border-gray-200 bg-white px-5 py-4 dark:border-gray-800 dark:bg-gray-900 dark:text-white">
                 @php
-                    $hsBg = $healthStatus['key'] === 'stable' ? 'bg-success-50 border-success-200 dark:bg-success-900/20 dark:border-success-800' : ($healthStatus['key'] === 'danger' ? 'bg-error-50 border-error-200 dark:bg-error-900/20 dark:border-error-800' : 'bg-warning-50 border-warning-200 dark:bg-warning-900/20 dark:border-warning-800');
+                    $hsBg = $healthStatus['key'] === 'no_data' ? 'bg-gray-100 border-gray-200 dark:bg-gray-700 dark:border-gray-600' : ($healthStatus['key'] === 'stable' ? 'bg-success-50 border-success-200 dark:bg-success-900/20 dark:border-success-800' : ($healthStatus['key'] === 'danger' ? 'bg-error-50 border-error-200 dark:bg-error-900/20 dark:border-error-800' : 'bg-warning-50 border-warning-200 dark:bg-warning-900/20 dark:border-warning-800'));
                 @endphp
                 <div class="inline-flex items-center gap-2 rounded-lg border px-4 py-2 {{ $hsBg }}">
                     <span class="text-xl">{{ $healthStatus['icon'] ?? '🟢' }}</span>
@@ -127,11 +130,12 @@
                     <div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 dark:text-white">
                         <p class="mb-1 text-theme-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Xu hướng dư tháng</p>
                         @php
+                            $trendLabel = $trajectory['trend_label'] ?? $trajectory['label'] ?? null;
                             $dir = $trajectory['direction'] ?? 'stable';
-                            $bg = $dir === 'improving' ? 'bg-success-100 text-success-800 dark:bg-success-900/40 dark:text-success-300' : ($dir === 'deteriorating' ? 'bg-error-100 text-error-800 dark:bg-error-900/40 dark:text-error-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300');
+                            $bg = $trendLabel === null ? 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400' : ($dir === 'improving' ? 'bg-success-100 text-success-800 dark:bg-success-900/40 dark:text-success-300' : ($dir === 'deteriorating' ? 'bg-error-100 text-error-800 dark:bg-error-900/40 dark:text-error-300' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'));
                         @endphp
-                        <span class="inline-flex rounded-full px-3 py-1 text-theme-sm font-medium {{ $bg }}">{{ $trajectory['trend_label'] ?? $trajectory['label'] ?? 'Ổn định' }}</span>
-                        @if(!empty($trajectory['hint']))
+                        <span class="inline-flex rounded-full px-3 py-1 text-theme-sm font-medium {{ $bg }}">{{ $trendLabel ?? '—' }}</span>
+                        @if(!empty($trajectory['hint']) && $trendLabel !== null)
                             <p class="mt-1 text-theme-xs text-gray-500 dark:text-gray-400">{{ $trajectory['hint'] }}</p>
                         @endif
                     </div>

@@ -22,6 +22,11 @@ class TaiChinhAnalyticsService
 
     public function healthStatus(array $summary, array $strategySummary): array
     {
+        $totalThu = (float) ($summary['total_thu'] ?? 0);
+        $totalChi = (float) ($summary['total_chi'] ?? 0);
+        if ($totalThu + $totalChi < 1) {
+            return ['key' => 'no_data', 'label' => 'Chưa đủ dữ liệu để đánh giá', 'icon' => '⚪'];
+        }
         $burnRatio = $strategySummary['burn_ratio'] ?? null;
         $netAvg = $strategySummary['net_avg'] ?? 0;
         if ($burnRatio !== null && $burnRatio > 100) {

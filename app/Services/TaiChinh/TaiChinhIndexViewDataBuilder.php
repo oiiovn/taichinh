@@ -184,6 +184,7 @@ class TaiChinhIndexViewDataBuilder
         $dailyResult = $this->analyticsAggregateService->dailyInOut($user->id, $analyticsAccounts, 60);
         $hourlyResult = $this->analyticsAggregateService->hourlyInOut($user->id, $analyticsAccounts);
         $viewData['analyticsData'] = [
+            'has_actual_data' => $monthlyResult['has_actual_data'] ?? (($monthlyResult['summary']['total_thu'] ?? 0) + ($monthlyResult['summary']['total_chi'] ?? 0) >= 1),
             'monthly' => $monthlyResult,
             'daily' => $dailyResult,
             'hourly' => $hourlyResult,

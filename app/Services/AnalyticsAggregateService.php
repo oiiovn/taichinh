@@ -97,11 +97,13 @@ class AnalyticsAggregateService
         $stability = $this->computeStability($byMonth);
         $trendPctPerMonth = $trajectory['slope_normalized'] !== null ? round($trajectory['slope_normalized'] * 100, 1) : null;
         $trajectory['trend_pct_per_month'] = $trendPctPerMonth;
-        $trajectory['trend_label'] = $this->trendLabel($trajectory['direction'], $trendPctPerMonth);
+        $hasActualData = $totalThu + $totalChi >= 1;
+        $trajectory['trend_label'] = $hasActualData ? $this->trendLabel($trajectory['direction'], $trendPctPerMonth) : null;
 
         $anomalyAlerts = $this->detectAnomalies($byMonth, $avgChi);
 
         return [
+            'has_actual_data' => $hasActualData,
             'monthly' => $byMonth,
             'trajectory' => $trajectory,
             'summary' => [
@@ -284,6 +286,9 @@ class AnalyticsAggregateService
         }
         $thuArr = array_column($byMonth, 'thu');
         $chiArr = array_column($byMonth, 'chi');
+        if (array_sum($thuArr) + array_sum($chiArr) < 1) {
+            return ['score' => null, 'label' => null, 'cv_thu' => null, 'cv_chi' => null];
+        }
         $meanThu = array_sum($thuArr) / $n;
         $meanChi = array_sum($chiArr) / $n;
         $stdThu = $this->stdDev($thuArr);
