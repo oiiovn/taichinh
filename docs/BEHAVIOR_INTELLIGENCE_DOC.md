@@ -102,4 +102,4 @@ Có thể cho phép hệ thống “ghi nhận hoàn thành hộ” **chỉ khi*
 | 2026-02-21 | Tầng Program: behavior_programs, program_id trên task, trust/aggregate theo program, BehaviorProgramProgressService, UI Chương trình. |
 
 ---
-*Cập nhật lần cuối: 2026-02-22.*
+*Cập nhật lần cuối: 2026-02-24.*

@@ -42,35 +42,37 @@ Tài liệu này mô tả **logic tài chính** (công thức, quy tắc, ngư�
 - **Nguồn**: DebtPriorityService; dùng trong InsightPayloadService và view insight.
 
 ### 3.4 Ngưỡng rủi ro (Risk / Ngân sách)
-- [Mô tả ngưỡng: ví dụ ngưỡng cảnh báo chi tiêu, ngưỡng DTI, ngưỡng runway tối thiểu.]
-- **Nguồn**: AdaptiveThresholdService hoặc config tương ứng (nếu có).
+- **Budget threshold:** Người dùng đặt ngưỡng chi theo danh mục (bảng `budget_thresholds`); sự kiện vượt ngưỡng ghi `budget_threshold_events`. Cảnh báo trên dashboard.
+- **Low balance:** User có thể cấu hình ngưỡng số dư thấp (`users.low_balance_threshold`); dùng cho sự kiện/cảnh báo.
+- **Adaptive threshold:** AdaptiveThresholdService, metric người dùng (volatility, DTI, …) ảnh hưởng ngưỡng/buffer (xem 3.2).
+- **Nguồn:** BudgetThresholdService, AdaptiveThresholdService, DualAxisAwarenessService.
 
 ## 4. Nguồn dữ liệu đầu vào
 
 | Dữ liệu | Nguồn (Model/Service/Input) |
 |---------|-----------------------------|
-| Thu nhập | [Ví dụ: canonical income, position] |
-| Chi tiêu | [expense, canonical] |
-| Nợ & trả nợ | [owe items, debt service] |
-| Số dư thanh khoản | [liquid balance, position] |
-| [Khác] | [Nguồn] |
+| Thu nhập | canonical income (từ giao dịch đã phân loại), estimated_incomes, income_goals |
+| Chi tiêu | canonical expense, transaction_history (phân loại), estimated_expenses |
+| Nợ & trả nợ | user_liabilities, liability_payments, liability_accruals; loan_contracts, loan_ledger_entries (debt service) |
+| Số dư thanh khoản | user_bank_accounts (số dư), position / liquid balance từ service tài chính |
+| Giao dịch | transaction_history (đồng bộ Pay2s + phân loại rule/GPT) |
 
 ## 5. Làm tròn & Đơn vị
 
-- **Tiền tệ**: VND (hoặc đơn vị chính của hệ thống); [quy tắc làm tròn: ví dụ làm tròn đến hàng đơn vị].
-- **Thời gian**: Tháng (cho runway, buffer); ngày (cho đáo hạn nợ).
-- **Tỷ lệ**: [Ví dụ: giữ 2 chữ số thập phân cho %, 4 cho lãi suất.]
+- **Tiền tệ:** VND; làm tròn theo nhu cầu hiển thị (thường nguyên hoặc 0 chữ số thập phân cho VND).
+- **Thời gian:** Tháng (runway, buffer); ngày (đáo hạn nợ, giao dịch).
+- **Tỷ lệ:** Giữ 2–4 chữ số thập phân cho %, lãi suất (tùy config).
 
 ## 6. Ngoại lệ & Biên
 
-- Runway âm hoặc vô hạn: [Cách hệ thống biểu diễn và hiển thị].
-- Thiếu dữ liệu (không có thu/chi/nợ): [Giá trị mặc định hoặc ẩn chỉ số].
+- **Runway âm hoặc vô hạn:** Thu ≥ Chi → runway có thể coi “vô hạn” hoặc giá trị đặc biệt; Runway âm (burn dương, hết tiền) → hiển thị theo quy ước UI (ví dụ “0 tháng” hoặc cảnh báo).
+- **Thiếu dữ liệu:** DataSufficiencyService kiểm tra số giao dịch, số tháng, có liên kết tài khoản/nợ; khi không đủ → short-circuit, hiển thị onboarding narrative (“Chưa đủ dữ liệu…”), không tính runway/insight để tránh overconfident.
 
 ## 7. Changelog logic tài chính
 
 | Ngày | Thay đổi |
 |------|----------|
-| [YYYY-MM-DD] | [Ví dụ: Thêm concentration, psychological vào DebtPriority.] |
+| 2026-02-24 | Điền nguồn dữ liệu, ngưỡng rủi ro, ngoại lệ & biên; tham chiếu service. |
 
 ---
-*Cập nhật lần cuối: [YYYY-MM-DD]. Tham chiếu: BAO_CAO_BRAIN_CAP_5_1_4.md (nếu áp dụng).*
+*Cập nhật lần cuối: 2026-02-24. Tham chiếu: BAO_CAO_BRAIN_CAP_5_1_4.md (nếu áp dụng).*

@@ -2,63 +2,64 @@
 
 ## 1. Mục đích
 
-Tài liệu mô tả **chính sách và biện pháp bảo mật** của hệ thống: xác thực, phân quyền, bảo vệ dữ liệu, và xử lý sự cố.
+Tài liệu mô tả **chính sách và biện pháp bảo mật** của Taichinh: xác thực, phân quyền, bảo vệ dữ liệu, đầu vào và ứng phó sự cố.
 
 ## 2. Xác thực (Authentication)
 
 | Mục | Nội dung |
 |-----|----------|
-| Cơ chế | [Session / Token / OAuth; Laravel Sanctum/Passport nếu có] |
-| Mật khẩu | [Chính sách: độ dài, độ phức tạp; hash algo: bcrypt/argon] |
-| Khóa phiên | [Timeout, đăng xuất khi đổi mật khẩu] |
-| 2FA | [Có/Không; phương thức] |
+| **Cơ chế** | Laravel session (SESSION_DRIVER=database hoặc file); cookie session, CSRF token cho form. |
+| **Mật khẩu** | Hash bcrypt (BCRYPT_ROUNDS trong .env); không lưu plain text. |
+| **Khóa phiên** | SESSION_LIFETIME; đăng xuất hủy session. Đổi mật khẩu có thể invalidate session tùy implementation. |
+| **2FA** | Chưa triển khai. |
 
 ## 3. Phân quyền (Authorization)
 
 | Mục | Nội dung |
 |-----|----------|
-| Mô hình | [RBAC / ABAC / ownership (user chỉ xem dữ liệu của mình)] |
-| Middleware | [auth, role/permission middleware nào] |
-| Quy tắc dữ liệu | [User chỉ truy cập đúng scope: ví dụ theo user_id, tenant_id] |
+| **Mô hình** | Ownership: user chỉ xem/sửa dữ liệu của mình (scope user_id). Admin: user có is_admin (hoặc role tương đương) mới vào được /admin. |
+| **Middleware** | `auth` — bắt buộc đăng nhập cho route front/admin. `EnsureUserIsAdmin` (hoặc tên tương đương) — chỉ admin vào route /admin. |
+| **Quy tắc dữ liệu** | Query luôn filter theo user_id (ví dụ TransactionHistory::where('user_id', auth()->id()), loan/liability thuộc user). |
 
 ## 4. Bảo vệ dữ liệu
 
 ### 4.1 Dữ liệu nhạy cảm
-- [Liệt kê: mật khẩu, token, số tài khoản, giao dịch tài chính.]
-- **At rest**: [Mã hóa DB có/không; encryption key quản lý thế nào.]
-- **In transit**: [HTTPS bắt buộc.]
+
+- **Mật khẩu:** Chỉ lưu hash. **Token / API key:** OPENAI_API_KEY, Pay2s/partner secret chỉ trong .env, không commit.
+- **Số tài khoản, giao dịch:** Lưu DB; truy cập qua auth + scope user_id. **At rest:** DB nên nằm trong môi trường kiểm soát; mã hóa DB (TDE) tùy hạ tầng.
+- **In transit:** HTTPS bắt buộc ở production (APP_URL=https://...).
 
 ### 4.2 PII & Tuân thủ
-- [PII nào thu thập; cách lưu, thời gian lưu.]
-- [Tuân thủ: GDPR, PDPA (nếu áp dụng) — tóm tắt.]
+
+- PII: email, tên, thông tin hồ sơ, giao dịch tài chính. Lưu trong DB, chỉ chủ tài khoản và admin (nếu có chính sách) truy cập. Có thể bổ sung chính sách bảo mật, thời gian lưu, quyền xóa theo GDPR/PDPA khi áp dụng.
 
 ## 5. Đầu vào & Chống tấn công
 
 | Mối đe dọa | Biện pháp |
 |------------|-----------|
-| SQL Injection | [Eloquent/Query Builder; không raw query không an toàn] |
-| XSS | [Escape output; CSP nếu có] |
-| CSRF | [Laravel CSRF token cho form] |
-| Mass assignment | [$fillable / $guarded trong Model] |
-| Upload file | [Validate type/size; lưu ngoài webroot hoặc quét malware nếu cần] |
+| **SQL Injection** | Eloquent / Query Builder; tránh raw query với input người dùng không bind. |
+| **XSS** | Blade escape mặc định ({{ }}); cẩn thận khi dùng {!! !!} chỉ với nội dung đã sanitize. |
+| **CSRF** | Laravel @csrf trong form; VerifyCsrfToken middleware. |
+| **Mass assignment** | Model dùng $fillable / $guarded; không cho phép gán request->all() không filter. |
+| **Upload file** | Nếu có: validate type, size; lưu ngoài webroot hoặc qua storage link. |
 
 ## 6. Cấu hình & Bí mật
 
-- **Bí mật**: Không commit `.env`; API key, DB password chỉ trong env.
-- **Debug**: `APP_DEBUG=false` ở production; không lộ stack trace ra ngoài.
-- **Log**: [Không ghi mật khẩu/token vào log.]
+- **Bí mật:** Không commit `.env`. API key, DB password chỉ trong env. `.env.example` không chứa giá trị thật.
+- **Debug:** APP_DEBUG=false ở production; không lộ stack trace ra ngoài.
+- **Log:** Không ghi mật khẩu, token, API key vào log.
 
 ## 7. Ứng phó sự cố
 
-- **Rò rỉ dữ liệu**: [Quy trình: thông báo nội bộ, đánh giá, thông báo user/nếu cần.]
-- **Tài khoản bị xâm phạm**: [Đổi mật khẩu, vô hiệu hóa phiên.]
-- **Audit**: [Log truy cập nhạy cảm có/không; lưu bao lâu.]
+- **Rò rỉ dữ liệu:** Đánh giá phạm vi; thông báo nội bộ; thông báo user/cơ quan nếu theo quy định. Đổi key/credential bị lộ.
+- **Tài khoản bị xâm phạm:** User đổi mật khẩu; admin có thể vô hiệu hóa tài khoản / đăng xuất phiên nếu có tính năng.
+- **Audit:** Log truy cập nhạy cảm (đăng nhập, thay đổi cài đặt) tùy triển khai; lưu log theo chính sách.
 
 ## 8. Changelog bảo mật
 
 | Ngày | Thay đổi |
 |------|----------|
-| [YYYY-MM-DD] | [Tóm tắt] |
+| 2026-02-24 | Viết lại Security Doc: auth session, bcrypt, middleware auth/admin, ownership, .env, HTTPS, CSRF, log. |
 
 ---
-*Cập nhật lần cuối: [YYYY-MM-DD].*
+*Cập nhật lần cuối: 2026-02-24.*

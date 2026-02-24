@@ -1,39 +1,21 @@
-# TailAdmin Laravel - Tailwind CSS Free Laravel Dashboard
+# Taichinh — Quản lý & phân tích tài chính cá nhân
 
 **TailAdmin Laravel** is a modern, production-ready admin dashboard template powered by **Laravel 12**, **Tailwind CSS v4**, **Alpine.js**, and a clean, modular architecture. TailAdmin is one of the most popular Tailwind CSS dashboard now also available for Larvael. It’s designed for building fast, scalable admin panels, CRM dashboards, SaaS backends, and any data-driven application where clarity and performance matter.
-![TailAdmin - Next.js Dashboard Preview](./tailadmin-laravel.png)
+Ứng dụng web: liên kết tài khoản ngân hàng, thu chi, nợ/khoản vay, phân tích và gợi ý chiến lược. Stack: Laravel 12, Tailwind CSS v4, Alpine.js (UI từ [TailAdmin Laravel](https://tailadmin.com/laravel)). **Tài liệu:** [docs/](docs/README.md).
+
+* **Tài liệu dự án:** [docs/](docs/README.md) | **UI template:** [TailAdmin Laravel](https://tailadmin.com/laravel)
 
 
-## Quick Links
+## ✨ Stack (Key Features)
 
-* [✨ Get TailAdmin Laravel](https://tailadmin.com/laravel)
-* [📄 Documentation](https://tailadmin.com/docs)
-* [⬇️ Download](https://tailadmin.com/download)
-* [🌐 Live Demo](https://laravel-demo.tailadmin.com)
-
-Here’s a tighter, more search-friendly version that highlights value and avoids fluff while keeping your structure intact.
-
-## ✨ Key Features
-
-* 🚀 **Laravel 12 Core** - Built on the latest Laravel release with improved routing, security, and Blade templating
-* 🎨 **Tailwind CSS v4** - Utility-first styling for rapid, consistent UI development
-* ⚡ **Alpine.js Interactivity** - Lightweight reactivity without a heavy JavaScript framework
-* 📦 **Vite Build System** - Fast dev server, instant HMR, and optimized production builds
-* 📱 **Fully Responsive Layouts** - Smooth, mobile-first design that adapts across all screen sizes
-* 🌙 **Built-in Dark Mode** - Ready-to-use modern dark theme for better usability and aesthetics
-* 📊 **Advanced UI Components** - Charts, data tables, forms, calendars, modals, and reusable blocks for complex dashboards
-* 🎯 **Production-Ready Dashboard UI** - Clean, modern interface crafted for real apps, not placeholder demos
-
-### Other Versions
-
-- [Next.js Version](https://github.com/TailAdmin/free-nextjs-admin-dashboard)
-- [React.js Version](https://github.com/TailAdmin/free-react-tailwind-admin-dashboard)
-- [Vue.js Version](https://github.com/TailAdmin/vue-tailwind-admin-dashboard)
-- [Angular Version](https://github.com/TailAdmin/free-angular-tailwind-dashboard)
-- [Laravel Version](https://github.com/TailAdmin/tailadmin-laravel)
+* 🚀 **Laravel 12** — Routing, Blade, security
+* 🎨 **Tailwind CSS v4** — Utility-first UI
+* ⚡ **Alpine.js** — Tương tác nhẹ
+* 📦 **Vite** — HMR, build production
+* 📱 **Responsive, Dark mode** — TailAdmin components
 
 ## 📋 Requirements
-To set up TailAdmin Laravel, make sure your environment includes:
+Để cài đặt và chạy dự án:
 
 * **PHP 8.2+**
 * **Composer** (PHP dependency manager)
@@ -41,12 +23,6 @@ To set up TailAdmin Laravel, make sure your environment includes:
 * **Database** - Works with SQLite (default), MySQL, or PostgreSQL
 
 ### Tailwind CSS Laravel Dashboard
-
-TailAdmin delivers a refined Tailwind CSS Laravel Dashboard experience, combining Laravel’s robust backend with Tailwind’s flexible utility classes. The result is a clean, fast, and customizable dashboard that helps developers build modern admin interfaces without the usual front-end complexity. It’s ideal for teams looking for a Tailwind-powered Laravel starter that stays lightweight and easy to scale.
-
-### Laravel Admin Dashboard
-
-If you’re searching for a dependable Laravel Admin Dashboard template that’s easy to set up and ready for production, TailAdmin fits the job. It offers a polished UI, reusable components, optimized performance, and all the essentials needed to launch dashboards, CRM systems, and internal tools quickly. It gives developers a solid foundation, so projects move faster with fewer decisions to worry about.
 
 ### Check Your Environment
 
@@ -130,7 +106,7 @@ Update your `.env` file with your database credentials:
 DB_CONNECTION=mysql
 DB_HOST=127.0.0.1
 DB_PORT=3306
-DB_DATABASE=tailadmin_db
+DB_DATABASE=taichinh
 DB_USERNAME=your_username
 DB_PASSWORD=your_password
 ```
@@ -139,10 +115,10 @@ Create the database:
 
 ```bash
 # MySQL
-mysql -u root -p -e "CREATE DATABASE tailadmin_db;"
+mysql -u root -p -e "CREATE DATABASE taichinh;"
 
 # PostgreSQL
-createdb tailadmin_db
+createdb taichinh
 ```
 
 Run migrations:
@@ -198,6 +174,7 @@ php artisan serve
 ```bash
 npm run dev
 ```
+Nếu gặp lỗi Vite "You should not run the Vite HMR server in CI environments", chạy: `LARAVEL_BYPASS_ENV_CHECK=1 npm run dev`
 
 ### Building for Production
 
@@ -406,9 +383,12 @@ php artisan optimize:clear
 ```
 
 #### Database connection errors
-- Check `.env` database credentials
-- Ensure database server is running
-- Verify database exists
+- Check `.env` database credentials (DB_DATABASE=taichinh, DB_USERNAME, DB_PASSWORD)
+- Ensure database server is running (XAMPP: start MySQL)
+- Verify database exists: `mysql -u root -e "CREATE DATABASE IF NOT EXISTS taichinh;"`
+
+#### Composer yêu cầu PHP 8.3+
+Nếu máy dùng PHP 8.2: `composer install --ignore-platform-reqs` (chạy được nhưng test có thể cần nâng PHP sau).
 
 ## 🔄 Update Log
 

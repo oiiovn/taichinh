@@ -54,6 +54,43 @@ class GiaoDichController extends Controller
         }
     }
 
+    /**
+     * API: Trả danh sách giao dịch dạng JSON (cho app mobile).
+     * Query: page, per_page (mặc định 20), stk, loai, q, category_id (giống web).
+     */
+    public function giaoDichJson(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
+        try {
+            $contextSvc = app(UserFinancialContextService::class);
+            $context = $contextSvc->ensureCategoriesAndGetContext($user);
+            $linkedAccountNumbers = $context['linkedAccountNumbers'];
+            $perPage = min((int) $request->input('per_page', 20), 100);
+            $transactions = ! empty($linkedAccountNumbers)
+                ? $contextSvc->getPaginatedTransactions($user, $linkedAccountNumbers, $request, $perPage)
+                : TransactionHistory::where('user_id', $user->id)->whereRaw('1 = 0')->paginate($perPage)->withQueryString();
+
+            return response()->json([
+                'data' => $transactions->items(),
+                'meta' => [
+                    'current_page' => $transactions->currentPage(),
+                    'last_page' => $transactions->lastPage(),
+                    'per_page' => $transactions->perPage(),
+                    'total' => $transactions->total(),
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('GiaoDichController@giaoDichJson: ' . $e->getMessage(), [
+                'user_id' => $user->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            return response()->json(['error' => 'Không tải được danh sách giao dịch.'], 500);
+        }
+    }
+
     public function confirmClassification(Request $request): \Illuminate\Http\RedirectResponse|\Illuminate\Http\JsonResponse
     {
         $user = $request->user();

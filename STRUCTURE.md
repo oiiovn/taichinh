@@ -51,9 +51,16 @@ resources/views/
 │   │   └── home.blade.php
 │   ├── profile.blade.php          # Hồ sơ cá nhân
 │   ├── goi-hien-tai.blade.php     # Bảng giá / gói
-│   ├── tai-chinh/                 # Tài chính
+│   ├── tai-chinh/                 # Tài chính (tab: chien-luoc, tai-khoan, no-khoan-vay, loans, liability, nguong-ngan-sach, muc-tieu-thu, …)
 │   │   ├── tai-chinh.blade.php    # Layout tab (sidebar + nội dung)
-│   │   └── tai-khoan.blade.php   # Tab liên kết tài khoản ngân hàng
+│   │   ├── tai-khoan.blade.php    # Tab liên kết tài khoản
+│   │   ├── chien-luoc.blade.php   # Tab chiến lược (insight, projection)
+│   │   ├── loans/, liability/    # Khoản vay, nợ
+│   │   └── partials/              # Fragment: dashboard, giao-dich-table, …
+│   ├── thu-chi/                   # Thu chi thủ công
+│   │   └── index.blade.php
+│   ├── tribeos/                    # TribeOS (nhóm, bài đăng)
+│   ├── cong-viec/                 # (Công việc: có thể trong component hoặc page riêng)
 │   ├── admin/                     # Toàn bộ view admin
 │   │   ├── index.blade.php        # Trang chủ admin
 │   │   └── users/
