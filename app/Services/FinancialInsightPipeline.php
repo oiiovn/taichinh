@@ -31,6 +31,7 @@ class FinancialInsightPipeline
         private RealityGuardService $realityGuardService,
         private BudgetThresholdService $budgetThresholdService,
         private BudgetIntelligenceService $budgetIntelligenceService,
+        private MetaBudgetCognitionService $metaBudgetCognitionService,
         private IncomeGoalService $incomeGoalService,
         private InsightHashService $insightHashService,
     ) {}
@@ -204,6 +205,7 @@ class FinancialInsightPipeline
         $cognitive = $insightPayload['cognitive_input'] ?? [];
         $cognitive['threshold_summary'] = $thresholdSummary;
         $cognitive['budget_intelligence'] = $budgetIntelligence;
+        $cognitive['meta_budget_cognition'] = $this->metaBudgetCognitionService->compute($thresholdSummary, $budgetIntelligence, $budgetContext);
         $cognitive['income_goal_summary'] = $incomeGoalSummary;
         $insightPayload['cognitive_input'] = $cognitive;
 

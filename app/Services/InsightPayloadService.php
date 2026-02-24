@@ -12,6 +12,10 @@ use Illuminate\Support\Collection;
  */
 class InsightPayloadService
 {
+    public function __construct(
+        private readonly ContextualAdjustmentService $contextualAdjustmentService
+    ) {}
+
     public const GPT_SYSTEM_PROMPT = <<<'TEXT'
 BẠN ĐANG NÓI CHUYỆN TRỰC TIẾP VỚI MỘT CÁ NHÂN đang xem tình hình tài chính của chính mình trên ứng dụng. Đây là cuộc trao đổi cố vấn một–một, KHÔNG phải báo cáo gửi tổ chức, công ty hay đơn vị.
 
@@ -259,7 +263,9 @@ TEXT;
         $tone = $contextualFrame['tone'] ?? 'advisory';
         $tradeoffOptions = $this->buildTradeoffOptions($optimization, $sources);
         $structuralConflict = $this->buildStructuralConflict($sources, $canonical);
-        $decisionSpace = $this->buildDecisionSpace($sources, $canonical, $optimization, $projection ?? []);
+        $rawDecisionSpace = $this->buildDecisionSpace($sources, $canonical, $optimization, $projection ?? []);
+        $adjusted = $this->contextualAdjustmentService->adjust($rawDecisionSpace, $sources, $canonical);
+        $decisionSpace = $adjusted['decision_space'];
 
         $requiredRunwayMonths = (int) ($canonical['required_runway_months'] ?? 3);
         $runwayDays = $runwayFromLiquidityMonths !== null ? (int) round($runwayFromLiquidityMonths * 30.44) : null;
@@ -275,6 +281,7 @@ TEXT;
         $cognitive_input = [
             'so_cụ_thể' => $soCuThe,
             'phong_cách_giao' => $phongCachGiao,
+            'life_context' => $adjusted['life_context'],
             'decision_space' => $decisionSpace,
             'structural_conflict' => $structuralConflict,
             'structural_state' => $maturityStage !== null ? [
@@ -586,6 +593,8 @@ TEXT;
             . "THRESHOLD_SUMMARY (ngưỡng ngân sách): Nếu cognitive_input.threshold_summary tồn tại và active_count > 0 — user đang cố kiểm soát chi tiêu theo các mục (aggregate.user_goals_summary). Dùng thresholds[].name, deviation_pct, breached, breach_streak, self_control_index để nhắc ngắn gọn tình trạng (đạt/vượt/sắp vượt) và gợi ý phù hợp; narrative phải phản ánh \"user đang cố thay đổi điều gì\" (ví dụ: đang giới hạn ăn uống/cafe, cần hỗ trợ giữ kỷ luật).\n\n"
             . "INCOME_GOAL_SUMMARY (mục tiêu thu): Nếu cognitive_input.income_goal_summary tồn tại và active_count > 0 — user đặt mục tiêu thu theo danh mục (aggregate.user_goals_summary). Dùng goals[].name, target_vnd, earned_vnd, achievement_pct, met, achievement_streak để nhắc ngắn gọn (đạt/chưa đạt mục tiêu thu, bao nhiêu % so với target); gợi ý nhẹ khi chưa đạt hoặc khen khi streak đạt nhiều kỳ.\n\n"
             . "BUDGET_INTELLIGENCE (hệ đo kỷ luật tài chính): Nếu cognitive_input.budget_intelligence tồn tại — dùng discipline_score, discipline_trend, planning_realism_index, impulse_risk_score, habitual_breach_categories; thêm bcsi_stability_score (ổn định chi tiêu), breach_severity_index (mức độ vượt trung bình), budget_drift_direction (rationalization/improving/stable), rationalization_flag (nâng ngưỡng sau vượt), correction_speed_median_days/correction_speed_index (tốc độ điều chỉnh), strategic_budget_alignment_score, priority_clarity_index, advice_adoption_index, predictive_breach_probability (xác suất vượt 30 ngày tới). Nếu predictive_breach_probability > 0.7: chuyển sang giọng phòng ngừa, gợi ý hành động trước khi vượt. Nếu rationalization_flag = true: nhắc nhẹ xu hướng nâng ngưỡng sau vượt. Nếu planning_realism_index thấp: gợi ý chỉnh ngưỡng sát thực tế. Nếu behavior_mismatch_warning = true: tone mềm, không ép.\n\n"
+            . "META_BUDGET_COGNITION (đánh giá siêu thông minh ngân sách): Nếu cognitive_input.meta_budget_cognition tồn tại — dùng executive_summary làm tóm tắt trạng thái; nếu meta_warning có giá trị thì bắt buộc đưa vào narrative (cảnh báo drift, risk ẩn, hoặc \"kiểm soát bề mặt chưa phải kỷ luật thật\"). cognitive_state (controlled_growth / drifting_stability / reactive_control / structural_stress) và dominant_force (internal_control / timing_effect / external_constraint) giúp trả lời: user đang kiểm soát vì kỷ luật thật hay vì chưa tới thời điểm chi. Nếu hidden_risk_flag = true: nhắc rằng kiểm soát hiện tại có thể không bền vững.\n\n"
+            . "LIFE_CONTEXT VÀ REALITY FILTER (ngữ cảnh đời sống): cognitive_input.life_context có income_bracket (low/mid/high), monthly_income, monthly_expense, surplus, living_pressure_score, income_growth_difficulty (low/medium/high). cognitive_input.decision_space.reality_filter có suggestion_mode, micro_adjustments_hidden, recommended_focus, meaningful_threshold_vnd, improvement_options (đã lọc). Nếu suggestion_mode === \"structural_required\" hoặc micro_adjustments_hidden === true: KHÔNG trình bày \"Giảm chi 5%\" / \"Tăng thu 10%\" như giải pháp lớn; KHÔNG liệt kê số tiền vài chục nghìn như lựa chọn chiến lược. Thay vào đó: nói rõ với quy mô thu nhập hiện tại, các điều chỉnh nhỏ (vài chục nghìn) sẽ không tạo khác biệt đáng kể trong việc xây dựng buffer; cần thay đổi cấu trúc ở cấp độ lớn hơn (tăng quy mô thu nhập hoặc điều chỉnh chi cố định lớn). Dùng recommended_focus khi có. Nếu improvement_options[].mark_as_micro = true: không phóng đại impact đó. Nếu life_context.income_growth_difficulty === \"high\": có thể nhắc tăng thu 10% với thu hiện tại có thể đòi hỏi nỗ lực không tương xứng với tác động.\n\n"
             . "Dữ liệu JSON:\n" . $json;
     }
 
