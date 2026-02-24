@@ -232,7 +232,11 @@
                             </ul>
                         </td>
                         <td class="px-4 py-3">
-                            <button type="button" @click="step = 2; selectedBank = '{{ $bank['name'] }}'; showAccountTabs = {{ (in_array('Cá nhân', $bank['account_types']) && in_array('Doanh nghiệp', $bank['account_types'])) ? 'true' : 'false' }}; accountTab = 'ca-nhan'; if (selectedBank === 'Vietcombank' || selectedBank === 'VietinBank') apiType = 'pay2s'" class="rounded-lg bg-success-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-success-600 dark:bg-success-600 dark:hover:bg-success-500">Kết nối</button>
+                            @if($canAddAccount)
+                                <button type="button" @click="step = 2; selectedBank = '{{ $bank['name'] }}'; showAccountTabs = {{ (in_array('Cá nhân', $bank['account_types']) && in_array('Doanh nghiệp', $bank['account_types'])) ? 'true' : 'false' }}; accountTab = 'ca-nhan'; if (selectedBank === 'Vietcombank' || selectedBank === 'VietinBank') apiType = 'pay2s'" class="rounded-lg bg-success-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-success-600 dark:bg-success-600 dark:hover:bg-success-500">Kết nối</button>
+                            @else
+                                <a href="{{ route('goi-hien-tai') }}" class="inline-block rounded-lg bg-success-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-success-600 dark:bg-success-600 dark:hover:bg-success-500">Kết nối</a>
+                            @endif
                         </td>
                     </tr>
                     @endforeach

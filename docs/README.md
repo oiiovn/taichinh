@@ -22,4 +22,4 @@ Ngoài ra: [STRUCTURE.md](../STRUCTURE.md) — cấu trúc thư mục, phân lu�
 - Tham chiếu chéo giữa các doc khi cần (Technical ↔ Financial Logic, AI Learning ↔ Product).
 
 ---
-*Cập nhật lần cuối: 2026-02-24. Technical Doc: bảng DB trang tài chính, service projection/obligation, mục khắc phục lỗi load trang.*
+*Cập nhật lần cuối: 2026-02-24. Technical Doc: bảng DB, service, khắc phục lỗi load trang; tab Tài khoản — nút Kết nối điều hướng /goi-hien-tai khi không được thêm TK.*

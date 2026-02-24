@@ -38,7 +38,7 @@
 | GET | /tai-chinh/insight-payload | Payload cho Insight (Ajax) |
 | POST | /tai-chinh/insight-feedback | Lưu phản hồi thumbs up/down |
 | GET | /tai-chinh/giao-dich-table | Bảng giao dịch (Ajax) |
-| POST | /tai-chinh/tai-khoan, /tai-khoan/unlink | Liên kết / hủy liên kết TK |
+| POST | /tai-chinh/tai-khoan, /tai-khoan/unlink | Liên kết / hủy liên kết TK. Tab Tài khoản: kiểm tra gói (hết hạn, max_accounts); khi không được thêm TK, nút "Kết nối" điều hướng đến /goi-hien-tai. |
 | GET/POST | /tai-chinh/liability/* | Nợ: create, show, store, payment, accrual, close |
 | GET/POST | /tai-chinh/loans/* | Khoản vay: index, create, store, show, payment, close, pending |
 | GET/POST | /tai-chinh/nguong-ngan-sach* | Ngưỡng ngân sách |
@@ -183,6 +183,7 @@ npm run build
 | 2026-02-24 | Bổ sung bảng route chính (tai-chinh, thu-chi, cong-viec, tribeos, admin), API nội bộ, lệnh triển khai (queue, scheduler), test, log. |
 | 2026-02-24 | Chuẩn bị API cho app mobile: Laravel Sanctum, routes/api.php v1 (login, logout, tai-chinh/insight-payload, projection, insight-feedback, giao-dich), GiaoDichController@giaoDichJson, doc mục 2.3. |
 | 2026-02-24 | Bổ sung bảng: budget_threshold_snapshots, income_goals, income_goal_snapshots, user_income_sources, income_source_keywords, payment_schedules. Service: PaymentScheduleObligationService, CashflowProjectionService (scheduleByMonth/obligation30), FinancialRoleClassifier. Mục 6.1: Khắc phục lỗi "Không tải được dữ liệu tài chính" (migration, log, resilience). |
+| 2026-02-24 | Tab Tài khoản: khi không được thêm TK (hết hạn gói / đạt max_accounts), nút "Kết nối" điều hướng đến /goi-hien-tai. Cập nhật mục route 2.1. |
 
 ---
 *Cập nhật lần cuối: 2026-02-24.*
