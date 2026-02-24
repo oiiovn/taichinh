@@ -182,9 +182,11 @@ class TaiChinhIndexViewDataBuilder
         $strategySummary = $this->taiChinhAnalyticsService->strategySummary($monthlyResult, $phanTichMonths);
         $healthStatus = $this->taiChinhAnalyticsService->healthStatus($monthlyResult['summary'] ?? [], $strategySummary);
         $dailyResult = $this->analyticsAggregateService->dailyInOut($user->id, $analyticsAccounts, 60);
+        $hourlyResult = $this->analyticsAggregateService->hourlyInOut($user->id, $analyticsAccounts);
         $viewData['analyticsData'] = [
             'monthly' => $monthlyResult,
             'daily' => $dailyResult,
+            'hourly' => $hourlyResult,
             'byCategory' => $byCategory,
             'strategySummary' => $strategySummary,
             'health_status' => $healthStatus,

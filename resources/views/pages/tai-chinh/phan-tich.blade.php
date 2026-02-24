@@ -2,6 +2,7 @@
     $analytics = $analyticsData ?? null;
     $monthly = $analytics['monthly'] ?? null;
     $daily = $analytics['daily'] ?? null;
+    $hourly = $analytics['hourly'] ?? null;
     $byCategory = $analytics['byCategory'] ?? [];
     $categoryItems = $byCategory['items'] ?? [];
     $concentration = $byCategory['concentration'] ?? [];
@@ -10,6 +11,9 @@
     $monthlyList = $hasMonthly ? $monthly['monthly'] : [];
     $hasDaily = $daily && !empty($daily['daily']);
     $dailyList = $hasDaily ? $daily['daily'] : [];
+    $hasHourly = $hourly && !empty($hourly['hourly']);
+    $hourlyList = $hasHourly ? $hourly['hourly'] : [];
+    $hourlyDateLabel = $hasHourly ? ($hourly['date_label'] ?? '') : '';
     $summary = $monthly['summary'] ?? null;
     $trajectory = $monthly['trajectory'] ?? null;
     $stability = $monthly['stability'] ?? null;
@@ -164,16 +168,24 @@
             @endif
 
             {{-- Biểu đồ: cột Thu/Chi + đường Net overlay (theo tháng hoặc theo ngày) --}}
-            @if($hasMonthly || $hasDaily)
-            <div class="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6" x-data="{ chartMode: '{{ $hasMonthly ? 'month' : 'day' }}' }">
+            @if($hasMonthly || $hasDaily || $hasHourly)
+            <div class="rounded-2xl border border-gray-200 bg-white px-5 pb-5 pt-5 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6 sm:pt-6" x-data="{ chartMode: '{{ $hasMonthly ? 'month' : ($hasDaily ? 'day' : 'hour') }}' }">
                 <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h3 class="text-lg font-semibold text-gray-800 dark:text-white/90">Thu, chi và dòng tiền ròng</h3>
+                        <p x-show="chartMode === 'hour'" x-cloak class="mt-0.5 text-theme-sm text-gray-500 dark:text-gray-400">Ngày {{ $hourlyDateLabel }}</p>
                     </div>
-                    @if($hasMonthly && $hasDaily)
+                    @if($hasMonthly || $hasDaily || $hasHourly)
                     <div class="flex rounded-lg border border-gray-200 bg-gray-50 p-0.5 dark:border-gray-700 dark:bg-gray-800/50">
+                        @if($hasMonthly)
                         <button type="button" @click="chartMode = 'month'; window.switchPhanTichChart && window.switchPhanTichChart('month')" :class="chartMode === 'month' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 dark:text-gray-400'" class="rounded-md px-3 py-1.5 text-theme-sm font-medium transition-colors">Theo tháng</button>
+                        @endif
+                        @if($hasDaily)
                         <button type="button" @click="chartMode = 'day'; window.switchPhanTichChart && window.switchPhanTichChart('day')" :class="chartMode === 'day' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 dark:text-gray-400'" class="rounded-md px-3 py-1.5 text-theme-sm font-medium transition-colors">Theo ngày</button>
+                        @endif
+                        @if($hasHourly)
+                        <button type="button" @click="chartMode = 'hour'; window.switchPhanTichChart && window.switchPhanTichChart('hour')" :class="chartMode === 'hour' ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-600 dark:text-gray-400'" class="rounded-md px-3 py-1.5 text-theme-sm font-medium transition-colors">Theo giờ</button>
+                        @endif
                     </div>
                     @endif
                 </div>
@@ -193,6 +205,12 @@
                         'chi' => array_map(fn($d) => (float) $d['chi'], $dailyList),
                         'net' => array_map(fn($d) => (float) $d['surplus'], $dailyList),
                     ],
+                    'hour' => $hasHourly ? [
+                        'categories' => array_column($hourlyList, 'hour_label'),
+                        'thu' => array_map(fn($h) => (float) $h['thu'], $hourlyList),
+                        'chi' => array_map(fn($h) => (float) $h['chi'], $hourlyList),
+                        'net' => array_map(fn($h) => (float) $h['surplus'], $hourlyList),
+                    ] : null,
                 ]) !!}</script>
                 <script>
                     document.addEventListener('DOMContentLoaded', function() {
@@ -202,10 +220,11 @@
                         var all = JSON.parse(dataEl.textContent);
                         var hasMonth = all.month && all.month.categories && all.month.categories.length > 0;
                         var hasDay = all.day && all.day.categories && all.day.categories.length > 0;
-                        if (!hasMonth && !hasDay) return;
+                        var hasHour = all.hour && all.hour.categories && all.hour.categories.length > 0;
+                        if (!hasMonth && !hasDay && !hasHour) return;
                         el.setAttribute('data-chart-ready', '1');
                         if (typeof window.ApexCharts === 'undefined') return;
-                        var data = hasMonth ? all.month : all.day;
+                        var data = hasMonth ? all.month : (hasDay ? all.day : all.hour);
                         var opts = {
                             series: [
                                 { name: 'Thu', type: 'column', data: data.thu || [] },
@@ -228,7 +247,7 @@
                         chart.render();
                         window.chartPhanTichThuChiInstance = chart;
                         window.switchPhanTichChart = function(mode) {
-                            var d = (mode === 'day' && hasDay) ? all.day : (hasMonth ? all.month : all.day);
+                            var d = (mode === 'hour' && hasHour) ? all.hour : (mode === 'day' && hasDay) ? all.day : (hasMonth ? all.month : (hasDay ? all.day : all.hour));
                             if (!d || !d.categories) return;
                             chart.updateOptions({ xaxis: { categories: d.categories } });
                             chart.updateSeries([

@@ -1,4 +1,4 @@
-<div class="relative min-w-0 max-w-[220px]" x-data="{
+<div class="relative min-w-0 max-w-[180px] sm:max-w-[220px]" x-data="{
     dropdownOpen: false,
     toggleDropdown() {
         this.dropdownOpen = !this.dropdownOpen;
@@ -9,15 +9,15 @@
 }" @click.away="closeDropdown()">
     <!-- User Button -->
     <button
-        class="flex min-w-0 items-center text-left text-gray-700 dark:text-gray-400"
+        class="flex min-w-0 w-full max-w-full items-center text-left text-gray-700 dark:text-gray-400 overflow-hidden"
         @click.prevent="toggleDropdown()"
         type="button"
     >
-        <span class="mr-2 shrink-0 overflow-hidden rounded-full h-11 w-11 bg-gray-200 dark:bg-gray-700">
+        <span class="mr-2 shrink-0 overflow-hidden rounded-full h-11 w-11 bg-gray-200 dark:bg-gray-700 flex-shrink-0">
             <img src="{{ Auth::user()->avatar_url ?? '/images/user/owner.png' }}" alt="Người dùng" class="h-full w-full object-cover" />
         </span>
 
-       <span class="block min-w-0 flex-1 truncate mr-1 font-medium text-theme-sm" title="{{ Auth::user()->name ?? 'Người dùng' }}">{{ Auth::user()->name ?? 'Người dùng' }}</span>
+       <span class="min-w-0 flex-1 truncate mr-1 font-medium text-theme-sm inline-block" title="{{ Auth::user()->name ?? 'Người dùng' }}">{{ Auth::user()->name ?? 'Người dùng' }}</span>
 
         <!-- Chevron Icon -->
         <svg

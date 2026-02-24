@@ -174,6 +174,87 @@ class AnalyticsAggregateService
         return ['daily' => $byDate];
     }
 
+    /**
+     * Thu/chi theo giờ trong một ngày: 24 điểm (0h–23h). Ngày mặc định: ngày gần nhất có giao dịch (trong 7 ngày), hoặc hôm nay.
+     *
+     * @param  array<string>  $linkedAccountNumbers
+     * @return array{hourly: array<int, array{hour_key: int, hour_label: string, thu: float, chi: float, surplus: float}>, date_label: string, date_key: string}
+     */
+    public function hourlyInOut(int $userId, array $linkedAccountNumbers = [], ?string $forDate = null): array
+    {
+        $end = Carbon::now()->endOfDay();
+        $start = Carbon::now()->subDays(6)->startOfDay();
+
+        $query = TransactionHistory::query()
+            ->where('user_id', $userId)
+            ->whereBetween('transaction_date', [$start, $end]);
+
+        if (! empty($linkedAccountNumbers)) {
+            $query->where(function ($q) use ($linkedAccountNumbers) {
+                $q->whereIn('account_number', $linkedAccountNumbers)
+                    ->orWhereHas('bankAccount', fn ($q2) => $q2->whereIn('account_number', $linkedAccountNumbers));
+            });
+        }
+
+        if ($forDate !== null) {
+            $dayStart = Carbon::parse($forDate)->startOfDay();
+            $dayEnd = Carbon::parse($forDate)->endOfDay();
+        } else {
+            $latestRow = (clone $query)->selectRaw("DATE(transaction_date) as date_key")
+                ->groupBy('date_key')->orderByDesc('date_key')->first();
+            $dayStart = $latestRow
+                ? Carbon::parse($latestRow->date_key)->startOfDay()
+                : Carbon::now()->startOfDay();
+            $dayEnd = $dayStart->copy()->endOfDay();
+        }
+
+        $rows = TransactionHistory::query()
+            ->where('user_id', $userId)
+            ->whereBetween('transaction_date', [$dayStart, $dayEnd]);
+
+        if (! empty($linkedAccountNumbers)) {
+            $rows->where(function ($q) use ($linkedAccountNumbers) {
+                $q->whereIn('account_number', $linkedAccountNumbers)
+                    ->orWhereHas('bankAccount', fn ($q2) => $q2->whereIn('account_number', $linkedAccountNumbers));
+            });
+        }
+
+        $rows = $rows->selectRaw("
+            HOUR(transaction_date) as hour_key,
+            SUM(CASE WHEN type = 'IN' THEN amount ELSE 0 END) as thu,
+            SUM(CASE WHEN type = 'OUT' THEN ABS(amount) ELSE 0 END) as chi
+        ")->groupBy('hour_key')->orderBy('hour_key')->get();
+
+        $byHourMap = [];
+        foreach ($rows as $r) {
+            $h = (int) $r->hour_key;
+            $byHourMap[$h] = [
+                'hour_key' => $h,
+                'hour_label' => sprintf('%02dh', $h),
+                'thu' => (float) $r->thu,
+                'chi' => (float) $r->chi,
+                'surplus' => (float) $r->thu - (float) $r->chi,
+            ];
+        }
+
+        $byHour = [];
+        for ($h = 0; $h < 24; $h++) {
+            $byHour[] = $byHourMap[$h] ?? [
+                'hour_key' => $h,
+                'hour_label' => sprintf('%02dh', $h),
+                'thu' => 0.0,
+                'chi' => 0.0,
+                'surplus' => 0.0,
+            ];
+        }
+
+        return [
+            'hourly' => $byHour,
+            'date_key' => $dayStart->format('Y-m-d'),
+            'date_label' => $dayStart->format('d/m/Y'),
+        ];
+    }
+
     private function netCashflowPrevPeriod(int $userId, array $linkedAccountNumbers, int $months): array
     {
         $endPrev = Carbon::now()->startOfMonth()->subMonth()->endOfMonth();

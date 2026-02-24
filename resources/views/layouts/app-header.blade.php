@@ -91,9 +91,9 @@
             </div>
         </div>
 
-        <!-- Application Menu (mobile) and Right Side Actions (desktop): shrink-0 để luôn hiển thị đủ, không bị che -->
+        <!-- Application Menu (mobile) and Right Side Actions (desktop): min-w-0 để user dropdown có thể truncate -->
         <div :class="isApplicationMenuOpen ? 'flex' : 'hidden'"
-            class="flex shrink-0 items-center justify-between gap-4 px-5 py-4 xl:flex xl:justify-end xl:px-0 xl:shadow-none shadow-theme-md">
+            class="flex min-w-0 shrink items-center justify-between gap-2 sm:gap-4 px-3 py-4 xl:flex xl:justify-end xl:px-0 xl:shadow-none shadow-theme-md sm:px-5">
             <div class="flex shrink-0 items-center gap-2 2xsm:gap-3">
                 <!-- Theme Toggle Button -->
                 <button

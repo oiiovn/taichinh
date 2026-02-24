@@ -27,7 +27,7 @@
                 <span class="truncate text-sm font-medium text-gray-500 dark:text-gray-400">Khu vực quản trị</span>
             </div>
         </div>
-        <div :class="isApplicationMenuOpen ? 'flex' : 'hidden'" class="flex shrink-0 items-center justify-between gap-4 px-5 py-4 xl:flex xl:justify-end xl:px-0 xl:shadow-none shadow-theme-md">
+        <div :class="isApplicationMenuOpen ? 'flex' : 'hidden'" class="flex min-w-0 shrink items-center justify-between gap-2 sm:gap-4 px-3 py-4 xl:flex xl:justify-end xl:px-0 xl:shadow-none shadow-theme-md sm:px-5">
             <div class="flex shrink-0 items-center gap-2 2xsm:gap-3">
                 <button
                     class="relative flex items-center justify-center w-11 h-11 rounded-full border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
