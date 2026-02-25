@@ -8,6 +8,7 @@ use App\Models\BudgetThresholdEvent;
 use App\Models\IncomeGoal;
 use App\Services\BudgetThresholdService;
 use App\Services\IncomeGoalService;
+use App\Services\TaiChinh\TaiChinhViewCache;
 use App\Services\UserFinancialContextService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -149,6 +150,7 @@ class BudgetThresholdController extends Controller
             'payload' => ['name' => $threshold->name, 'amount_limit_vnd' => $threshold->amount_limit_vnd],
         ]);
 
+        TaiChinhViewCache::forget($user->id);
         $msg = 'Đã tạo ngưỡng ngân sách.';
         return $wantsJson ? response()->json(['success' => true, 'message' => $msg]) : redirect()->route('tai-chinh', ['tab' => 'nguong-ngan-sach'])->with('success', $msg);
     }
@@ -240,7 +242,7 @@ class BudgetThresholdController extends Controller
             'payload' => ['name' => $threshold->name, 'amount_limit_vnd' => $threshold->amount_limit_vnd],
         ]);
         $threshold->delete();
-
+        TaiChinhViewCache::forget($user->id);
         $msg = 'Đã xóa ngưỡng.';
         return $wantsJson ? response()->json(['success' => true, 'message' => $msg]) : redirect()->route('tai-chinh', ['tab' => 'nguong-ngan-sach'])->with('success', $msg);
     }

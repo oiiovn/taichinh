@@ -4,6 +4,7 @@ namespace App\Http\Controllers\TaiChinh;
 
 use App\Http\Controllers\Controller;
 use App\Models\Pay2sBankAccount;
+use App\Services\TaiChinh\TaiChinhViewCache;
 use App\Models\TransactionHistory;
 use App\Models\UserBankAccount;
 use Illuminate\Http\RedirectResponse;
@@ -96,6 +97,7 @@ class BankAccountController extends Controller
 
         try {
             UserBankAccount::create($data);
+            TaiChinhViewCache::forget($user->id);
             return redirect()->route('tai-chinh')->with('success', 'Đã lưu tài khoản ngân hàng.');
         } catch (\Throwable $e) {
             Log::error('BankAccountController@store: ' . $e->getMessage(), [
@@ -145,6 +147,7 @@ class BankAccountController extends Controller
                     'last_synced_at' => now(),
                 ]);
             }
+            TaiChinhViewCache::forget($user->id);
             return redirect()->route('tai-chinh', ['tab' => 'tai-khoan'])->with('success', 'Đã cập nhật số dư cuối.');
         } catch (\Throwable $e) {
             Log::error('BankAccountController@updateAccountBalance: ' . $e->getMessage(), [
@@ -172,6 +175,7 @@ class BankAccountController extends Controller
         try {
             $last4 = substr($accountNumber, -4);
             $acc->delete();
+            TaiChinhViewCache::forget($user->id);
             return redirect()->route('tai-chinh', ['tab' => 'tai-khoan'])->with('success', 'Đã gỡ liên kết tài khoản •••• ' . $last4 . '.');
         } catch (\Throwable $e) {
             Log::error('BankAccountController@unlink: ' . $e->getMessage(), [

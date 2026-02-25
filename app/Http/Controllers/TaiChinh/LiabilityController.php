@@ -7,6 +7,7 @@ use App\Models\LiabilityAccrual;
 use App\Models\LiabilityPayment;
 use App\Models\UserLiability;
 use App\Notifications\FinanceActivityNotification;
+use App\Services\TaiChinh\TaiChinhViewCache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -128,6 +129,7 @@ class LiabilityController extends Controller
 
         try {
             UserLiability::create($data);
+            TaiChinhViewCache::forget($user->id);
             $msg = $data['direction'] === UserLiability::DIRECTION_RECEIVABLE ? 'Đã thêm khoản cho vay.' : 'Đã thêm khoản nợ / vay.';
             return $this->redirectToTab()->with('success', $msg);
         } catch (\Throwable $e) {
@@ -168,6 +170,7 @@ class LiabilityController extends Controller
             $liability->fill($validator->validated());
             $liability->auto_accrue = $request->boolean('auto_accrue', $liability->auto_accrue);
             $liability->save();
+            TaiChinhViewCache::forget($user->id);
             return $this->redirectToTab()->with('success', 'Đã cập nhật khoản nợ.');
         } catch (\Throwable $e) {
             Log::error('LiabilityController@update: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
@@ -210,6 +213,7 @@ class LiabilityController extends Controller
 
         try {
             $liability->delete();
+            TaiChinhViewCache::forget($user->id);
             return $this->redirectToTab()->with('success', 'Đã xóa khoản nợ / khoản vay.');
         } catch (\Throwable $e) {
             Log::error('LiabilityController@destroy: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
@@ -257,6 +261,7 @@ class LiabilityController extends Controller
                 null,
                 (float) $data['amount']
             ));
+            TaiChinhViewCache::forget($user->id);
             return $this->redirectToTab()->with('success', 'Đã ghi nhận thanh toán.')->with('notification_flash', true);
         } catch (\Throwable $e) {
             Log::error('LiabilityController@storePayment: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
@@ -308,6 +313,7 @@ class LiabilityController extends Controller
                 null,
                 (float) $data['amount']
             ));
+            TaiChinhViewCache::forget($user->id);
             return $this->redirectToTab()->with('success', 'Đã ghi nhận lãi thủ công.')->with('notification_flash', true);
         } catch (\Throwable $e) {
             Log::error('LiabilityController@storeAccrual: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);

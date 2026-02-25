@@ -11,6 +11,7 @@ use App\Models\UserMerchantRule;
 use App\Services\UserFinancialContextService;
 use App\Models\UserBehaviorPattern;
 use App\Services\MerchantKeyNormalizer;
+use App\Services\TaiChinh\TaiChinhViewCache;
 use App\Services\TransactionClassifier;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -279,6 +280,7 @@ class GiaoDichController extends Controller
                 }
             }
 
+            TaiChinhViewCache::forget($user->id);
             $query = request()->has('page') ? ['page' => request('page')] : [];
             $count = $transactions->count();
             $successMessage = "Đã lưu danh mục cho {$count} giao dịch đã chọn. Các giao dịch sau có nội dung na ná sẽ được ưu tiên phân loại theo rule.";

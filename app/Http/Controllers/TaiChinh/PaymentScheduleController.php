@@ -4,6 +4,7 @@ namespace App\Http\Controllers\TaiChinh;
 
 use App\Http\Controllers\Controller;
 use App\Models\PaymentSchedule;
+use App\Services\TaiChinh\TaiChinhViewCache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -72,6 +73,7 @@ class PaymentScheduleController extends Controller
         $schedule->overdue_alert = $request->boolean('overdue_alert', true);
         $schedule->auto_advance_on_match = $request->boolean('auto_advance_on_match', true);
         $schedule->save();
+        TaiChinhViewCache::forget($user->id);
 
         return redirect()->route('tai-chinh', ['tab' => 'lich-thanh-toan'])->with('success', 'Đã thêm lịch thanh toán.');
     }
@@ -188,6 +190,7 @@ class PaymentScheduleController extends Controller
             return redirect()->route('tai-chinh', ['tab' => 'lich-thanh-toan'])->with('error', 'Không tìm thấy lịch thanh toán.');
         }
         $schedule->delete();
+        TaiChinhViewCache::forget($user->id);
         return redirect()->route('tai-chinh', ['tab' => 'lich-thanh-toan'])->with('success', 'Đã xóa lịch thanh toán.');
     }
 }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\TaiChinh;
 use App\Http\Controllers\Controller;
 use App\Models\TransactionHistory;
 use App\Models\UserCategory;
+use App\Services\TaiChinh\TaiChinhViewCache;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -99,6 +100,7 @@ class UserCategoryController extends Controller
         }
         try {
             $cat->update(['name' => $name, 'type' => $type]);
+            TaiChinhViewCache::forget($user->id);
             return $redirectTab()->with('success', 'Đã cập nhật danh mục "' . e($name) . '".');
         } catch (\Throwable $e) {
             Log::error('UserCategoryController@update: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
@@ -120,6 +122,7 @@ class UserCategoryController extends Controller
         try {
             TransactionHistory::where('user_category_id', $id)->update(['user_category_id' => null]);
             $cat->delete();
+            TaiChinhViewCache::forget($user->id);
             return $redirectTab()->with('success', 'Đã xóa danh mục "' . e($cat->name) . '". Các giao dịch đã gán sẽ chuyển về chưa phân loại.');
         } catch (\Throwable $e) {
             Log::error('UserCategoryController@destroy: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);

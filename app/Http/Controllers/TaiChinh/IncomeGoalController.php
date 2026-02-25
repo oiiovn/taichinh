@@ -7,6 +7,7 @@ use App\Models\IncomeGoal;
 use App\Models\IncomeGoalEvent;
 use App\Services\GoalIncomeSourceSyncService;
 use App\Services\IncomeGoalService;
+use App\Services\TaiChinh\TaiChinhViewCache;
 use App\Services\UserFinancialContextService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -136,7 +137,7 @@ class IncomeGoalController extends Controller
         ]);
 
         app(GoalIncomeSourceSyncService::class)->syncForGoal($goal);
-
+        TaiChinhViewCache::forget($user->id);
         $msg = 'Đã tạo mục tiêu thu.';
         return $wantsJson ? response()->json(['success' => true, 'message' => $msg]) : redirect()->route('tai-chinh', ['tab' => 'nguong-ngan-sach'])->with('success', $msg);
     }
@@ -247,7 +248,7 @@ class IncomeGoalController extends Controller
             'payload' => ['name' => $goal->name, 'amount_target_vnd' => $goal->amount_target_vnd],
         ]);
         $goal->delete();
-
+        TaiChinhViewCache::forget($user->id);
         $msg = 'Đã xóa mục tiêu thu.';
         return $wantsJson ? response()->json(['success' => true, 'message' => $msg]) : redirect()->route('tai-chinh', ['tab' => 'nguong-ngan-sach'])->with('success', $msg);
     }

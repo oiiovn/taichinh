@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Notifications\FinanceActivityNotification;
 use App\Services\LoanLedgerService;
 use App\Services\LoanPendingPaymentService;
+use App\Services\TaiChinh\TaiChinhViewCache;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -219,7 +220,7 @@ class LoanContractController extends Controller
             ->firstOrFail();
 
         $contract->update(['status' => LoanContract::STATUS_ACTIVE]);
-
+        TaiChinhViewCache::forget($user->id);
         return $this->redirectToLoans()->with('success', 'Đã chấp nhận hợp đồng.');
     }
 
@@ -397,7 +398,7 @@ class LoanContractController extends Controller
                     $entryAmount
                 ));
             }
-
+            TaiChinhViewCache::forget($user->id);
             return redirect()->route('tai-chinh.loans.show', $id)->with('success', 'Đã xác nhận thanh toán.');
         } catch (\Throwable $e) {
             Log::error('LoanContractController@confirmPaymentEntry: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
@@ -463,6 +464,7 @@ class LoanContractController extends Controller
 
         try {
             $contract->update(['status' => LoanContract::STATUS_CLOSED]);
+            TaiChinhViewCache::forget($user->id);
             return $this->redirectToLoans()->with('success', 'Đã đóng hợp đồng.');
         } catch (\Throwable $e) {
             Log::error('LoanContractController@close: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
@@ -483,6 +485,7 @@ class LoanContractController extends Controller
 
         try {
             $contract->delete();
+            TaiChinhViewCache::forget($user->id);
             return $this->redirectToLoans()->with('success', 'Đã xóa hợp đồng vay.');
         } catch (\Throwable $e) {
             Log::error('LoanContractController@destroy: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
@@ -547,7 +550,7 @@ class LoanContractController extends Controller
             Log::error('LoanContractController@confirmPendingPayment: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
             return redirect()->route('tai-chinh.loans.show', $contract->id)->with('error', 'Không xác nhận được. Vui lòng thử lại sau.');
         }
-
+        TaiChinhViewCache::forget($user->id);
         return redirect()->route('tai-chinh.loans.show', $contract->id)->with('success', 'Đã xác nhận thanh toán.');
     }
 }
