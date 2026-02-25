@@ -22,7 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withSchedule(function (Schedule $schedule): void {
         // Pay2s: mỗi phút chạy 1 lần sync (cron đã là loop mỗi phút, không loop nội bộ)
-        $schedule->command('pay2s:sync')->everyMinute();
+        $schedule->command('pay2s:sync')->everyMinute()->runInForeground();
         // Recurring: phát hiện pattern định kỳ (lương, tiền nhà, subscription) — hàng ngày 2h
         $schedule->job(new \App\Jobs\DetectRecurringPatternsJob)->dailyAt('02:00');
         $schedule->job(new \App\Jobs\AccrueLiabilityInterestJob)->dailyAt('03:00');
