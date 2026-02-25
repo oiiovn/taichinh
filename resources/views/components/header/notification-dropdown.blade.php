@@ -30,7 +30,8 @@
             } else {
                 setTimeout(load, 100);
             }
-            setInterval(() => {
+            if (window._notificationPollingIntervalId) clearInterval(window._notificationPollingIntervalId);
+            window._notificationPollingIntervalId = setInterval(() => {
                 fetch('{{ route('notifications.unread-count') }}', { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, credentials: 'same-origin' })
                     .then(r => r.json())
                     .then(d => {
@@ -42,7 +43,7 @@
                         }
                         this.lastCount = c;
                     }).catch(() => {});
-            }, 10000);
+            }, 30000);
         }
     }"
     @click.away="closeDropdown()"
