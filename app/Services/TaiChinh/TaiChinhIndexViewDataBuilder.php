@@ -124,6 +124,7 @@ class TaiChinhIndexViewDataBuilder
 
         if ($isLightTab && $user) {
             $viewData = array_merge($contextPayload, [
+                'insight_from_cache' => null,
                 'projection' => null,
                 'projectionOptimization' => null,
                 'oweItemsForProjection' => $oweItems,
@@ -153,6 +154,7 @@ class TaiChinhIndexViewDataBuilder
             $cachedInsight = TaiChinhViewCache::getSafe($insightKey);
             if (is_array($cachedInsight)) {
                 $viewData = array_merge($cachedInsight, $contextPayload);
+                $viewData['insight_from_cache'] = true;
             } else {
                 $viewData = $this->insightPipeline->run($user, $contextPayload)->toArray();
                 $viewData['timelineSnapshots'] = $this->loadTimelineSnapshotsForStrategy($user->id);
@@ -161,10 +163,14 @@ class TaiChinhIndexViewDataBuilder
                     isset($viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'])
                         ? $viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'] : null
                 );
-                TaiChinhViewCache::putSafe($insightKey, $viewData, TaiChinhViewCache::TTL_HEAVY_SECONDS);
+                $viewData['insight_from_cache'] = false;
+                $toCache = $viewData;
+                unset($toCache['insight_from_cache']);
+                TaiChinhViewCache::putSafe($insightKey, $toCache, TaiChinhViewCache::TTL_HEAVY_SECONDS);
             }
         } else {
             $viewData = array_merge($contextPayload, [
+                'insight_from_cache' => null,
                 'projection' => null,
                 'projectionOptimization' => null,
                 'oweItemsForProjection' => $oweItems,

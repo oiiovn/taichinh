@@ -91,6 +91,9 @@
                     </div>
                 @elseif($insufficientData)
                     <p class="text-base leading-7 text-gray-800 dark:text-gray-100">{{ $onboardingNarrative ?? 'Chúng tôi chưa có đủ dữ liệu giao dịch và tài khoản để đưa ra đánh giá tài chính. Hãy liên kết tài khoản và để hệ thống thu thập dữ liệu vài tháng, sau đó insight sẽ chính xác hơn.' }}</p>
+                    @if(isset($insight_from_cache) && $insight_from_cache === false)
+                        <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">Lần tải này không dùng cache. Nếu bạn đã có đủ giao dịch, <a href="{{ request()->fullUrl() }}" class="underline text-brand-500 hover:text-brand-600">thử làm mới trang</a>.</p>
+                    @endif
                 @elseif($hasContent)
                     {{-- 1 narrative thống nhất (Narrative Builder hoặc Cognitive) --}}
                     @if($hasNarrative)
