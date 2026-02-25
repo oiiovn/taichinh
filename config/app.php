@@ -56,6 +56,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Asset URL (Vite / build)
+    |--------------------------------------------------------------------------
+    | Trên production (vd. socai.dropships.vn): đặt APP_URL đúng domain.
+    | Nếu asset dùng domain khác thì set ASSET_URL. Sau deploy phải có public/build
+    | (chạy npm run build tại thư mục gốc dự án, không phải tailadmin-laravel-main).
+    */
+    'asset_url' => env('ASSET_URL'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Timezone
     |--------------------------------------------------------------------------
     |
