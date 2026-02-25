@@ -77,14 +77,20 @@ class UserFinancialContextService
     public function getPaginatedTransactions(User $user, array $linkedAccountNumbers, Request $request, int $perPage = 50): LengthAwarePaginator
     {
         $query = TransactionHistory::with(['bankAccount', 'userCategory', 'systemCategory'])
-            ->where('user_id', $user->id);
-
-        if (! empty($linkedAccountNumbers)) {
-            $query->where(function ($q) use ($linkedAccountNumbers) {
-                $q->whereIn('account_number', $linkedAccountNumbers)
-                    ->orWhereHas('bankAccount', fn ($q2) => $q2->whereIn('account_number', $linkedAccountNumbers));
+            ->where(function ($q) use ($user, $linkedAccountNumbers) {
+                $q->where('user_id', $user->id);
+                if (! empty($linkedAccountNumbers)) {
+                    $q->where(function ($q2) use ($linkedAccountNumbers) {
+                        $q2->whereIn('account_number', $linkedAccountNumbers)
+                            ->orWhereHas('bankAccount', fn ($q3) => $q3->whereIn('account_number', $linkedAccountNumbers));
+                    });
+                }
+                if (! empty($linkedAccountNumbers)) {
+                    $q->orWhere(function ($q2) use ($linkedAccountNumbers) {
+                        $q2->whereNull('user_id')->whereIn('account_number', $linkedAccountNumbers);
+                    });
+                }
             });
-        }
 
         $query->when($request->filled('stk'), fn ($q) => $q->where('account_number', $request->input('stk')))
             ->when($request->filled('loai') && in_array($request->input('loai'), ['IN', 'OUT'], true), fn ($q) => $q->where('type', $request->input('loai')))
