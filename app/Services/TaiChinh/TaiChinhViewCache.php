@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Cache;
  * Cache view data trang Tài chính.
  * - View: TTL 1 giờ, invalidate khi user ghi dữ liệu.
  * - Insight / analytics / dashboard: TTL 12 giờ, invalidate khi ?refresh_insight=1.
+ * - getSafe/putSafe: không ném lỗi khi mất kết nối cache (Redis/file), fallback tính lại.
  */
 class TaiChinhViewCache
 {
@@ -36,16 +37,44 @@ class TaiChinhViewCache
         return 'tai_chinh_dashboard_' . $userId;
     }
 
+    /** Lấy cache, trả null khi lỗi kết nối / mất cache — không ném exception. */
+    public static function getSafe(string $key): mixed
+    {
+        try {
+            return Cache::get($key);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /** Ghi cache, bỏ qua khi lỗi — không ném exception. */
+    public static function putSafe(string $key, mixed $value, int $ttl): void
+    {
+        try {
+            Cache::put($key, $value, $ttl);
+        } catch (\Throwable $e) {
+            // Mất kết nối cache: bỏ qua, request vẫn trả về dữ liệu tính được
+        }
+    }
+
     public static function forget(int $userId): void
     {
-        Cache::forget(self::key($userId));
+        try {
+            Cache::forget(self::key($userId));
+        } catch (\Throwable $e) {
+            // Mất kết nối: bỏ qua, lần sau sẽ build lại
+        }
     }
 
     /** Xóa cache insight + analytics + dashboard (khi ?refresh_insight=1). */
     public static function forgetHeavy(int $userId): void
     {
-        Cache::forget(self::insightKey($userId));
-        Cache::forget(self::analyticsKey($userId));
-        Cache::forget(self::dashboardKey($userId));
+        try {
+            Cache::forget(self::insightKey($userId));
+            Cache::forget(self::analyticsKey($userId));
+            Cache::forget(self::dashboardKey($userId));
+        } catch (\Throwable $e) {
+            // Mất kết nối: bỏ qua
+        }
     }
 }

@@ -21,7 +21,6 @@ use App\Services\UserFinancialContextService;
 use App\Http\Controllers\GoiHienTaiController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 
 class TaiChinhIndexViewDataBuilder
 {
@@ -151,7 +150,7 @@ class TaiChinhIndexViewDataBuilder
             ]);
         } elseif ($user) {
             $insightKey = TaiChinhViewCache::insightKey($user->id);
-            $cachedInsight = Cache::get($insightKey);
+            $cachedInsight = TaiChinhViewCache::getSafe($insightKey);
             if (is_array($cachedInsight)) {
                 $viewData = array_merge($cachedInsight, $contextPayload);
             } else {
@@ -162,7 +161,7 @@ class TaiChinhIndexViewDataBuilder
                     isset($viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'])
                         ? $viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'] : null
                 );
-                Cache::put($insightKey, $viewData, TaiChinhViewCache::TTL_HEAVY_SECONDS);
+                TaiChinhViewCache::putSafe($insightKey, $viewData, TaiChinhViewCache::TTL_HEAVY_SECONDS);
             }
         } else {
             $viewData = array_merge($contextPayload, [
@@ -236,7 +235,7 @@ class TaiChinhIndexViewDataBuilder
             return;
         }
         $cacheKey = TaiChinhViewCache::analyticsKey($user->id);
-        $cached = Cache::get($cacheKey);
+        $cached = TaiChinhViewCache::getSafe($cacheKey);
         if (is_array($cached)) {
             $viewData['analyticsData'] = $cached;
             return;
@@ -268,7 +267,7 @@ class TaiChinhIndexViewDataBuilder
             'strategySummary' => $strategySummary,
             'health_status' => $healthStatus,
         ];
-        Cache::put($cacheKey, $viewData['analyticsData'], TaiChinhViewCache::TTL_HEAVY_SECONDS);
+        TaiChinhViewCache::putSafe($cacheKey, $viewData['analyticsData'], TaiChinhViewCache::TTL_HEAVY_SECONDS);
     }
 
     private function attachDashboardData(?object $user, Collection $userBankAccounts, array $linkedAccountNumbers, Collection $accounts, array $accountBalances, array &$viewData): void
@@ -280,6 +279,17 @@ class TaiChinhIndexViewDataBuilder
         $viewData['dashboardSyncStatus'] = ['has_error' => false, 'by_account' => []];
         $viewData['dashboardPerAccount'] = [];
         if (! $user || empty($linkedAccountNumbers)) {
+            return;
+        }
+        $cacheKey = TaiChinhViewCache::dashboardKey($user->id);
+        $cached = TaiChinhViewCache::getSafe($cacheKey);
+        if (is_array($cached)) {
+            $viewData['dashboardCardEvents'] = $cached['dashboardCardEvents'] ?? [];
+            $viewData['dashboardBalanceDeltas'] = $cached['dashboardBalanceDeltas'] ?? [];
+            $viewData['dashboardTodaySummary'] = $cached['dashboardTodaySummary'] ?? [];
+            $viewData['dashboardWeekSummary'] = $cached['dashboardWeekSummary'] ?? [];
+            $viewData['dashboardSyncStatus'] = $cached['dashboardSyncStatus'] ?? ['has_error' => false, 'by_account' => []];
+            $viewData['dashboardPerAccount'] = $cached['dashboardPerAccount'] ?? [];
             return;
         }
         $viewData['dashboardBalanceDeltas'] = $this->dashboardCardService->getBalanceDeltas($user->id, $linkedAccountNumbers, $viewData['accountBalances'] ?? []);
@@ -331,7 +341,7 @@ class TaiChinhIndexViewDataBuilder
                 ),
             ];
         }
-        Cache::put($cacheKey, [
+        TaiChinhViewCache::putSafe($cacheKey, [
             'dashboardCardEvents' => $viewData['dashboardCardEvents'],
             'dashboardBalanceDeltas' => $viewData['dashboardBalanceDeltas'],
             'dashboardTodaySummary' => $viewData['dashboardTodaySummary'],

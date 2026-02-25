@@ -25,7 +25,6 @@ use App\Services\TaiChinh\TaiChinhIndexViewDataBuilder;
 use App\Services\TaiChinh\TaiChinhViewCache;
 use App\Services\UserFinancialContextService;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -59,14 +58,14 @@ class TaiChinhController extends Controller
         $user = $request->user();
         $userId = $user?->id;
         if ($userId && ! $request->boolean('refresh')) {
-            $cached = Cache::get(TaiChinhViewCache::key($userId));
+            $cached = TaiChinhViewCache::getSafe(TaiChinhViewCache::key($userId));
             if ($cached !== null && is_array($cached)) {
                 return view('pages.tai-chinh', $cached);
             }
         }
         $viewData = $builder->build($request);
         if ($userId) {
-            Cache::put(TaiChinhViewCache::key($userId), $viewData, TaiChinhViewCache::TTL_SECONDS);
+            TaiChinhViewCache::putSafe(TaiChinhViewCache::key($userId), $viewData, TaiChinhViewCache::TTL_SECONDS);
         }
         return view('pages.tai-chinh', $viewData);
     }
