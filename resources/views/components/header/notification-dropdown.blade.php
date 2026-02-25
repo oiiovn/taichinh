@@ -1,5 +1,8 @@
 {{-- Notification Dropdown: data thật + flash 5s + polling realtime --}}
-@php $unreadCount = $unreadCount ?? 0; @endphp
+@php
+$unreadCount = $unreadCount ?? 0;
+$notifications = $notifications ?? [];
+@endphp
 <div
     class="relative"
     data-initial-unread="{{ $unreadCount }}"
