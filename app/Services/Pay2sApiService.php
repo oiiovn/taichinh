@@ -528,6 +528,37 @@ class Pay2sApiService
             $result['errors'][] = 'Giao dịch: ' . $e->getMessage();
         }
 
+        $result['backfilled'] = $this->backfillUserIdsForPendingTransactions();
+
         return $result;
+    }
+
+    /**
+     * Gán user_id (và pay2s_bank_account_id) cho giao dịch đã lưu nhưng còn thiếu user_id (cách 2: backfill sau sync).
+     */
+    public function backfillUserIdsForPendingTransactions(): int
+    {
+        $updated = 0;
+        TransactionHistory::whereNull('user_id')->orderBy('id')->chunk(200, function ($transactions) use (&$updated) {
+            foreach ($transactions as $t) {
+                $ids = $this->resolveAccountIdsForBackfill($t);
+                if ($ids['user_id'] === null) {
+                    continue;
+                }
+                $t->user_id = $ids['user_id'];
+                if ($ids['pay2s_bank_account_id'] !== null) {
+                    $t->pay2s_bank_account_id = $ids['pay2s_bank_account_id'];
+                }
+                $t->save();
+                $updated++;
+                try {
+                    app(\App\Services\PaymentScheduleMatchService::class)->tryMatch($t->fresh());
+                    app(TransactionClassifier::class)->classify($t->fresh());
+                } catch (\Throwable $e) {
+                    Log::warning('Pay2s backfill: tryMatch/classify failed for tx ' . $t->id . ': ' . $e->getMessage());
+                }
+            }
+        });
+        return $updated;
     }
 }
