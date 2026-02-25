@@ -12,6 +12,7 @@ use App\Http\Controllers\ProfileController;
 
 Route::middleware('auth')->group(function () {
     Route::get('/notifications/unread-count', [\App\Http\Controllers\NotificationUnreadCountController::class, 'index'])->name('notifications.unread-count');
+    Route::get('/notifications/dropdown-data', [\App\Http\Controllers\NotificationUnreadCountController::class, 'dropdownData'])->name('notifications.dropdown-data');
 
     Route::get('/thong-bao', [\App\Http\Controllers\BroadcastViewController::class, 'index'])->name('thong-bao.index');
     Route::get('/thong-bao/{broadcast}', [\App\Http\Controllers\BroadcastViewController::class, 'show'])->name('thong-bao.show');

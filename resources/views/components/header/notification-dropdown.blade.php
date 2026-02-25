@@ -1,15 +1,12 @@
-{{-- Notification Dropdown: data thật + flash 5s + polling realtime --}}
-@php
-$unreadCount = $unreadCount ?? 0;
-$notifications = $notifications ?? [];
-@endphp
+{{-- Notification Dropdown: không query khi render; load bằng JS sau khi trang hiển thị (cách 3) --}}
 <div
     class="relative"
-    data-initial-unread="{{ $unreadCount }}"
     x-data="{
         dropdownOpen: false,
-        notifying: {{ $unreadCount > 0 ? 'true' : 'false' }},
-        lastCount: {{ $unreadCount }},
+        notifying: false,
+        lastCount: 0,
+        notifications: [],
+        loaded: false,
         toggleDropdown() {
             this.dropdownOpen = !this.dropdownOpen;
             if (this.dropdownOpen) this.notifying = false;
@@ -17,7 +14,22 @@ $notifications = $notifications ?? [];
         closeDropdown() { this.dropdownOpen = false; },
         handleItemClick() { this.closeDropdown(); },
         handleViewAllClick() { this.closeDropdown(); },
+        fetchData() {
+            fetch('{{ route('notifications.dropdown-data') }}', { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, credentials: 'same-origin' })
+                .then(r => r.json())
+                .then(d => {
+                    this.notifications = d.notifications ?? [];
+                    this.lastCount = d.unread_count ?? 0;
+                    this.loaded = true;
+                }).catch(() => { this.loaded = true; });
+        },
         init() {
+            const load = () => this.fetchData();
+            if (typeof requestIdleCallback !== 'undefined') {
+                requestIdleCallback(load, { timeout: 2000 });
+            } else {
+                setTimeout(load, 100);
+            }
             setInterval(() => {
                 fetch('{{ route('notifications.unread-count') }}', { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }, credentials: 'same-origin' })
                     .then(r => r.json())
@@ -42,7 +54,7 @@ $notifications = $notifications ?? [];
         :class="($store.notificationFlash !== undefined && $store.notificationFlash) ? 'ring-2 ring-orange-400 animate-pulse' : ''"
         @click="toggleDropdown()"
     >
-        <span x-show="notifying" class="absolute right-0 top-0.5 z-1 h-2 w-2 rounded-full bg-orange-400">
+        <span x-show="lastCount > 0" class="absolute right-0 top-0.5 z-1 h-2 w-2 rounded-full bg-orange-400" :class="{ 'animate-ping': notifying }">
             <span class="absolute inline-flex w-full h-full bg-orange-400 rounded-full opacity-75 -z-1 animate-ping"></span>
         </span>
         <svg class="fill-current" width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -71,33 +83,37 @@ $notifications = $notifications ?? [];
         </div>
 
         <ul class="flex flex-col h-auto overflow-y-auto custom-scrollbar">
-            @forelse($notifications as $notification)
+            <template x-if="!loaded">
+                <li class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">Đang tải...</li>
+            </template>
+            <template x-if="loaded && notifications.length === 0">
+                <li class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">Chưa có thông báo mới.</li>
+            </template>
+            <template x-for="(notification, index) in notifications" :key="index">
                 <li @click="handleItemClick()">
                     <a
                         class="flex gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5"
-                        href="{{ $notification['link'] }}"
+                        :href="notification.link"
                     >
                         <span class="relative block w-full h-10 rounded-full z-1 max-w-10">
-                            <img src="{{ $notification['userImage'] }}" alt="" class="overflow-hidden rounded-full" />
+                            <img :src="notification.userImage" alt="" class="overflow-hidden rounded-full" />
                             <span class="absolute bottom-0 right-0 z-10 h-2.5 w-full max-w-2.5 rounded-full border-[1.5px] border-white dark:border-gray-900 bg-success-500"></span>
                         </span>
                         <span class="block">
                             <span class="mb-1.5 block text-theme-sm text-gray-500 dark:text-gray-400">
-                                <span class="font-medium text-gray-800 dark:text-white/90">{{ $notification['userName'] }}</span>
-                                {{ $notification['action'] }}
-                                <span class="font-medium text-gray-800 dark:text-white/90">{{ $notification['project'] }}</span>
+                                <span class="font-medium text-gray-800 dark:text-white/90" x-text="notification.userName"></span>
+                                <span x-text="notification.action"></span>
+                                <span class="font-medium text-gray-800 dark:text-white/90" x-text="notification.project"></span>
                             </span>
                             <span class="flex flex-wrap items-center gap-y-0.5 text-gray-500 text-theme-xs dark:text-gray-400">
-                                <span>{{ $notification['type'] }}</span>
+                                <span x-text="notification.type"></span>
                                 <span class="mx-2.5 text-base leading-none text-gray-400 dark:text-gray-500" aria-hidden="true">·</span>
-                                <span>{{ $notification['time'] }}</span>
+                                <span x-text="notification.time"></span>
                             </span>
                         </span>
                     </a>
                 </li>
-            @empty
-                <li class="py-6 text-center text-sm text-gray-500 dark:text-gray-400">Chưa có thông báo mới.</li>
-            @endforelse
+            </template>
         </ul>
 
         <a
