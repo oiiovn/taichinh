@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Cache;
  */
 class TaiChinhViewCache
 {
-    public const TTL_SECONDS = 120;
+    public const TTL_SECONDS = 3600; // 1 giờ
 
     public static function key(int $userId): string
     {
