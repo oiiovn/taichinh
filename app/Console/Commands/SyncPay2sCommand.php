@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Services\Pay2sApiService;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 class SyncPay2sCommand extends Command
 {
@@ -15,6 +16,8 @@ class SyncPay2sCommand extends Command
 
     public function handle(Pay2sApiService $service): int
     {
+        Log::info('Pay2s sync started', ['loop' => $this->option('loop'), 'interval' => $this->option('interval')]);
+
         $loop = (int) $this->option('loop');
         $iterations = $loop > 0 ? $loop : 1;
         $intervalSeconds = max(1, (int) $this->option('interval'));
@@ -26,6 +29,7 @@ class SyncPay2sCommand extends Command
             }
 
             $result = $service->sync();
+            Log::info('Pay2s sync result', ['accounts' => $result['accounts'], 'transactions' => $result['transactions'], 'errors' => $result['errors'] ?? []]);
 
             if (! empty($result['errors'])) {
                 foreach ($result['errors'] as $err) {
