@@ -72,6 +72,7 @@ class BudgetThresholdService
             $categoryLabels = $this->resolveCategoryLabels($t->category_bindings ?? []);
 
             $items[] = [
+                'threshold_id' => $t->id,
                 'name' => $t->name,
                 'limit_vnd' => $limit,
                 'spent_vnd' => (int) round($spent),

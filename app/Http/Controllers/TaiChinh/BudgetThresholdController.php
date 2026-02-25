@@ -34,7 +34,7 @@ class BudgetThresholdController extends Controller
             }
         }
 
-        return response()->view('pages.tai-chinh.partials.nguong-ngan-sach-list', [
+        $response = response()->view('pages.tai-chinh.partials.nguong-ngan-sach-list', [
             'budgetThresholds' => $budgetThresholds,
             'budgetThresholdSummary' => $budgetThresholdSummary,
             'incomeGoals' => $incomeGoals,
@@ -43,6 +43,8 @@ class BudgetThresholdController extends Controller
             'filter_vuot' => $request->input('filter_vuot', ''),
             'filter_het_han' => $request->input('filter_het_han', ''),
         ]);
+        $response->header('Cache-Control', 'no-store, no-cache, must-revalidate');
+        return $response;
     }
 
     public function editBudgetThresholdJson(Request $request, int $id): \Illuminate\Http\JsonResponse

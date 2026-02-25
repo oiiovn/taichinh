@@ -2,7 +2,7 @@
     $thresholds = $budgetThresholds ?? collect();
     $summary = $budgetThresholdSummary ?? ['thresholds' => [], 'aggregate' => []];
     $summaryItems = $summary['thresholds'] ?? [];
-    $summaryByKey = collect($summaryItems)->keyBy('name');
+    $summaryByKey = collect($summaryItems)->keyBy(fn ($row) => $row['threshold_id'] ?? $row['name'] ?? null);
     $userCategories = $userCategories ?? collect();
     $expenseUserCats = $userCategories->whereIn('type', ['expense'])->values();
     $incomeUserCats = $userCategories->whereIn('type', ['income'])->values();
@@ -12,7 +12,7 @@
     $bindIds = $editThreshold ? array_column($editThreshold->category_bindings ?? [], 'id') : [];
     $incomeGoals = $incomeGoals ?? collect();
     $incomeGoalSummary = $incomeGoalSummary ?? ['goals' => []];
-    $goalSummaryByKey = collect($incomeGoalSummary['goals'] ?? [])->keyBy('name');
+    $goalSummaryByKey = collect($incomeGoalSummary['goals'] ?? [])->keyBy(fn ($row) => $row['goal_id'] ?? $row['name'] ?? null);
     $editIncomeGoal = $editIncomeGoal ?? null;
     $openModalMucTieuThu = $openModalMucTieuThu ?? false;
     $goalBindIds = $editIncomeGoal ? array_column($editIncomeGoal->category_bindings ?? [], 'id') : [];
@@ -23,7 +23,7 @@
     $filterVuot = request('filter_vuot', '');
     $filterHetHan = request('filter_het_han', '');
     $filteredThresholds = $thresholds->filter(function ($t) use ($summaryByKey, $now, $filterPct, $filterVuot, $filterHetHan) {
-        $row = $summaryByKey->get($t->name);
+        $row = $summaryByKey->get($t->id) ?? $summaryByKey->get($t->name);
         $spent = $row['spent_vnd'] ?? 0;
         $limit = $t->amount_limit_vnd;
         $breached = $row['breached'] ?? false;
@@ -41,8 +41,6 @@
         if ($filterVuot === '1' && !$breached) return false;
         if ($filterHetHan === '1') {
             if (!$periodEndInPastMonth) return false;
-        } else {
-            if ($periodEndInPastMonth) return false;
         }
         if ($filterPct !== '') {
             if ($filterPct === 'under60' && $pct >= 60) return false;
@@ -68,14 +66,15 @@
             $sortEnd = $end->format('Y-m-d');
             $expired = $end->lt($now);
         }
-        $row = $summaryByKey->get($t->name);
+        $row = $summaryByKey->get($t->id) ?? $summaryByKey->get($t->name);
         $breached = $row['breached'] ?? false;
         $limit = $t->amount_limit_vnd ?? 0;
-        return (object)['type' => 'threshold', 'item' => $t, '_expired' => $expired, '_start' => $sortStart, '_end' => $sortEnd, '_flag' => $breached ? 1 : 0, '_limit' => $limit];
+        $sortKey = (int) \Carbon\Carbon::parse($sortEnd)->format('Ymd');
+        return (object)['type' => 'threshold', 'item' => $t, '_expired' => $expired, '_start' => $sortStart, '_end' => $sortEnd, '_sort_key' => $sortKey, '_flag' => $breached ? 1 : 0, '_limit' => $limit];
     })->values();
 
     $filteredGoals = $incomeGoals->filter(function ($g) use ($goalSummaryByKey, $now, $filterPct, $filterVuot, $filterHetHan) {
-        $row = $goalSummaryByKey->get($g->name);
+        $row = $goalSummaryByKey->get($g->id) ?? $goalSummaryByKey->get($g->name);
         $target = $g->amount_target_vnd;
         $earned = $row['earned_vnd'] ?? 0;
         $achievementPct = $target > 0 ? round(($earned / $target) * 100, 1) : 0;
@@ -87,7 +86,7 @@
             $expired = \Carbon\Carbon::parse($g->period_end)->endOfDay()->lt($now);
         }
         if ($filterVuot === '1' && !$met) return false;
-        if ($filterHetHan === '1') { if (!$expired) return false; } else { if ($expired) return false; }
+        if ($filterHetHan === '1') { if (!$expired) return false; }
         if ($filterPct !== '') {
             if ($filterPct === 'under60' && $achievementPct >= 60) return false;
             if ($filterPct === '60_80' && ($achievementPct < 60 || $achievementPct >= 80)) return false;
@@ -111,18 +110,18 @@
             $sortEnd = $end->format('Y-m-d');
             $expired = $end->lt($now);
         }
-        $row = $goalSummaryByKey->get($g->name);
+        $row = $goalSummaryByKey->get($g->id) ?? $goalSummaryByKey->get($g->name);
         $met = $row['met'] ?? false;
         $target = $g->amount_target_vnd ?? 0;
-        return (object)['type' => 'goal', 'item' => $g, '_expired' => $expired, '_start' => $sortStart, '_end' => $sortEnd, '_flag' => $met ? 1 : 0, '_limit' => $target];
+        $sortKey = (int) \Carbon\Carbon::parse($sortEnd)->format('Ymd');
+        return (object)['type' => 'goal', 'item' => $g, '_expired' => $expired, '_start' => $sortStart, '_end' => $sortEnd, '_sort_key' => $sortKey, '_flag' => $met ? 1 : 0, '_limit' => $target];
     })->values();
 
     $mergedItems = $filteredThresholds->concat($filteredGoals)->sortBy([
-        fn($x) => $x->_expired ? 1 : 0,
-        fn($x) => -\Carbon\Carbon::parse($x->_start)->timestamp,
-        fn($x) => $x->_end,
+        fn($x) => (int) ($x->_sort_key ?? \Carbon\Carbon::parse($x->_end)->format('Ymd')),
         fn($x) => $x->_flag ? 0 : 1,
         fn($x) => $x->_limit,
+        fn($x) => $x->type === 'threshold' ? $x->item->id : 1000000 + $x->item->id,
     ])->values();
 
     $hasFilterNguong = $filterPct !== '' || $filterVuot === '1' || $filterHetHan === '1';
@@ -209,7 +208,7 @@
                 @if($entry->type === 'threshold')
                 @php $t = $entry->item; @endphp
                 @php
-                    $row = $summaryByKey->get($t->name);
+                    $row = $summaryByKey->get($t->id) ?? $summaryByKey->get($t->name);
                     $spent = $row['spent_vnd'] ?? 0;
                     $limit = $t->amount_limit_vnd;
                     $deviation = $row['deviation_pct'] ?? null;
@@ -309,7 +308,7 @@
                 @else
                 @php
                     $g = $entry->item;
-                    $row = $goalSummaryByKey->get($g->name);
+                    $row = $goalSummaryByKey->get($g->id) ?? $goalSummaryByKey->get($g->name);
                     $earned = $row['earned_vnd'] ?? 0;
                     $target = $g->amount_target_vnd;
                     $achievementPct = $row['achievement_pct'] ?? ($target > 0 ? round(($earned / $target) * 100, 1) : 0);
@@ -998,7 +997,9 @@
         }
 
         function fetchList() {
-            var url = tableUrl + '?' + buildParams().toString();
+            var params = buildParams();
+            params.set('_', String(Date.now()));
+            var url = tableUrl + '?' + params.toString();
             container.classList.add('opacity-70');
             fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'text/html' } })
                 .then(function(r) { return r.ok ? r.text() : Promise.reject(); })

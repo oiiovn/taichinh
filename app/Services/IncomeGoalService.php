@@ -70,6 +70,7 @@ class IncomeGoalService
             $categoryLabels = $this->resolveCategoryLabels($g->category_bindings ?? []);
 
             $items[] = [
+                'goal_id' => $g->id,
                 'name' => $g->name,
                 'target_vnd' => $target,
                 'earned_vnd' => (int) round($earned),
