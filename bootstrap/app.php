@@ -21,8 +21,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: []);
     })
     ->withSchedule(function (Schedule $schedule): void {
-        // Pay2s: mỗi phút chạy 1 lần sync (cron đã là loop mỗi phút, không loop nội bộ)
-        $schedule->command('pay2s:sync')->everyMinute()->runInForeground();
+        // Pay2s: mỗi phút chạy sync trong cùng process (tránh proc_open bị disable trên hosting)
+        $schedule->call(function () {
+            app(\App\Services\Pay2sApiService::class)->sync();
+        })->everyMinute();
         // Recurring: phát hiện pattern định kỳ (lương, tiền nhà, subscription) — hàng ngày 2h
         $schedule->job(new \App\Jobs\DetectRecurringPatternsJob)->dailyAt('02:00');
         $schedule->job(new \App\Jobs\AccrueLiabilityInterestJob)->dailyAt('03:00');
