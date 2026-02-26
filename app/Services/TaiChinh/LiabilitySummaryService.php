@@ -31,7 +31,7 @@ class LiabilitySummaryService
             $total = $outstanding + $unpaid;
             $accrued += $this->ledgerService->getTotalAccruedInterest($c);
             $principal += $outstanding;
-            if ($c->lender_user_id === $userId) {
+            if ((int) $c->lender_user_id === (int) $userId) {
                 $receivable += $total;
             } else {
                 $payable += $total;

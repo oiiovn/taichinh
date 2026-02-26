@@ -462,6 +462,10 @@ class LoanContractController extends Controller
             $q->where('lender_user_id', $user->id)->orWhere('borrower_user_id', $user->id);
         })->findOrFail($id);
 
+        if ((int) $contract->borrower_user_id === (int) $user->id) {
+            return $this->redirectToLoans()->with('error', 'Chỉ bên cho vay mới được đóng hợp đồng.');
+        }
+
         try {
             $contract->update(['status' => LoanContract::STATUS_CLOSED]);
             TaiChinhViewCache::forget($user->id);
@@ -482,6 +486,10 @@ class LoanContractController extends Controller
         $contract = LoanContract::where(function ($q) use ($user) {
             $q->where('lender_user_id', $user->id)->orWhere('borrower_user_id', $user->id);
         })->findOrFail($id);
+
+        if ((int) $contract->borrower_user_id === (int) $user->id) {
+            return $this->redirectToLoans()->with('error', 'Chỉ bên cho vay mới được xóa hợp đồng.');
+        }
 
         try {
             $contract->delete();

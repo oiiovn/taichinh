@@ -8,7 +8,7 @@
     </div>
 @else
     <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-sm dark:border-gray-800 dark:bg-gray-dark">
-        <div class="overflow-x-auto">
+        <div class="max-h-[70vh] overflow-auto">
             <table class="min-w-full text-theme-sm">
                 <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800">
                     <tr>

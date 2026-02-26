@@ -54,7 +54,7 @@ class UnifiedLoansBuilderService
             $outstanding = $this->ledgerService->getOutstandingPrincipal($c);
             $totalAccrued = $this->ledgerService->getTotalAccruedInterest($c);
             $unpaid = $this->ledgerService->getUnpaidInterest($c);
-            $isLender = $c->lender_user_id === $userId;
+            $isLender = (int) $c->lender_user_id === (int) $userId;
             $principalStart = (float) $c->principal_at_start;
             $progress = $principalStart > 0 ? min(100, round(max(0, ($principalStart - $outstanding) / $principalStart) * 100, 1)) : 0;
             $items->push((object) [

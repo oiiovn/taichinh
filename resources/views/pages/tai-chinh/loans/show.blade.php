@@ -18,16 +18,20 @@
             @endif
             @if($contract->status === 'active')
                 <a href="{{ route('tai-chinh.loans.payment', $contract->id) }}" class="rounded-lg bg-brand-500 px-3.5 py-2 text-theme-sm font-medium text-white shadow-theme-xs hover:bg-brand-600">{{ (int) $contract->borrower_user_id === (int) auth()->id() ? 'Thanh toán' : 'Thu nợ' }}</a>
-                <form id="form-close-loan" method="POST" action="{{ route('tai-chinh.loans.close', $contract->id) }}" class="inline">
+                @if((int) $contract->lender_user_id === (int) auth()->id())
+                    <form id="form-close-loan" method="POST" action="{{ route('tai-chinh.loans.close', $contract->id) }}" class="inline">
+                        @csrf
+                        <button type="button" @click="showConfirmClose = true" class="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-theme-sm font-medium text-gray-600 shadow-theme-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:text-gray-400 dark:hover:bg-gray-800">Đóng</button>
+                    </form>
+                @endif
+            @endif
+            @if((int) $contract->lender_user_id === (int) auth()->id())
+                <form id="form-delete-loan" method="POST" action="{{ route('tai-chinh.loans.destroy', $contract->id) }}" class="inline">
                     @csrf
-                    <button type="button" @click="showConfirmClose = true" class="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-theme-sm font-medium text-gray-600 shadow-theme-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:text-gray-400 dark:hover:bg-gray-800">Đóng</button>
+                    @method('DELETE')
+                    <button type="button" @click="showConfirmDelete = true" class="rounded-lg border border-error-200 bg-error-50 px-3.5 py-2 text-theme-sm font-medium text-error-600 shadow-theme-xs hover:bg-error-100 dark:border-error-800 dark:bg-error-900/20 dark:text-error-400 dark:hover:bg-error-900/30">Xóa</button>
                 </form>
             @endif
-            <form id="form-delete-loan" method="POST" action="{{ route('tai-chinh.loans.destroy', $contract->id) }}" class="inline">
-                @csrf
-                @method('DELETE')
-                <button type="button" @click="showConfirmDelete = true" class="rounded-lg border border-error-200 bg-error-50 px-3.5 py-2 text-theme-sm font-medium text-error-600 shadow-theme-xs hover:bg-error-100 dark:border-error-800 dark:bg-error-900/20 dark:text-error-400 dark:hover:bg-error-900/30">Xóa</button>
-            </form>
             <a href="{{ route('tai-chinh.loans.index') }}" class="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-theme-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:text-gray-300 dark:hover:bg-gray-800">← Quay lại</a>
         </div>
         <x-ui.confirm-delete openVar="showConfirmDelete" title="Xác nhận xóa" defaultMessage="Xóa hợp đồng này? Dữ liệu sẽ mất vĩnh viễn." />

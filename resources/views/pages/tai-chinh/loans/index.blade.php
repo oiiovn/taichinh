@@ -96,10 +96,12 @@
                                         @endif
                                         @if($c->status === 'active')
                                             <a href="{{ route('tai-chinh.loans.payment', $c->id) }}" class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-theme-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.05]">{{ $isLender ? 'Thu nợ' : 'Thanh toán' }}</a>
-                                            <form id="form-close-loan-{{ $c->id }}" method="POST" action="{{ route('tai-chinh.loans.close', $c->id) }}" class="inline">
-                                                @csrf
-                                                <button type="button" @click="$dispatch('confirm-close-open', { formId: 'form-close-loan-{{ $c->id }}' })" class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-theme-xs font-medium text-gray-600 shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.05]">Đóng</button>
-                                            </form>
+                                            @if($isLender)
+                                                <form id="form-close-loan-{{ $c->id }}" method="POST" action="{{ route('tai-chinh.loans.close', $c->id) }}" class="inline">
+                                                    @csrf
+                                                    <button type="button" @click="$dispatch('confirm-close-open', { formId: 'form-close-loan-{{ $c->id }}' })" class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-theme-xs font-medium text-gray-600 shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.05]">Đóng</button>
+                                                </form>
+                                            @endif
                                         @endif
                                         <a href="{{ route('tai-chinh.loans.show', $c->id) }}" class="rounded-lg border border-gray-300 bg-white px-2.5 py-1.5 text-theme-xs font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-white/[0.05]">Chi tiết</a>
                                     </div>
