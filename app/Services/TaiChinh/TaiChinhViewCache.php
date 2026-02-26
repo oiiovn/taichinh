@@ -6,13 +6,13 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * Cache view data trang Tài chính.
- * - View: TTL 1 giờ, invalidate khi user ghi dữ liệu.
+ * - View: TTL 10 phút, invalidate khi user ghi dữ liệu hoặc ?refresh=1.
  * - Insight / analytics / dashboard: TTL 12 giờ, invalidate khi ?refresh_insight=1.
  * - getSafe/putSafe: không ném lỗi khi mất kết nối cache (Redis/file), fallback tính lại.
  */
 class TaiChinhViewCache
 {
-    public const TTL_SECONDS = 3600; // 1 giờ
+    public const TTL_SECONDS = 600; // 10 phút
 
     /** TTL cache insight/analytics/dashboard — tối đa 12h một lần. */
     public const TTL_HEAVY_SECONDS = 43200; // 12 giờ
