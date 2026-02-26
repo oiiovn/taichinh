@@ -10,14 +10,14 @@
             <span class="font-medium text-gray-800 dark:text-white">{{ $contract->name }}</span>
         </nav>
         <div class="flex flex-wrap gap-2">
-            @if($contract->status === 'pending' && $contract->borrower_user_id === auth()->id())
+            @if($contract->status === 'pending' && (int) $contract->borrower_user_id === (int) auth()->id())
                 <form method="POST" action="{{ route('tai-chinh.loans.accept', $contract->id) }}" class="inline">
                     @csrf
                     <button type="submit" class="rounded-lg border border-brand-500 bg-brand-500 px-3.5 py-2 text-theme-sm font-medium text-white shadow-theme-xs hover:bg-brand-600">Chấp nhận</button>
                 </form>
             @endif
             @if($contract->status === 'active')
-                <a href="{{ route('tai-chinh.loans.payment', $contract->id) }}" class="rounded-lg bg-brand-500 px-3.5 py-2 text-theme-sm font-medium text-white shadow-theme-xs hover:bg-brand-600">{{ $contract->borrower_user_id === auth()->id() ? 'Thanh toán' : 'Thu nợ' }}</a>
+                <a href="{{ route('tai-chinh.loans.payment', $contract->id) }}" class="rounded-lg bg-brand-500 px-3.5 py-2 text-theme-sm font-medium text-white shadow-theme-xs hover:bg-brand-600">{{ (int) $contract->borrower_user_id === (int) auth()->id() ? 'Thanh toán' : 'Thu nợ' }}</a>
                 <form id="form-close-loan" method="POST" action="{{ route('tai-chinh.loans.close', $contract->id) }}" class="inline">
                     @csrf
                     <button type="button" @click="showConfirmClose = true" class="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-theme-sm font-medium text-gray-600 shadow-theme-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:text-gray-400 dark:hover:bg-gray-800">Đóng</button>

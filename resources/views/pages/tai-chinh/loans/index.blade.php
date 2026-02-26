@@ -61,7 +61,7 @@
                                 $ledger = app(\App\Services\LoanLedgerService::class);
                                 $outstanding = $ledger->getOutstandingPrincipal($c);
                                 $unpaid = $ledger->getUnpaidInterest($c);
-                                $isLender = $c->lender_user_id === auth()->id();
+                                $isLender = (int) $c->lender_user_id === (int) auth()->id();
                             @endphp
                             <tr class="bg-white dark:bg-gray-dark">
                                 <td class="px-4 py-3">
@@ -88,7 +88,7 @@
                                 </td>
                                 <td class="px-4 py-3">
                                     <div class="flex flex-wrap justify-end gap-1">
-                                        @if($c->status === 'pending' && $c->borrower_user_id === auth()->id())
+                                        @if($c->status === 'pending' && (int) $c->borrower_user_id === (int) auth()->id())
                                             <form method="POST" action="{{ route('tai-chinh.loans.accept', $c->id) }}" class="inline">
                                                 @csrf
                                                 <button type="submit" class="rounded-lg border border-brand-500 bg-brand-500 px-2.5 py-1.5 text-theme-xs font-medium text-white shadow-theme-xs hover:bg-brand-600">Chấp nhận</button>

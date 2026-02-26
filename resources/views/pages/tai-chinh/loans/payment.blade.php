@@ -9,7 +9,7 @@
             <span class="text-gray-400 dark:text-gray-500">/</span>
             <a href="{{ route('tai-chinh.loans.show', $contract->id) }}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">{{ $contract->name }}</a>
             <span class="text-gray-400 dark:text-gray-500">/</span>
-            <span class="font-medium text-gray-800 dark:text-white">{{ $contract->borrower_user_id === auth()->id() ? 'Thanh toán' : 'Thu nợ' }}</span>
+            <span class="font-medium text-gray-800 dark:text-white">{{ (int) $contract->borrower_user_id === (int) auth()->id() ? 'Thanh toán' : 'Thu nợ' }}</span>
         </nav>
     </div>
     @if(session('error'))
@@ -26,7 +26,7 @@
         $suggestedPeriodic = round((float) $unpaidInterest + (float) $outstanding / 12, 0);
     @endphp
     <div class="mx-auto max-w-xl rounded-xl border border-gray-200 bg-white p-6 shadow-theme-sm dark:border-gray-800 dark:bg-gray-dark">
-        <h2 class="mb-2 text-theme-xl font-semibold text-gray-900 dark:text-white">{{ $contract->borrower_user_id === auth()->id() ? 'Thanh toán' : 'Thu nợ' }}</h2>
+        <h2 class="mb-2 text-theme-xl font-semibold text-gray-900 dark:text-white">{{ (int) $contract->borrower_user_id === (int) auth()->id() ? 'Thanh toán' : 'Thu nợ' }}</h2>
         <p class="mb-4 text-theme-sm text-gray-600 dark:text-gray-400">Hợp đồng: <strong>{{ $contract->name }}</strong>. Dư nợ gốc: <strong>{{ number_format($outstanding) }} ₫</strong>. Lãi chưa thu/trả: <strong>{{ number_format($unpaidInterest) }} ₫</strong>.</p>
         <form method="POST" action="{{ route('tai-chinh.loans.payment.store', $contract->id) }}" class="space-y-4">
             @csrf
