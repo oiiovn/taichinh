@@ -4,7 +4,6 @@ namespace App\Services;
 
 use App\Models\TransactionHistory;
 use Carbon\Carbon;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Data Awareness Layer: Kiểm tra đủ dữ liệu trước khi chạy reasoning pipeline.

@@ -22,7 +22,6 @@ use App\Services\TaiChinh\LoanColumnStatsService;
 use App\Services\TaiChinh\LiquidBalanceService;
 use App\Services\TaiChinh\TaiChinhAnalyticsService;
 use App\Services\TaiChinh\TaiChinhIndexViewDataBuilder;
-use App\Services\TaiChinh\TaiChinhViewCache;
 use App\Services\UserFinancialContextService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
@@ -56,17 +55,7 @@ class TaiChinhController extends Controller
             return response()->view('pages.tai-chinh.partials.giao-dich-table', $builder->buildForAjaxTable($request));
         }
         $user = $request->user();
-        $userId = $user?->id;
-        if ($userId && ! $request->boolean('refresh')) {
-            $cached = TaiChinhViewCache::getSafe(TaiChinhViewCache::key($userId));
-            if ($cached !== null && is_array($cached)) {
-                return view('pages.tai-chinh', $cached);
-            }
-        }
         $viewData = $builder->build($request);
-        if ($userId) {
-            TaiChinhViewCache::putSafe(TaiChinhViewCache::key($userId), $viewData, TaiChinhViewCache::TTL_SECONDS);
-        }
         return view('pages.tai-chinh', $viewData);
     }
 

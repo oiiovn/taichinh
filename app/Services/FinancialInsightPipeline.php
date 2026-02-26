@@ -45,6 +45,15 @@ class FinancialInsightPipeline
         $unifiedLoansCount = $oweItems->count() + $receiveItems->count();
 
         $linkedAccountNumbers = $context['linkedAccountNumbers'] ?? [];
+        if (empty($linkedAccountNumbers) && $currentAccountCount > 0) {
+            $linkedAccountNumbers = $user->userBankAccounts()
+                ->pluck('account_number')
+                ->map(fn ($n) => trim((string) $n))
+                ->filter()
+                ->unique()
+                ->values()
+                ->all();
+        }
         $dataSufficiency = $this->dataSufficiencyService->check(
             $user->id,
             $currentAccountCount,
