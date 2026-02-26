@@ -150,24 +150,14 @@ class TaiChinhIndexViewDataBuilder
                 'dashboardPerAccount' => [],
             ]);
         } elseif ($user) {
-            $insightKey = TaiChinhViewCache::insightKey($user->id);
-            $cachedInsight = TaiChinhViewCache::getSafe($insightKey);
-            if (is_array($cachedInsight)) {
-                $viewData = array_merge($cachedInsight, $contextPayload);
-                $viewData['insight_from_cache'] = true;
-            } else {
-                $viewData = $this->insightPipeline->run($user, $contextPayload)->toArray();
-                $viewData['timelineSnapshots'] = $this->loadTimelineSnapshotsForStrategy($user->id);
-                $viewData['timelineMaturity'] = $this->computeTimelineMaturity(
-                    $viewData['dataSufficiency'] ?? [],
-                    isset($viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'])
-                        ? $viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'] : null
-                );
-                $viewData['insight_from_cache'] = false;
-                $toCache = $viewData;
-                unset($toCache['insight_from_cache']);
-                TaiChinhViewCache::putSafe($insightKey, $toCache, TaiChinhViewCache::TTL_HEAVY_SECONDS);
-            }
+            $viewData = $this->insightPipeline->run($user, $contextPayload)->toArray();
+            $viewData['timelineSnapshots'] = $this->loadTimelineSnapshotsForStrategy($user->id);
+            $viewData['timelineMaturity'] = $this->computeTimelineMaturity(
+                $viewData['dataSufficiency'] ?? [],
+                isset($viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'])
+                    ? $viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'] : null
+            );
+            $viewData['insight_from_cache'] = false;
         } else {
             $viewData = array_merge($contextPayload, [
                 'insight_from_cache' => null,
@@ -240,12 +230,6 @@ class TaiChinhIndexViewDataBuilder
             $viewData['analyticsData'] = null;
             return;
         }
-        $cacheKey = TaiChinhViewCache::analyticsKey($user->id);
-        $cached = TaiChinhViewCache::getSafe($cacheKey);
-        if (is_array($cached)) {
-            $viewData['analyticsData'] = $cached;
-            return;
-        }
         $phanTichMonths = (int) $request->input('phan_tich_months', 12);
         $phanTichStk = $request->input('phan_tich_stk');
         $analyticsAccounts = $phanTichStk ? array_filter([$phanTichStk]) : $linkedAccountNumbers;
@@ -273,7 +257,6 @@ class TaiChinhIndexViewDataBuilder
             'strategySummary' => $strategySummary,
             'health_status' => $healthStatus,
         ];
-        TaiChinhViewCache::putSafe($cacheKey, $viewData['analyticsData'], TaiChinhViewCache::TTL_HEAVY_SECONDS);
     }
 
     private function attachDashboardData(?object $user, Collection $userBankAccounts, array $linkedAccountNumbers, Collection $accounts, array $accountBalances, array &$viewData): void
@@ -285,17 +268,6 @@ class TaiChinhIndexViewDataBuilder
         $viewData['dashboardSyncStatus'] = ['has_error' => false, 'by_account' => []];
         $viewData['dashboardPerAccount'] = [];
         if (! $user || empty($linkedAccountNumbers)) {
-            return;
-        }
-        $cacheKey = TaiChinhViewCache::dashboardKey($user->id);
-        $cached = TaiChinhViewCache::getSafe($cacheKey);
-        if (is_array($cached)) {
-            $viewData['dashboardCardEvents'] = $cached['dashboardCardEvents'] ?? [];
-            $viewData['dashboardBalanceDeltas'] = $cached['dashboardBalanceDeltas'] ?? [];
-            $viewData['dashboardTodaySummary'] = $cached['dashboardTodaySummary'] ?? [];
-            $viewData['dashboardWeekSummary'] = $cached['dashboardWeekSummary'] ?? [];
-            $viewData['dashboardSyncStatus'] = $cached['dashboardSyncStatus'] ?? ['has_error' => false, 'by_account' => []];
-            $viewData['dashboardPerAccount'] = $cached['dashboardPerAccount'] ?? [];
             return;
         }
         $viewData['dashboardBalanceDeltas'] = $this->dashboardCardService->getBalanceDeltas($user->id, $linkedAccountNumbers, $viewData['accountBalances'] ?? []);
@@ -347,14 +319,6 @@ class TaiChinhIndexViewDataBuilder
                 ),
             ];
         }
-        TaiChinhViewCache::putSafe($cacheKey, [
-            'dashboardCardEvents' => $viewData['dashboardCardEvents'],
-            'dashboardBalanceDeltas' => $viewData['dashboardBalanceDeltas'],
-            'dashboardTodaySummary' => $viewData['dashboardTodaySummary'],
-            'dashboardWeekSummary' => $viewData['dashboardWeekSummary'],
-            'dashboardSyncStatus' => $viewData['dashboardSyncStatus'],
-            'dashboardPerAccount' => $viewData['dashboardPerAccount'],
-        ], TaiChinhViewCache::TTL_HEAVY_SECONDS);
     }
 
     private function attachBudgetAndIncomeGoalData(?object $user, array $linkedAccountNumbers, Request $request, array &$viewData): void

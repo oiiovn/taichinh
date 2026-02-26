@@ -18,7 +18,7 @@ class DataSufficiencyService
     private const MIN_MONTHS_WITH_DATA = 1;
 
     /** Số giao dịch tối thiểu (IN + OUT) */
-    private const MIN_TRANSACTION_COUNT = 15;
+    private const MIN_TRANSACTION_COUNT = 5;
 
     /**
      * Kiểm tra user có đủ dữ liệu để chạy Financial State / Objective / Narrative hay không.
@@ -29,9 +29,26 @@ class DataSufficiencyService
      */
     public function check(int $userId, int $linkedAccountCount = 0, int $liabilityOrLoanCount = 0, array $linkedAccountNumbers = []): array
     {
-        $query = TransactionHistory::where('user_id', $userId);
+        $linkedAccountNumbers = array_values(array_unique(array_merge(
+            $linkedAccountNumbers,
+            array_map(fn ($n) => ltrim(trim((string) $n), '0') ?: '0', $linkedAccountNumbers)
+        )));
+        $query = TransactionHistory::query();
         if (! empty($linkedAccountNumbers)) {
-            $query->whereIn('account_number', $linkedAccountNumbers);
+            $query->where(function ($q) use ($userId, $linkedAccountNumbers) {
+                $linkedCondition = fn ($q2) => $q2->whereIn('account_number', $linkedAccountNumbers)
+                    ->orWhereHas('bankAccount', fn ($q3) => $q3->whereIn('account_number', $linkedAccountNumbers));
+                $q->where('user_id', $userId)->where($linkedCondition);
+                $q->orWhere(function ($q2) use ($linkedAccountNumbers) {
+                    $q2->whereNull('user_id')
+                        ->where(function ($q3) use ($linkedAccountNumbers) {
+                            $q3->whereIn('account_number', $linkedAccountNumbers)
+                                ->orWhereHas('bankAccount', fn ($q4) => $q4->whereIn('account_number', $linkedAccountNumbers));
+                        });
+                });
+            });
+        } else {
+            $query->where('user_id', $userId);
         }
         $tx = $query->selectRaw('MIN(DATE(transaction_date)) as first_date, MAX(DATE(transaction_date)) as last_date, COUNT(*) as cnt')
             ->first();
@@ -39,6 +56,17 @@ class DataSufficiencyService
         $firstDate = $tx && $tx->first_date ? Carbon::parse($tx->first_date) : null;
         $lastDate = $tx && $tx->last_date ? Carbon::parse($tx->last_date) : null;
         $count = (int) ($tx->cnt ?? 0);
+
+        if ($count === 0 && $linkedAccountCount > 0 && ! empty($linkedAccountNumbers)) {
+            $fallback = TransactionHistory::where('user_id', $userId)
+                ->selectRaw('MIN(DATE(transaction_date)) as first_date, MAX(DATE(transaction_date)) as last_date, COUNT(*) as cnt')
+                ->first();
+            if ($fallback && (int) ($fallback->cnt ?? 0) >= self::MIN_TRANSACTION_COUNT) {
+                $firstDate = $fallback->first_date ? Carbon::parse($fallback->first_date) : null;
+                $lastDate = $fallback->last_date ? Carbon::parse($fallback->last_date) : null;
+                $count = (int) $fallback->cnt;
+            }
+        }
 
         $monthsWithData = 0;
         if ($firstDate && $lastDate) {
