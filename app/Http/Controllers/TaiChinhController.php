@@ -57,14 +57,16 @@ class TaiChinhController extends Controller
         }
         $user = $request->user();
         $userId = $user?->id;
-        if ($userId && ! $request->boolean('refresh')) {
+        $tabGiaoDich = $request->get('tab') === 'giao-dich';
+
+        if (! $tabGiaoDich && $userId && ! $request->boolean('refresh')) {
             $cached = TaiChinhViewCache::getSafe(TaiChinhViewCache::key($userId));
             if ($cached !== null && is_array($cached)) {
                 return view('pages.tai-chinh', $cached);
             }
         }
         $viewData = $builder->build($request);
-        if ($userId) {
+        if ($userId && ! $tabGiaoDich) {
             TaiChinhViewCache::putSafe(TaiChinhViewCache::key($userId), $viewData, TaiChinhViewCache::TTL_SECONDS);
         }
         return view('pages.tai-chinh', $viewData);
