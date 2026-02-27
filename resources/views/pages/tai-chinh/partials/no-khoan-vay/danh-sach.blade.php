@@ -8,9 +8,9 @@
     </div>
 @else
     <div class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-theme-sm dark:border-gray-800 dark:bg-gray-dark">
-        <div class="max-h-[70vh] overflow-auto">
+        <div class="max-h-[480px] overflow-y-auto overflow-x-auto" style="max-height: min(60vh, 480px);">
             <table class="min-w-full text-theme-sm">
-                <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800">
+                <thead class="sticky top-0 z-10 border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800 shadow-[0_1px_0_0_rgba(0,0,0,0.05)]">
                     <tr>
                         <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-white">Nguồn</th>
                         <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-white">Loại</th>
