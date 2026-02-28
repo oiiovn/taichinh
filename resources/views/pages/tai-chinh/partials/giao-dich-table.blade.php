@@ -1,16 +1,19 @@
 @php
     $userCategories = $userCategories ?? collect();
+    $canEdit = $canEdit ?? true;
     $txItems = isset($transactionHistory) && method_exists($transactionHistory, 'items') ? $transactionHistory->items() : (is_array($transactionHistory ?? null) && isset($transactionHistory['data']) ? $transactionHistory['data'] : []);
-    $hasPending = $userCategories->isNotEmpty() && collect($txItems)->filter(fn ($t) => is_object($t))->contains(fn ($t) => ($t->classification_status ?? null) === 'pending');
+    $hasPending = $canEdit && $userCategories->isNotEmpty() && collect($txItems)->filter(fn ($t) => is_object($t))->contains(fn ($t) => ($t->classification_status ?? null) === 'pending');
     $hasCategories = $userCategories->isNotEmpty();
+    $showEditBar = $canEdit && $hasCategories;
     $showStkColumn = count($linkedAccountNumbers ?? []) > 1;
+    $showNguoiNap = !empty($householdContext) && !empty($depositorNameMap) && is_array($depositorNameMap);
 @endphp
 @if(!empty($load_error))
     <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">{{ $load_error_message ?? 'Không tải được danh sách giao dịch.' }}</div>
 @endif
 <div id="giao-dich-table-wrapper" data-ajax-container>
     <div id="bar-luu-danh-muc" class="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50" style="display: none;">
-        @if($hasCategories)
+        @if($showEditBar)
             <form method="POST" action="{{ route('tai-chinh.confirm-classification') }}" id="form-luu-danh-muc-tat-ca" class="flex flex-wrap items-center gap-3">
                 @csrf
                 @if(isset($transactionHistory) && $transactionHistory->currentPage() > 1)
@@ -79,10 +82,12 @@
         @else
             <span class="text-sm text-gray-600 dark:text-gray-400">Thêm danh mục của bạn bằng nút +, sau đó chọn danh mục để phân loại giao dịch.</span>
         @endif
-        <button type="button" @click="$dispatch('open-danh-muc-modal')" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 shadow-theme-xs transition hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.05]" title="Thêm danh mục">
-            <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
-        </button>
-        @if($hasCategories)
+        @if($canEdit)
+            <button type="button" @click="$dispatch('open-danh-muc-modal')" class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-600 shadow-theme-xs transition hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.05]" title="Thêm danh mục">
+                <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+            </button>
+        @endif
+        @if($showEditBar)
             </form>
         @endif
     </div>
@@ -90,7 +95,7 @@
         <table class="min-w-full text-sm">
             <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-800">
                 <tr>
-                    @if($hasCategories)
+                    @if($showEditBar)
                         <th class="w-10 px-2 py-2.5 text-left">
                             <label class="cursor-pointer">
                                 <input type="checkbox" id="chon-tat-ca-giao-dich" class="h-4 w-4 rounded border-gray-300 text-success-500 focus:ring-success-500/30 dark:text-success-400 dark:focus:ring-success-400/30" title="Chọn tất cả giao dịch">
@@ -103,13 +108,16 @@
                     @endif
                     <th class="px-4 py-2.5 text-right font-medium text-gray-700 dark:text-white">Số tiền</th>
                     <th class="px-4 py-2.5 text-left font-medium text-gray-700 dark:text-white">Mô tả</th>
+                    @if($showNguoiNap)
+                    <th class="px-4 py-2.5 text-left font-medium text-gray-700 dark:text-white">Người nạp</th>
+                    @endif
                     <th class="px-4 py-2.5 text-left font-medium text-gray-700 dark:text-white">Danh mục</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
                 @forelse($transactionHistory ?? [] as $t)
                     <tr class="giao-dich-row cursor-pointer text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                        @if($hasCategories)
+                        @if($showEditBar)
                             <td class="w-10 px-2 py-2.5">
                                 <label class="cursor-pointer">
                                     <input type="checkbox" form="form-luu-danh-muc-tat-ca" name="transaction_ids[]" value="{{ $t->id }}" class="cb-giao-dich h-4 w-4 rounded border-gray-300 text-success-500 focus:ring-success-500/30 dark:text-success-400 dark:focus:ring-success-400/30">
@@ -123,6 +131,24 @@
                         @endif
                         <td class="px-4 py-2.5 text-right font-medium {{ $t->type === 'IN' ? 'text-success-600 dark:text-success-400' : 'text-gray-900 dark:text-white' }}">{{ $t->type === 'IN' ? '+' : '-' }}{{ number_format(abs($t->amount)) }} ₫</td>
                         <td class="px-4 py-2.5 max-w-xs truncate" title="{{ $t->description }}">{{ $t->description ?: '-' }}</td>
+                        @if($showNguoiNap)
+                        <td class="px-4 py-2.5">
+                            @php
+                                $desc = (string) ($t->description ?? '');
+                                $nguoiNap = '-';
+                                if ($desc !== '') {
+                                    $descUpper = mb_strtoupper($desc);
+                                    foreach ($depositorNameMap as $keyword => $name) {
+                                        if (str_contains($descUpper, $keyword)) {
+                                            $nguoiNap = $name;
+                                            break;
+                                        }
+                                    }
+                                }
+                            @endphp
+                            {{ $nguoiNap }}
+                        </td>
+                        @endif
                         <td class="px-4 py-2.5">
                             @if($t->classification_status === 'pending')
                                 <span class="text-amber-600 dark:text-amber-400">Chờ phân loại</span>
@@ -133,7 +159,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="{{ ($hasCategories ? 6 : 5) - ($showStkColumn ? 0 : 1) }}" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có giao dịch từ tài khoản đã liên kết.</td>
+                        <td colspan="{{ ($showEditBar ? 6 : 5) - ($showStkColumn ? 0 : 1) + ($showNguoiNap ? 1 : 0) }}" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có giao dịch từ tài khoản đã liên kết.</td>
                     </tr>
                 @endforelse
             </tbody>

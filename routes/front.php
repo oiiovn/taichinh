@@ -34,11 +34,14 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/goi-hien-tai', function () {
         $user = auth()->user();
+        if ($user) {
+            $user->refresh();
+        }
         return view('pages.goi-hien-tai', [
             'title' => 'Gói hiện tại',
             'plans' => \App\Models\PlanConfig::getList(),
             'termOptions' => \App\Models\PlanConfig::getTermOptions(),
-            'currentPlan' => $user ? $user->plan : null,
+            'currentPlan' => $user && $user->plan ? strtolower((string) $user->plan) : null,
             'planExpiresAt' => $user ? $user->plan_expires_at : null,
         ]);
     })->name('goi-hien-tai');
@@ -146,6 +149,11 @@ Route::middleware('auth')->group(function () {
         Route::post('/tai-chinh/loans/pending/{id}/confirm', [\App\Http\Controllers\TaiChinh\LoanContractController::class, 'confirmPendingPayment'])->name('tai-chinh.loans.pending.confirm');
         Route::post('/tai-chinh/loans/{id}/ledger/{entryId}/confirm', [\App\Http\Controllers\TaiChinh\LoanContractController::class, 'confirmPaymentEntry'])->name('tai-chinh.loans.ledger.confirm');
         Route::post('/tai-chinh/loans/{id}/ledger/{entryId}/reject', [\App\Http\Controllers\TaiChinh\LoanContractController::class, 'rejectPaymentEntry'])->name('tai-chinh.loans.ledger.reject');
+        Route::get('/tai-chinh/nhom-gia-dinh', [\App\Http\Controllers\TaiChinh\HouseholdController::class, 'index'])->name('tai-chinh.nhom-gia-dinh.index');
+        Route::post('/tai-chinh/nhom-gia-dinh', [\App\Http\Controllers\TaiChinh\HouseholdController::class, 'store'])->name('tai-chinh.nhom-gia-dinh.store');
+        Route::get('/tai-chinh/nhom-gia-dinh/{id}', [\App\Http\Controllers\TaiChinh\HouseholdController::class, 'show'])->name('tai-chinh.nhom-gia-dinh.show');
+        Route::post('/tai-chinh/nhom-gia-dinh/{id}/members', [\App\Http\Controllers\TaiChinh\HouseholdController::class, 'storeMember'])->name('tai-chinh.nhom-gia-dinh.members.store');
+        Route::get('/tai-chinh/nhom-gia-dinh/{id}/giao-dich-table', [\App\Http\Controllers\TaiChinh\HouseholdController::class, 'giaoDichTable'])->name('tai-chinh.nhom-gia-dinh.giao-dich-table');
     });
 
     Route::middleware(['feature:cong_viec'])->group(function () {

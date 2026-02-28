@@ -194,13 +194,19 @@ class Pay2sApiService
         }
         $path = $this->config->path_transactions ?? 'userapi/transactions';
         $url = $base . '/' . ltrim($path, '/');
-        $accountsStr = $this->config->bank_accounts ?? '';
-        $accounts = array_filter(array_map('trim', explode(',', $accountsStr)));
-        if (empty($accounts)) {
-            $accounts = Pay2sBankAccount::pluck('account_number')->filter()->map(function ($n) {
-                return (string) $n;
-            })->all();
-        }
+        $this->ensurePay2sAccountsFromUserBank();
+        $accounts = Pay2sBankAccount::pluck('account_number')->filter()->map(function ($n) {
+            return (string) $n;
+        })->values()->all();
+        $fromUserBank = UserBankAccount::whereIn('bank_code', self::PAY2S_BANK_CODES)
+            ->whereNotNull('account_number')
+            ->where('account_number', '!=', '')
+            ->pluck('account_number')
+            ->map(function ($n) { return (string) $n; })
+            ->unique()
+            ->values()
+            ->all();
+        $accounts = array_values(array_unique(array_merge($accounts, $fromUserBank)));
         if (empty($accounts)) {
             $accounts = [''];
         }
@@ -309,6 +315,35 @@ class Pay2sApiService
             }
         }
         return $all;
+    }
+
+    protected const PAY2S_BANK_CODES = ['BIDV', 'ACB', 'MB', 'Vietcombank', 'VietinBank'];
+
+    /**
+     * Đảm bảo mỗi STK đã kết nối (user_bank_accounts thuộc ngân hàng hỗ trợ Pay2s) có bản ghi trong pay2s_bank_accounts
+     * và external_id được set để resolve gán đúng user_id khi lưu giao dịch.
+     */
+    protected function ensurePay2sAccountsFromUserBank(): void
+    {
+        $ubas = UserBankAccount::whereIn('bank_code', self::PAY2S_BANK_CODES)
+            ->whereNotNull('account_number')
+            ->where('account_number', '!=', '')
+            ->get();
+        foreach ($ubas as $uba) {
+            $stk = trim((string) $uba->account_number);
+            Pay2sBankAccount::updateOrCreate(
+                ['external_id' => $stk],
+                [
+                    'account_number' => $stk,
+                    'account_holder_name' => $uba->full_name ?? $uba->company_name ?? null,
+                    'bank_code' => $uba->bank_code ?? null,
+                    'bank_name' => $uba->bank_name ?? null,
+                ]
+            );
+            if ($uba->external_id !== $stk) {
+                $uba->update(['external_id' => $stk]);
+            }
+        }
     }
 
     /**

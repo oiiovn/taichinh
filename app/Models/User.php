@@ -170,6 +170,23 @@ class User extends Authenticatable
         return $this->hasMany(EstimatedExpense::class);
     }
 
+    public function ownedHouseholds(): HasMany
+    {
+        return $this->hasMany(Household::class, 'owner_user_id');
+    }
+
+    public function householdMembers(): HasMany
+    {
+        return $this->hasMany(HouseholdMember::class);
+    }
+
+    public function households(): BelongsToMany
+    {
+        return $this->belongsToMany(Household::class, 'household_members', 'user_id', 'household_id')
+            ->withPivot('role')
+            ->withTimestamps();
+    }
+
     public function broadcasts(): BelongsToMany
     {
         return $this->belongsToMany(Broadcast::class, 'broadcast_user')

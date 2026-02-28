@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Services\TaiChinh\TaiChinhViewCache;
 use Carbon\Carbon;
 use App\Http\Controllers\Controller;
 use App\Models\PlanConfig;
@@ -103,6 +104,7 @@ class UserController extends Controller
             ? \Carbon\Carbon::parse($request->plan_expires_at)->startOfDay()
             : null;
         $user->update($validated);
+        TaiChinhViewCache::forget($user->id);
         return redirect()->route('admin.users.index')->with('success', 'Đã cập nhật user.');
     }
 

@@ -206,9 +206,9 @@ class TransactionClassifier
         if ($sysCatId && ($result['confidence'] ?? 0) >= self::gptTeachThreshold()) {
             UpdateGlobalMerchantPatternJob::dispatch(
                 $group,
+                (int) $sysCatId,
                 $transaction->type,
-                $transaction->amount_bucket,
-                (int) $sysCatId
+                $transaction->amount_bucket ?? ''
             );
         }
     }

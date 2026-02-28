@@ -23,13 +23,14 @@ class BankAccountController extends Controller
         }
 
         $plans = \App\Models\PlanConfig::getList();
-        $currentPlan = $user->plan;
+        $currentPlan = $user->plan ? strtolower((string) $user->plan) : null;
         $planExpiresAt = $user->plan_expires_at;
         $maxAccounts = $currentPlan && isset($plans[$currentPlan])
             ? (int) $plans[$currentPlan]['max_accounts']
             : 0;
 
-        if (! $planExpiresAt || ! $planExpiresAt->isFuture()) {
+        $planStillValid = $planExpiresAt && $planExpiresAt->copy()->endOfDay()->isFuture();
+        if (! $planStillValid) {
             return redirect()->route('tai-chinh')->with('error', 'Gói của bạn đã hết hạn. Vui lòng gia hạn để thêm tài khoản ngân hàng.');
         }
         if ($maxAccounts < 1) {
@@ -96,7 +97,20 @@ class BankAccountController extends Controller
         }
 
         try {
-            UserBankAccount::create($data);
+            $uba = UserBankAccount::create($data);
+            $accountNumber = trim((string) ($data['account_number'] ?? ''));
+            if ($accountNumber !== '' && in_array($bankCode, ['BIDV', 'ACB', 'MB', 'Vietcombank', 'VietinBank'], true)) {
+                Pay2sBankAccount::updateOrCreate(
+                    ['external_id' => $accountNumber],
+                    [
+                        'account_number' => $accountNumber,
+                        'account_holder_name' => $uba->full_name ?? $uba->company_name ?? null,
+                        'bank_code' => $uba->bank_code ?? null,
+                        'bank_name' => $uba->bank_name ?? null,
+                    ]
+                );
+                $uba->update(['external_id' => $accountNumber]);
+            }
             TaiChinhViewCache::forget($user->id);
             return redirect()->route('tai-chinh')->with('success', 'Đã lưu tài khoản ngân hàng.');
         } catch (\Throwable $e) {

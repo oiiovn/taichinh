@@ -3,7 +3,7 @@
 @section('content')
     <x-common.page-breadcrumb pageTitle="Bảng giá" />
 
-    @if(!empty($currentPlan) && $planExpiresAt && $planExpiresAt->isFuture())
+    @if(!empty($currentPlan) && $planExpiresAt && $planExpiresAt->copy()->endOfDay()->isFuture())
         <div class="mb-6 rounded-2xl border-2 border-success-400 bg-success-50 px-6 py-5 shadow-sm dark:border-success-600 dark:bg-success-500/20">
             <p class="text-base font-semibold text-success-800 dark:text-success-200">Gói hiện tại: {{ strtoupper($currentPlan) }}</p>
             <p class="mt-1 text-sm text-success-700 dark:text-success-300">Đang sử dụng đến {{ $planExpiresAt->format('d/m/Y') }}</p>
@@ -34,9 +34,10 @@
         @foreach ($plansSortedByPrice as $planKey)
             @php $plan = $plansList[$planKey] ?? []; @endphp
             @php
-                $isCurrentPlan = !empty($currentPlan) && $planExpiresAt && $planExpiresAt->isFuture() && $planKey === $currentPlan;
+                $planStillValid = $planExpiresAt && $planExpiresAt->copy()->endOfDay()->isFuture();
+                $isCurrentPlan = !empty($currentPlan) && $planStillValid && $planKey === $currentPlan;
                 $needsRenewal = $isCurrentPlan && \App\Http\Controllers\GoiHienTaiController::planExpiresWithinDays($planExpiresAt, 3);
-                $hasActivePlan = !empty($currentPlan) && $planExpiresAt && $planExpiresAt->isFuture();
+                $hasActivePlan = !empty($currentPlan) && $planStillValid;
                 $canUpgrade = !$isCurrentPlan && (!$hasActivePlan || \App\Http\Controllers\GoiHienTaiController::isPlanHigherThan($planKey, $currentPlan));
                 $showTermLinks = $needsRenewal || $canUpgrade;
             @endphp

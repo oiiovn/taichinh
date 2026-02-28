@@ -57,6 +57,9 @@ class TaiChinhIndexViewDataBuilder
     public function build(Request $request): array
     {
         $user = $request->user();
+        if ($user) {
+            $user->refresh();
+        }
         $context = $user ? $this->contextService->ensureCategoriesAndGetContext($user) : $this->emptyContext();
         $userBankAccounts = $context['userBankAccounts'];
         $linkedAccountNumbers = $context['linkedAccountNumbers'];
@@ -69,12 +72,13 @@ class TaiChinhIndexViewDataBuilder
 
         $userCategories = $user ? $user->userCategories()->withCount('transactionHistories')->orderByDesc('transaction_histories_count')->orderBy('type')->orderBy('name')->get() : collect();
         $plans = \App\Models\PlanConfig::getList();
-        $currentPlan = $user?->plan;
+        $currentPlan = $user && $user->plan ? strtolower((string) $user->plan) : null;
         $planExpiresAt = $user?->plan_expires_at;
         $planExpiringSoon = $user && $currentPlan && $planExpiresAt && GoiHienTaiController::planExpiresWithinDays($planExpiresAt, 3);
         $maxAccounts = $currentPlan && isset($plans[$currentPlan]) ? (int) $plans[$currentPlan]['max_accounts'] : 0;
+        $planStillValid = $planExpiresAt && $planExpiresAt->copy()->endOfDay()->isFuture();
         $currentAccountCount = $userBankAccounts->count();
-        $canAddAccount = $maxAccounts > 0 && $planExpiresAt && $planExpiresAt->isFuture() && $currentAccountCount < $maxAccounts;
+        $canAddAccount = $maxAccounts > 0 && $planStillValid && $currentAccountCount < $maxAccounts;
 
         $userLiabilities = $user ? $user->userLiabilities()->with(['accruals', 'payments'])->orderBy('direction')->orderBy('status')->orderBy('created_at', 'desc')->get() : collect();
         $loanContracts = $user ? $this->unifiedLoansBuilder->getLoanContractsForUser($user) : collect();

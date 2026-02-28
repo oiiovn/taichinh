@@ -6,8 +6,8 @@
 
 @section('content')
     @php
-        $validTabs = ['dashboard', 'tai-khoan', 'giao-dich', 'phan-tich', 'chien-luoc', 'nguong-ngan-sach', 'lich-thanh-toan', 'no-khoan-vay'];
-        $activeTab = request()->routeIs('tai-chinh.loans.*') ? 'no-khoan-vay' : (in_array(request('tab'), $validTabs) ? request('tab') : 'dashboard');
+        $validTabs = ['dashboard', 'tai-khoan', 'giao-dich', 'phan-tich', 'chien-luoc', 'nguong-ngan-sach', 'lich-thanh-toan', 'no-khoan-vay', 'nhom-gia-dinh'];
+        $activeTab = request()->routeIs('tai-chinh.nhom-gia-dinh.*') ? 'nhom-gia-dinh' : (request()->routeIs('tai-chinh.loans.*') ? 'no-khoan-vay' : (in_array(request('tab'), $validTabs) ? request('tab') : 'dashboard'));
         $navItems = [
             ['id' => 'dashboard', 'icon' => 'dashboard', 'label' => 'Dashboard'],
             ['id' => 'tai-khoan', 'icon' => 'card', 'label' => 'Tài khoản'],
@@ -18,6 +18,15 @@
             ['id' => 'lich-thanh-toan', 'icon' => 'calendar', 'label' => 'Lịch thanh toán'],
             ['id' => 'no-khoan-vay', 'icon' => 'finance', 'label' => 'Nợ & Khoản vay'],
         ];
+        $taiChinhUser = auth()->user();
+        $showNhomGiaDinh = $taiChinhUser && (strtolower(trim($taiChinhUser->email ?? '')) === 'giadinh@gmail.com' || $taiChinhUser->households()->exists());
+        if ($showNhomGiaDinh) {
+            $memberOnlyHousehold = $taiChinhUser->households()->where('owner_user_id', '!=', $taiChinhUser->id)->first();
+            $nhomGiaDinhHref = ($memberOnlyHousehold && $taiChinhUser->ownedHouseholds()->doesntExist())
+                ? route('tai-chinh.nhom-gia-dinh.show', $memberOnlyHousehold->id)
+                : route('tai-chinh.nhom-gia-dinh.index');
+            $navItems[] = ['id' => 'nhom-gia-dinh', 'icon' => 'users', 'label' => 'Nhóm gia đình', 'route' => 'tai-chinh.nhom-gia-dinh.index', 'href' => $nhomGiaDinhHref];
+        }
     @endphp
     <div class="flex flex-col xl:flex-row gap-4 xl:gap-6">
         {{-- Sidebar Tài chính (TailAdmin) --}}
@@ -25,7 +34,7 @@
             <ul class="space-y-0.5">
                 @foreach($navItems as $item)
                     @php
-                        $href = $item['id'] === 'no-khoan-vay' ? route('tai-chinh', ['tab' => 'no-khoan-vay']) : route('tai-chinh', ['tab' => $item['id']]);
+                        $href = isset($item['href']) ? $item['href'] : (isset($item['route']) ? route($item['route']) : ($item['id'] === 'no-khoan-vay' ? route('tai-chinh', ['tab' => 'no-khoan-vay']) : route('tai-chinh', ['tab' => $item['id']])));
                         $isActive = $activeTab === $item['id'];
                     @endphp
                     <li>
@@ -67,7 +76,7 @@
 
     {{-- Popup chặn thao tác khi gói hết hạn, chỉ áp dụng tab Giao dịch --}}
     @php
-        $planExpired = isset($planExpiresAt) && $planExpiresAt && !$planExpiresAt->isFuture();
+        $planExpired = isset($planExpiresAt) && $planExpiresAt && !$planExpiresAt->copy()->endOfDay()->isFuture();
         $showExpiredModal = $activeTab === 'giao-dich' && $planExpired;
     @endphp
     @if($showExpiredModal)
