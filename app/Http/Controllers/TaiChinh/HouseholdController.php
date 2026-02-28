@@ -70,7 +70,7 @@ class HouseholdController extends Controller
             $transactions = \App\Models\TransactionHistory::where('user_id', $owner->id)->orderBy('transaction_date', 'desc')->paginate(50)->withQueryString();
         }
         $userCategories = $owner->userCategories()->withCount('transactionHistories')->orderByDesc('transaction_histories_count')->orderBy('type')->orderBy('name')->get();
-        $canEdit = $user->id === $household->owner_user_id;
+        $canEdit = (int) $user->id === (int) $household->owner_user_id;
         $accountBalances = $context['accountBalances'] ?? [];
         $totalBalance = is_array($accountBalances) ? array_sum($accountBalances) : 0;
         $depositorNameMap = self::depositorNameMap();
@@ -118,7 +118,7 @@ class HouseholdController extends Controller
             return redirect()->route('login');
         }
         $household = Household::findOrFail($id);
-        if ($household->owner_user_id !== $user->id) {
+        if ((int) $household->owner_user_id !== (int) $user->id) {
             return redirect()->route('tai-chinh.nhom-gia-dinh.index')->with('error', 'Chỉ chủ nhóm mới thêm được thành viên.');
         }
         $request->validate(['email' => 'required|email']);
@@ -168,7 +168,7 @@ class HouseholdController extends Controller
             ? $contextSvc->getPaginatedTransactions($owner, $linkedAccountNumbers, $request, 50)
             : \App\Models\TransactionHistory::where('user_id', $owner->id)->orderBy('transaction_date', 'desc')->paginate(50)->withQueryString();
         $userCategories = $owner->userCategories()->withCount('transactionHistories')->orderByDesc('transaction_histories_count')->orderBy('type')->orderBy('name')->get();
-        $canEdit = $user->id === $household->owner_user_id;
+        $canEdit = (int) $user->id === (int) $household->owner_user_id;
         return response()->view('pages.tai-chinh.partials.giao-dich-table', [
             'transactionHistory' => $transactions,
             'userCategories' => $userCategories,
