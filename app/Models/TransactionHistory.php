@@ -11,6 +11,7 @@ class TransactionHistory extends Model
 
     protected $fillable = [
         'user_id',
+        'depositor_user_id',
         'pay2s_bank_account_id',
         'external_id',
         'account_number',
@@ -61,6 +62,11 @@ class TransactionHistory extends Model
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function depositor(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'depositor_user_id');
     }
 
     public function bankAccount(): BelongsTo

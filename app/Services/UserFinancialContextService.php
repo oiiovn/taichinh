@@ -76,7 +76,7 @@ class UserFinancialContextService
      */
     public function getPaginatedTransactions(User $user, array $linkedAccountNumbers, Request $request, int $perPage = 50): LengthAwarePaginator
     {
-        $query = TransactionHistory::with(['bankAccount', 'userCategory', 'systemCategory'])
+        $query = TransactionHistory::with(['bankAccount', 'userCategory', 'systemCategory', 'depositor'])
             ->where(function ($q) use ($user, $linkedAccountNumbers) {
                 $q->where('user_id', $user->id);
                 if (! empty($linkedAccountNumbers)) {

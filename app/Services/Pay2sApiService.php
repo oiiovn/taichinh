@@ -6,6 +6,7 @@ use App\Models\Pay2sApiConfig;
 use App\Models\Pay2sBankAccount;
 use App\Models\TransactionHistory;
 use App\Models\UserBankAccount;
+use App\Services\DepositorResolver;
 use App\Services\MerchantKeyNormalizer;
 use App\Services\TransactionClassifier;
 use Illuminate\Support\Facades\Http;
@@ -503,6 +504,12 @@ class Pay2sApiService
                 'raw_json' => $n['raw_json'],
             ], $ids));
             $model->merchant_key = app(MerchantKeyNormalizer::class)->normalize($model->description);
+            if ($model->type === 'IN' && $model->description) {
+                $depositorId = DepositorResolver::resolveDepositorIdFromDescription($model->description);
+                if ($depositorId !== null) {
+                    $model->depositor_user_id = $depositorId;
+                }
+            }
             $model->save();
 
             if (! $model->user_id) {

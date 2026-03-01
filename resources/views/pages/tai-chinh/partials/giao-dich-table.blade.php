@@ -134,14 +134,17 @@
                         @if($showNguoiNap)
                         <td class="px-4 py-2.5">
                             @php
-                                $desc = (string) ($t->description ?? '');
-                                $nguoiNap = '-';
-                                if ($desc !== '') {
-                                    $descUpper = mb_strtoupper($desc);
-                                    foreach ($depositorNameMap as $keyword => $name) {
-                                        if (str_contains($descUpper, $keyword)) {
-                                            $nguoiNap = $name;
-                                            break;
+                                $nguoiNap = $t->depositor?->name ?? null;
+                                if ($nguoiNap === null) {
+                                    $desc = (string) ($t->description ?? '');
+                                    $nguoiNap = '-';
+                                    if ($desc !== '') {
+                                        $descUpper = mb_strtoupper($desc);
+                                        foreach ($depositorNameMap as $keyword => $name) {
+                                            if (str_contains($descUpper, $keyword)) {
+                                                $nguoiNap = $name;
+                                                break;
+                                            }
                                         }
                                     }
                                 }
