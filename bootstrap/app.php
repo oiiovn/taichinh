@@ -36,6 +36,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->job(new \App\Jobs\BehaviorIntelligenceAggregateJob)->dailyAt('02:30');
         $schedule->job(new \App\Jobs\BehaviorPolicySyncJob)->dailyAt('03:00');
         $schedule->job(new \App\Jobs\CoachingEffectivenessOutcomeJob)->dailyAt('04:00');
+        // Làm ấm cache view Tài chính (SWR) mỗi 15 phút — tránh mất dữ liệu tab Chiến lược khi cache hết hạn
+        $schedule->command('tai-chinh:warm-view')->everyFifteenMinutes();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

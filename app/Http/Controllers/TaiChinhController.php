@@ -21,6 +21,7 @@ use App\Services\TaiChinh\FinancialPositionService;
 use App\Services\TaiChinh\LoanColumnStatsService;
 use App\Services\TaiChinh\LiquidBalanceService;
 use App\Services\TaiChinh\TaiChinhAnalyticsService;
+use App\Jobs\WarmTaiChinhViewJob;
 use App\Services\TaiChinh\TaiChinhIndexViewDataBuilder;
 use App\Services\TaiChinh\TaiChinhViewCache;
 use App\Services\UserFinancialContextService;
@@ -64,10 +65,17 @@ class TaiChinhController extends Controller
             if ($cached !== null && is_array($cached)) {
                 return view('pages.tai-chinh', $cached);
             }
+            // SWR: cache hết hạn — trả bản cũ (stale) ngay, rebuild nền
+            $stale = TaiChinhViewCache::getStale($userId);
+            if ($stale !== null && is_array($stale)) {
+                WarmTaiChinhViewJob::dispatch($userId);
+                return view('pages.tai-chinh', $stale);
+            }
         }
         $viewData = $builder->build($request);
         if ($userId && ! $tabGiaoDich) {
             TaiChinhViewCache::putSafe(TaiChinhViewCache::key($userId), $viewData, TaiChinhViewCache::TTL_SECONDS);
+            TaiChinhViewCache::putStale($userId, $viewData);
         }
         return view('pages.tai-chinh', $viewData);
     }

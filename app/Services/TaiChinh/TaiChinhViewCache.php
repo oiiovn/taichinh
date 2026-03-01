@@ -6,13 +6,16 @@ use Illuminate\Support\Facades\Cache;
 
 /**
  * Cache view data trang Tài chính.
- * - View: TTL 10 phút, invalidate khi user ghi dữ liệu hoặc ?refresh=1.
- * - Insight / analytics / dashboard: TTL 12 giờ, invalidate khi ?refresh_insight=1.
- * - getSafe/putSafe: không ném lỗi khi mất kết nối cache (Redis/file), fallback tính lại.
+ * - View: TTL 30 phút; stale (bản cũ) lưu riêng, dùng khi hết TTL để SWR.
+ * - getSafe/putSafe: không ném lỗi khi mất kết nối cache.
  */
 class TaiChinhViewCache
 {
-    public const TTL_SECONDS = 600; // 10 phút
+    /** TTL cache view chính (30 phút). */
+    public const TTL_SECONDS = 1800; // 30 phút
+
+    /** TTL stale — giữ bản cũ lâu để luôn có dữ liệu hiển thị khi cache hết hạn. */
+    public const TTL_STALE_SECONDS = 604800; // 7 ngày
 
     /** TTL cache insight/analytics/dashboard — tối đa 12h một lần. */
     public const TTL_HEAVY_SECONDS = 43200; // 12 giờ
@@ -20,6 +23,12 @@ class TaiChinhViewCache
     public static function key(int $userId): string
     {
         return 'tai_chinh_view_' . $userId;
+    }
+
+    /** Key lưu bản cũ (stale) để SWR — trả về ngay khi cache chính hết hạn. */
+    public static function staleKey(int $userId): string
+    {
+        return 'tai_chinh_view_' . $userId . '_stale';
     }
 
     public static function insightKey(int $userId): string
@@ -57,10 +66,23 @@ class TaiChinhViewCache
         }
     }
 
+    /** Lấy bản stale (bản cũ) theo user — dùng cho SWR. */
+    public static function getStale(int $userId): mixed
+    {
+        return self::getSafe(self::staleKey($userId));
+    }
+
+    /** Ghi bản stale khi có dữ liệu mới (để lần sau cache hết hạn vẫn trả được bản cũ). */
+    public static function putStale(int $userId, mixed $value): void
+    {
+        self::putSafe(self::staleKey($userId), $value, self::TTL_STALE_SECONDS);
+    }
+
     public static function forget(int $userId): void
     {
         try {
             Cache::forget(self::key($userId));
+            Cache::forget(self::staleKey($userId));
         } catch (\Throwable $e) {
             // Mất kết nối: bỏ qua, lần sau sẽ build lại
         }
