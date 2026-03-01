@@ -1,3 +1,9 @@
+@php
+    $householdAnalytics = $householdMonthlyAnalytics ?? ['monthly' => [], 'summary' => ['total_thu' => 0, 'total_chi' => 0, 'net_cashflow' => 0, 'pct_change_net' => null], 'has_actual_data' => false];
+    $monthlyList = $householdAnalytics['monthly'] ?? [];
+    $summary = $householdAnalytics['summary'] ?? null;
+    $hasMonthly = !empty($monthlyList);
+@endphp
 @extends('layouts.tai-chinh')
 
 @section('taiChinhContent')
@@ -10,7 +16,6 @@
     @endif
     <div class="flex flex-wrap items-center justify-between gap-2">
         <div class="flex flex-wrap items-center gap-3">
-            <a href="{{ route('tai-chinh.nhom-gia-dinh.index') }}" class="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">← Nhóm gia đình</a>
             <h2 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ $household->name }}</h2>
             <span class="text-sm text-gray-500 dark:text-gray-400">Tài khoản: {{ $household->owner->name ?? '—' }}</span>
             <span class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-1.5 text-sm font-medium text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
@@ -26,8 +31,38 @@
             </form>
         @endif
     </div>
-    @if($household->members->isNotEmpty())
-        <p class="text-sm text-gray-500 dark:text-gray-400">Thành viên: {{ $household->members->map(fn($m) => $m->user->name ?? $m->user->email)->join(', ') }}</p>
+
+    {{-- Thẻ thu chi + sparkline (12 tháng) --}}
+    @if($summary || $hasMonthly)
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        @if($summary)
+            <div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 dark:text-white">
+                <p class="mb-1 text-theme-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Tổng thu (12 tháng)</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ number_format($summary['total_thu']) }} ₫</p>
+                @if($hasMonthly)
+                    <div class="mt-2 h-8 w-full" data-sparkline="{{ json_encode(array_map(fn($m) => (float)$m['thu'], $monthlyList)) }}" data-sparkline-color="#22c55e"></div>
+                @endif
+            </div>
+            <div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 dark:text-white">
+                <p class="mb-1 text-theme-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Tổng chi (12 tháng)</p>
+                <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ number_format($summary['total_chi']) }} ₫</p>
+                @if($hasMonthly)
+                    <div class="mt-2 h-8 w-full" data-sparkline="{{ json_encode(array_map(fn($m) => (float)$m['chi'], $monthlyList)) }}" data-sparkline-color="#ef4444"></div>
+                @endif
+            </div>
+            <div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 dark:text-white">
+                <p class="mb-1 text-theme-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Dòng tiền ròng</p>
+                @php $net = $summary['net_cashflow'] ?? 0; @endphp
+                <p class="text-lg font-semibold {{ $net >= 0 ? 'text-success-700 dark:text-success-400' : 'text-error-700 dark:text-error-400' }}">{{ $net >= 0 ? '+' : '' }}{{ number_format($net) }} ₫</p>
+                @if(isset($summary['pct_change_net']) && $summary['pct_change_net'] !== null)
+                    <p class="mt-0.5 text-theme-xs {{ $summary['pct_change_net'] >= 0 ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400' }}">{{ $summary['pct_change_net'] >= 0 ? '+' : '' }}{{ number_format($summary['pct_change_net'], 1) }}% so với kỳ trước</p>
+                @endif
+                @if($hasMonthly)
+                    <div class="mt-2 h-8 w-full" data-sparkline="{{ json_encode(array_map(fn($m) => (float)$m['surplus'], $monthlyList)) }}" data-sparkline-color="{{ $net >= 0 ? '#22c55e' : '#ef4444' }}"></div>
+                @endif
+            </div>
+        @endif
+    </div>
     @endif
 
     <form method="GET" action="{{ route('tai-chinh.nhom-gia-dinh.show', $household->id) }}" id="form-household-giao-dich-filter" class="mb-4 flex flex-wrap items-center gap-3">
@@ -53,6 +88,33 @@
         @include('pages.tai-chinh.partials.giao-dich-table')
     </div>
 </div>
+
+@if($hasMonthly && !empty($monthlyList))
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    if (typeof window.ApexCharts === 'undefined') return;
+    document.querySelectorAll('#household-show-content [data-sparkline]').forEach(function(div) {
+        var raw = div.getAttribute('data-sparkline');
+        var color = div.getAttribute('data-sparkline-color') || '#465fff';
+        if (!raw) return;
+        try {
+            var arr = JSON.parse(raw);
+            if (!arr || arr.length === 0) return;
+            div.innerHTML = '';
+            var chart = new window.ApexCharts(div, {
+                series: [{ name: '', data: arr }],
+                chart: { type: 'area', height: 32, sparkline: { enabled: true }, animations: { enabled: false } },
+                stroke: { curve: 'smooth', width: 1.5 },
+                fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0 } },
+                colors: [color],
+                tooltip: { fixed: { enabled: false }, y: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' ₫'; } } }
+            });
+            chart.render();
+        } catch (e) {}
+    });
+});
+</script>
+@endif
 @endsection
 
 @section('taiChinhRightColumn')

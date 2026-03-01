@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Controllers\GoiHienTaiController;
 use App\Models\Household;
 use App\Models\User;
+use App\Services\AnalyticsAggregateService;
 use App\Services\UserFinancialContextService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -77,6 +78,9 @@ class HouseholdController extends Controller
         $planExpiresAt = $user->plan_expires_at;
         $currentPlan = $user->plan;
         $planExpiringSoon = $currentPlan && $planExpiresAt && GoiHienTaiController::planExpiresWithinDays($planExpiresAt, 3);
+        $householdMonthlyAnalytics = ! empty($linkedAccountNumbers)
+            ? app(AnalyticsAggregateService::class)->monthlyInOut($owner->id, $linkedAccountNumbers, 12)
+            : ['monthly' => [], 'summary' => ['total_thu' => 0, 'total_chi' => 0, 'net_cashflow' => 0, 'pct_change_net' => null], 'has_actual_data' => false];
         return view('pages.tai-chinh.nhom-gia-dinh.show', [
             'household' => $household,
             'transactionHistory' => $transactions,
@@ -90,6 +94,7 @@ class HouseholdController extends Controller
             'planExpiresAt' => $planExpiresAt,
             'currentPlan' => $currentPlan,
             'planExpiringSoon' => $planExpiringSoon,
+            'householdMonthlyAnalytics' => $householdMonthlyAnalytics,
         ]);
     }
 
