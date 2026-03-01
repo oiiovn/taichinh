@@ -41,6 +41,8 @@
         if ($filterVuot === '1' && !$breached) return false;
         if ($filterHetHan === '1') {
             if (!$periodEndInPastMonth) return false;
+        } else {
+            if ($periodEndInPastMonth) return false;
         }
         if ($filterPct !== '') {
             if ($filterPct === 'under60' && $pct >= 60) return false;
