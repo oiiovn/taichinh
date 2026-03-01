@@ -9,8 +9,13 @@
     $filterPct = $filter_pct ?? '';
     $filterVuot = $filter_vuot ?? '';
     $filterHetHan = $filter_het_han ?? '';
+    $filterKy = $filter_ky ?? '';
+    $filterKyParts = [];
+    if (preg_match('/^(\d{4})-(\d{1,2})$/', $filterKy, $m)) {
+        $filterKyParts = ['year' => (int) $m[1], 'month' => (int) $m[2]];
+    }
 
-    $filteredThresholds = $thresholds->filter(function ($t) use ($summaryByKey, $now, $filterPct, $filterVuot, $filterHetHan) {
+    $filteredThresholds = $thresholds->filter(function ($t) use ($summaryByKey, $now, $filterPct, $filterVuot, $filterHetHan, $filterKyParts) {
         $row = $summaryByKey->get($t->id) ?? $summaryByKey->get($t->name);
         $spent = $row['spent_vnd'] ?? 0;
         $limit = $t->amount_limit_vnd;
@@ -28,6 +33,19 @@
         }
         if ($filterVuot === '1' && !$breached) return false;
         if ($filterHetHan === '1') { if (!$periodEndInPastMonth) return false; } else { if ($periodEndInPastMonth) return false; }
+        if (!empty($filterKyParts)) {
+            if ($t->period_type === 'month' && $t->year && $t->month) {
+                if ((int) $t->year !== $filterKyParts['year'] || (int) $t->month !== $filterKyParts['month']) return false;
+            } elseif ($t->period_type === 'custom' && $t->period_start && $t->period_end) {
+                $start = \Carbon\Carbon::parse($t->period_start)->startOfDay();
+                $end = \Carbon\Carbon::parse($t->period_end)->endOfDay();
+                $kyStart = \Carbon\Carbon::create($filterKyParts['year'], $filterKyParts['month'], 1)->startOfDay();
+                $kyEnd = $kyStart->copy()->endOfMonth();
+                if ($end->lt($kyStart) || $start->gt($kyEnd)) return false;
+            } else {
+                return false;
+            }
+        }
         if ($filterPct !== '') {
             if ($filterPct === 'under60' && $pct >= 60) return false;
             if ($filterPct === '60_80' && ($pct < 60 || $pct >= 80)) return false;
@@ -58,7 +76,7 @@
         return (object)['type' => 'threshold', 'item' => $t, '_expired' => $expired, '_start' => $sortStart, '_end' => $sortEnd, '_sort_key' => $sortKey, '_flag' => $breached ? 1 : 0, '_limit' => $limit];
     })->values();
 
-    $filteredGoals = $incomeGoals->filter(function ($g) use ($goalSummaryByKey, $now, $filterPct, $filterVuot, $filterHetHan) {
+    $filteredGoals = $incomeGoals->filter(function ($g) use ($goalSummaryByKey, $now, $filterPct, $filterVuot, $filterHetHan, $filterKyParts) {
         $row = $goalSummaryByKey->get($g->id) ?? $goalSummaryByKey->get($g->name);
         $target = $g->amount_target_vnd;
         $earned = $row['earned_vnd'] ?? 0;
@@ -72,6 +90,19 @@
         }
         if ($filterVuot === '1' && !$met) return false;
         if ($filterHetHan === '1') { if (!$expired) return false; } else { if ($expired) return false; }
+        if (!empty($filterKyParts)) {
+            if ($g->period_type === 'month' && $g->year && $g->month) {
+                if ((int) $g->year !== $filterKyParts['year'] || (int) $g->month !== $filterKyParts['month']) return false;
+            } elseif ($g->period_type === 'custom' && $g->period_start && $g->period_end) {
+                $start = \Carbon\Carbon::parse($g->period_start)->startOfDay();
+                $end = \Carbon\Carbon::parse($g->period_end)->endOfDay();
+                $kyStart = \Carbon\Carbon::create($filterKyParts['year'], $filterKyParts['month'], 1)->startOfDay();
+                $kyEnd = $kyStart->copy()->endOfMonth();
+                if ($end->lt($kyStart) || $start->gt($kyEnd)) return false;
+            } else {
+                return false;
+            }
+        }
         if ($filterPct !== '') {
             if ($filterPct === 'under60' && $achievementPct >= 60) return false;
             if ($filterPct === '60_80' && ($achievementPct < 60 || $achievementPct >= 80)) return false;

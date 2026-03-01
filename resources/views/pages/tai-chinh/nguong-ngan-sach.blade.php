@@ -22,7 +22,12 @@
     $filterPct = request('filter_pct', '');
     $filterVuot = request('filter_vuot', '');
     $filterHetHan = request('filter_het_han', '');
-    $filteredThresholds = $thresholds->filter(function ($t) use ($summaryByKey, $now, $filterPct, $filterVuot, $filterHetHan) {
+    $filterKy = request('filter_ky', '');
+    $filterKyParts = [];
+    if (preg_match('/^(\d{4})-(\d{1,2})$/', $filterKy, $m)) {
+        $filterKyParts = ['year' => (int) $m[1], 'month' => (int) $m[2]];
+    }
+    $filteredThresholds = $thresholds->filter(function ($t) use ($summaryByKey, $now, $filterPct, $filterVuot, $filterHetHan, $filterKyParts) {
         $row = $summaryByKey->get($t->id) ?? $summaryByKey->get($t->name);
         $spent = $row['spent_vnd'] ?? 0;
         $limit = $t->amount_limit_vnd;
@@ -43,6 +48,19 @@
             if (!$periodEndInPastMonth) return false;
         } else {
             if ($periodEndInPastMonth) return false;
+        }
+        if (!empty($filterKyParts)) {
+            if ($t->period_type === 'month' && $t->year && $t->month) {
+                if ((int) $t->year !== $filterKyParts['year'] || (int) $t->month !== $filterKyParts['month']) return false;
+            } elseif ($t->period_type === 'custom' && $t->period_start && $t->period_end) {
+                $start = \Carbon\Carbon::parse($t->period_start)->startOfDay();
+                $end = \Carbon\Carbon::parse($t->period_end)->endOfDay();
+                $kyStart = \Carbon\Carbon::create($filterKyParts['year'], $filterKyParts['month'], 1)->startOfDay();
+                $kyEnd = $kyStart->copy()->endOfMonth();
+                if ($end->lt($kyStart) || $start->gt($kyEnd)) return false;
+            } else {
+                return false;
+            }
         }
         if ($filterPct !== '') {
             if ($filterPct === 'under60' && $pct >= 60) return false;
@@ -75,7 +93,7 @@
         return (object)['type' => 'threshold', 'item' => $t, '_expired' => $expired, '_start' => $sortStart, '_end' => $sortEnd, '_sort_key' => $sortKey, '_flag' => $breached ? 1 : 0, '_limit' => $limit];
     })->values();
 
-    $filteredGoals = $incomeGoals->filter(function ($g) use ($goalSummaryByKey, $now, $filterPct, $filterVuot, $filterHetHan) {
+    $filteredGoals = $incomeGoals->filter(function ($g) use ($goalSummaryByKey, $now, $filterPct, $filterVuot, $filterHetHan, $filterKyParts) {
         $row = $goalSummaryByKey->get($g->id) ?? $goalSummaryByKey->get($g->name);
         $target = $g->amount_target_vnd;
         $earned = $row['earned_vnd'] ?? 0;
@@ -89,6 +107,19 @@
         }
         if ($filterVuot === '1' && !$met) return false;
         if ($filterHetHan === '1') { if (!$expired) return false; } else { if ($expired) return false; }
+        if (!empty($filterKyParts)) {
+            if ($g->period_type === 'month' && $g->year && $g->month) {
+                if ((int) $g->year !== $filterKyParts['year'] || (int) $g->month !== $filterKyParts['month']) return false;
+            } elseif ($g->period_type === 'custom' && $g->period_start && $g->period_end) {
+                $start = \Carbon\Carbon::parse($g->period_start)->startOfDay();
+                $end = \Carbon\Carbon::parse($g->period_end)->endOfDay();
+                $kyStart = \Carbon\Carbon::create($filterKyParts['year'], $filterKyParts['month'], 1)->startOfDay();
+                $kyEnd = $kyStart->copy()->endOfMonth();
+                if ($end->lt($kyStart) || $start->gt($kyEnd)) return false;
+            } else {
+                return false;
+            }
+        }
         if ($filterPct !== '') {
             if ($filterPct === 'under60' && $achievementPct >= 60) return false;
             if ($filterPct === '60_80' && ($achievementPct < 60 || $achievementPct >= 80)) return false;
@@ -126,8 +157,13 @@
         fn($x) => $x->type === 'threshold' ? $x->item->id : 1000000 + $x->item->id,
     ])->values();
 
-    $hasFilterNguong = $filterPct !== '' || $filterVuot === '1' || $filterHetHan === '1';
+    $hasFilterNguong = $filterPct !== '' || $filterVuot === '1' || $filterHetHan === '1' || $filterKy !== '';
     $pctLabels = ['' => 'Tất cả %', 'under60' => 'Dưới 60%', '60_80' => '60-80%', '80_100' => '80-100%', 'over100' => 'Trên 100%'];
+    $kyOptions = ['' => 'Tất cả kỳ'];
+    for ($i = 0; $i < 24; $i++) {
+        $d = $now->copy()->subMonths($i);
+        $kyOptions[$d->format('Y-m')] = 'T' . $d->month . '/' . $d->year;
+    }
 @endphp
 <style>
 @keyframes nguong-ping-strong {
@@ -170,12 +206,18 @@
         <input type="hidden" name="filter_pct" id="filter_pct" value="{{ $filterPct }}">
         <input type="hidden" name="filter_vuot" id="filter_vuot" value="{{ $filterVuot }}">
         <input type="hidden" name="filter_het_han" id="filter_het_han" value="{{ $filterHetHan }}">
+        <input type="hidden" name="filter_ky" id="filter_ky" value="{{ $filterKy }}">
         @if(request('edit'))<input type="hidden" name="edit" value="{{ request('edit') }}">@endif
         @if(request('openModal'))<input type="hidden" name="openModal" value="1">@endif
         <div class="mb-4 flex flex-wrap items-center gap-3">
             <button type="button" id="btn-nguong-pct" class="inline-flex h-[42px] items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-3 text-theme-sm font-medium shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-white/[0.03] {{ $filterPct !== '' ? 'text-gray-700 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500' }}" data-cycle="{{ implode(',', array_keys($pctLabels)) }}">{{ $pctLabels[$filterPct] ?? 'Tất cả %' }}</button>
             <button type="button" id="btn-nguong-vuot" class="inline-flex h-[42px] items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-3 text-theme-sm font-medium shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-white/[0.03] {{ $filterVuot === '1' ? 'font-semibold text-gray-700 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500' }}">Vượt ngưỡng</button>
             <button type="button" id="btn-nguong-hethan" class="inline-flex h-[42px] items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-3 text-theme-sm font-medium shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:hover:bg-white/[0.03] {{ $filterHetHan === '1' ? 'font-semibold text-gray-700 dark:text-gray-200' : 'text-gray-400 dark:text-gray-500' }}">Hết hạn</button>
+            <select id="filter_ky_select" class="h-[42px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-theme-sm text-gray-700 shadow-theme-xs focus:border-theme focus:ring-1 focus:ring-theme dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                @foreach($kyOptions as $val => $label)
+                    <option value="{{ $val }}" {{ $filterKy === $val ? 'selected' : '' }}>{{ $label }}</option>
+                @endforeach
+            </select>
             <button type="button" id="btn-nguong-xoa-loc" class="inline-flex h-[42px] items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-3 text-theme-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-white/[0.03]" style="{{ $hasFilterNguong ? '' : 'display:none;' }}">Xóa lọc</button>
             <div class="ml-auto flex items-center gap-2">
                 <span id="nguong-count" class="text-theme-sm text-gray-600 dark:text-gray-400">{{ $filteredThresholds->count() }} ngưỡng · {{ $filteredGoals->count() }} mục tiêu</span>
@@ -944,6 +986,8 @@
         var pctEl = document.getElementById('filter_pct');
         var vuotEl = document.getElementById('filter_vuot');
         var hethanEl = document.getElementById('filter_het_han');
+        var kyEl = document.getElementById('filter_ky');
+        var kySelectEl = document.getElementById('filter_ky_select');
         var btnPct = document.getElementById('btn-nguong-pct');
         var btnVuot = document.getElementById('btn-nguong-vuot');
         var btnHethan = document.getElementById('btn-nguong-hethan');
@@ -956,11 +1000,12 @@
             if (pctEl && pctEl.value) params.set('filter_pct', pctEl.value);
             if (vuotEl && vuotEl.value === '1') params.set('filter_vuot', '1');
             if (hethanEl && hethanEl.value === '1') params.set('filter_het_han', '1');
+            if (kyEl && kyEl.value) params.set('filter_ky', kyEl.value);
             return params;
         }
 
         function hasFilter() {
-            return (pctEl && pctEl.value !== '') || (vuotEl && vuotEl.value === '1') || (hethanEl && hethanEl.value === '1');
+            return (pctEl && pctEl.value !== '') || (vuotEl && vuotEl.value === '1') || (hethanEl && hethanEl.value === '1') || (kyEl && kyEl.value !== '');
         }
 
         function updateButtonStates() {
@@ -1047,6 +1092,14 @@
                 if (pctEl) pctEl.value = '';
                 if (vuotEl) vuotEl.value = '';
                 if (hethanEl) hethanEl.value = '';
+                if (kyEl) kyEl.value = '';
+                if (kySelectEl) kySelectEl.value = '';
+                fetchList();
+            });
+        }
+        if (kySelectEl && kyEl) {
+            kySelectEl.addEventListener('change', function() {
+                kyEl.value = kySelectEl.value || '';
                 fetchList();
             });
         }
@@ -1059,6 +1112,8 @@
                     if (pctEl) pctEl.value = '';
                     if (vuotEl) vuotEl.value = '';
                     if (hethanEl) hethanEl.value = '';
+                    if (kyEl) kyEl.value = '';
+                    if (kySelectEl) kySelectEl.value = '';
                     fetchList();
                 }
             });

@@ -43,6 +43,7 @@ class BudgetThresholdController extends Controller
             'filter_pct' => $request->input('filter_pct', ''),
             'filter_vuot' => $request->input('filter_vuot', ''),
             'filter_het_han' => $request->input('filter_het_han', ''),
+            'filter_ky' => $request->input('filter_ky', ''),
         ]);
         $response->header('Cache-Control', 'no-store, no-cache, must-revalidate');
         return $response;
