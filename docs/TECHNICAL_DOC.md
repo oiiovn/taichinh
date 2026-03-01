@@ -175,7 +175,26 @@ npm run build
   2. Xem log: `storage/logs/laravel.log` — tìm dòng `TaiChinhController@index` hoặc `local.ERROR` để biết exception (table not found, undefined variable, out of range, …).
   3. **Resilience:** Ứng dụng đã bọc một số nhánh trong try-catch hoặc fallback: thiếu bảng budget/income → attachBudgetAndIncomeGoalData ghi warning, trang vẫn load; thiếu `user_income_sources` → FinancialRoleClassifier bỏ qua match nguồn thu; snapshot mục tiêu thu âm → clamp về 0 tránh lỗi cột UNSIGNED. Nếu vẫn lỗi, sửa theo stack trace (ví dụ thiếu biến `scheduleByMonth` trong CashflowProjectionService đã được bổ sung từ PaymentScheduleObligationService).
 
-## 7. Changelog kỹ thuật
+## 7. Quy ước so sánh ID (user_id, owner_user_id, …)
+
+Trên môi trường production, MySQL/PDO có thể trả về cột số (id, user_id, owner_user_id, …) dưới dạng **string** (ví dụ `"31"`), trong khi Eloquent thường cast `$model->id` thành **integer**. So sánh strict `===` sẽ sai: `31 === "31"` → `false`, dẫn đến logic phân quyền (ví dụ hiển thị form "Thêm thành viên") bị lỗi.
+
+**Quy ước:** Khi so sánh hai giá trị ID (user_id, owner_user_id, foreign key) trong PHP, luôn **ép kiểu (int)** trước khi so sánh:
+
+```php
+// Đúng — hoạt động cả khi một bên là string từ DB
+$canEdit = (int) $user->id === (int) $household->owner_user_id;
+if ((int) $household->owner_user_id !== (int) $user->id) {
+    return redirect()->back()->with('error', '...');
+}
+
+// Tránh — có thể sai trên production
+$canEdit = $user->id === $household->owner_user_id;  // 31 === "31" → false
+```
+
+Áp dụng cho mọi chỗ so sánh `user_id`, `owner_user_id`, hoặc foreign key khác khi kết quả dùng để phân quyền hoặc hiển thị UI.
+
+## 8. Changelog kỹ thuật
 
 | Ngày | Thay đổi |
 |------|----------|
@@ -184,6 +203,7 @@ npm run build
 | 2026-02-24 | Chuẩn bị API cho app mobile: Laravel Sanctum, routes/api.php v1 (login, logout, tai-chinh/insight-payload, projection, insight-feedback, giao-dich), GiaoDichController@giaoDichJson, doc mục 2.3. |
 | 2026-02-24 | Bổ sung bảng: budget_threshold_snapshots, income_goals, income_goal_snapshots, user_income_sources, income_source_keywords, payment_schedules. Service: PaymentScheduleObligationService, CashflowProjectionService (scheduleByMonth/obligation30), FinancialRoleClassifier. Mục 6.1: Khắc phục lỗi "Không tải được dữ liệu tài chính" (migration, log, resilience). |
 | 2026-02-24 | Tab Tài khoản: khi không được thêm TK (hết hạn gói / đạt max_accounts), nút "Kết nối" điều hướng đến /goi-hien-tai. Cập nhật mục route 2.1. |
+| 2026-02-28 | Mục 7: Quy ước so sánh ID — ép (int) khi so sánh user_id / owner_user_id để tránh lỗi trên production (DB trả string). |
 
 ---
-*Cập nhật lần cuối: 2026-02-24.*
+*Cập nhật lần cuối: 2026-02-28.*

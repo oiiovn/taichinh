@@ -71,7 +71,7 @@
             $expired = \Carbon\Carbon::parse($g->period_end)->endOfDay()->lt($now);
         }
         if ($filterVuot === '1' && !$met) return false;
-        if ($filterHetHan === '1') { if (!$expired) return false; }
+        if ($filterHetHan === '1') { if (!$expired) return false; } else { if ($expired) return false; }
         if ($filterPct !== '') {
             if ($filterPct === 'under60' && $achievementPct >= 60) return false;
             if ($filterPct === '60_80' && ($achievementPct < 60 || $achievementPct >= 80)) return false;
