@@ -36,8 +36,8 @@
             @endforeach
             <form method="get" action="{{ route('food') }}" class="flex flex-wrap items-center gap-2">
                 <input type="hidden" name="period" value="{{ $period }}">
-                <input type="text" id="food-from-date" name="from_date" value="{{ $fromDateInput }}" placeholder="Từ ngày" readonly class="relative z-10 w-[4rem] min-h-[38px] cursor-pointer rounded-lg border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" autocomplete="off">
-                <input type="text" id="food-to-date" name="to_date" value="{{ $toDateInput }}" placeholder="Đến ngày" readonly class="relative z-10 w-[4rem] min-h-[38px] cursor-pointer rounded-lg border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" autocomplete="off">
+                <input type="text" id="food-from-date" name="from_date" value="{{ $fromDateInput }}" placeholder="Từ ngày" readonly class="relative z-10 w-[90px] min-h-[38px] cursor-pointer rounded-lg border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" autocomplete="off">
+                <input type="text" id="food-to-date" name="to_date" value="{{ $toDateInput }}" placeholder="Đến ngày" readonly class="relative z-10 w-[90px] min-h-[38px] cursor-pointer rounded-lg border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" autocomplete="off">
                 <button type="submit" class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">Áp dụng</button>
             </form>
             <button type="button" @click="open = !open" class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg leading-none text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700" :aria-expanded="open" :title="open ? 'Thu gọn' : 'Tạo thống kê'">
