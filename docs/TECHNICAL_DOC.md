@@ -194,7 +194,15 @@ $canEdit = $user->id === $household->owner_user_id;  // 31 === "31" → false
 
 Áp dụng cho mọi chỗ so sánh `user_id`, `owner_user_id`, hoặc foreign key khác khi kết quả dùng để phân quyền hoặc hiển thị UI.
 
-## 8. Changelog kỹ thuật
+## 8. Quy ước tiền VND (Việt Nam Đồng)
+
+- **Lưu trong DB:** Luôn lưu giá trị số (số nguyên đồng). Không lưu chuỗi có dấu chấm phân cách hàng nghìn (ví dụ: lưu `21822`, không lưu `21.822`).
+- **Không:** format số theo locale (dấu chấm hàng nghìn) rồi đem tính toán hoặc ghi DB; không dùng cột `decimal` với ý nghĩa "21.822" = 21 nghìn (sai).
+- **Khi nhập:** Chuỗi từ user/Excel "21,822" hoặc "21.822" → parse (bỏ dấu `.` và `,` phân cách hàng nghìn) thành `21822` rồi mới lưu. Dùng `VndHelper::parseAmount()` / `VndHelper::toStoredAmount()`.
+- **Hiển thị:** Chỉ format ra chuỗi (vd. "21,822 đ") để hiển thị (`BaoCaoHelper::formatGiaVon`); không dùng chuỗi đó để lưu hay tính.
+- **Schema:** Cột tiền VND (vd. `food_products.gia_von`, `food_sales_report_items.gia_von_unit`) dùng `DECIMAL(15,0)` hoặc tương đương — lưu số nguyên đồng.
+
+## 9. Changelog kỹ thuật
 
 | Ngày | Thay đổi |
 |------|----------|
@@ -204,6 +212,7 @@ $canEdit = $user->id === $household->owner_user_id;  // 31 === "31" → false
 | 2026-02-24 | Bổ sung bảng: budget_threshold_snapshots, income_goals, income_goal_snapshots, user_income_sources, income_source_keywords, payment_schedules. Service: PaymentScheduleObligationService, CashflowProjectionService (scheduleByMonth/obligation30), FinancialRoleClassifier. Mục 6.1: Khắc phục lỗi "Không tải được dữ liệu tài chính" (migration, log, resilience). |
 | 2026-02-24 | Tab Tài khoản: khi không được thêm TK (hết hạn gói / đạt max_accounts), nút "Kết nối" điều hướng đến /goi-hien-tai. Cập nhật mục route 2.1. |
 | 2026-02-28 | Mục 7: Quy ước so sánh ID — ép (int) khi so sánh user_id / owner_user_id để tránh lỗi trên production (DB trả string). |
+| 2026-03-02 | Mục 8: Quy ước tiền VND — luôn lưu số nguyên đồng, không lưu/parse dạng dấu chấm phân cách hàng nghìn; VndHelper, schema DECIMAL(15,0). |
 
 ---
-*Cập nhật lần cuối: 2026-02-28.*
+*Cập nhật lần cuối: 2026-03-02.*

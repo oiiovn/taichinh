@@ -10,5 +10,6 @@ return [
         'tai_chinh' => 'Tài chính',
         'cong_viec' => 'Công việc',
         'tribeos' => 'TribeOS',
+        'food' => 'Food',
     ],
 ];

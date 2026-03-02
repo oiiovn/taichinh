@@ -518,7 +518,11 @@ class Pay2sApiService
                     $model->pay2s_bank_account_id = $ids['pay2s_bank_account_id'] ?? $model->pay2s_bank_account_id;
                     $model->user_id = $ids['user_id'];
                     $model->save();
-                    app(\App\Services\PaymentScheduleMatchService::class)->tryMatch($model->fresh());
+                    $model = $model->fresh();
+                    app(\App\Services\PaymentScheduleMatchService::class)->tryMatch($model);
+                    if ($model->type === 'OUT') {
+                        app(\App\Services\FoodDebtPaymentMatchService::class)->tryMatch($model);
+                    }
                 }
             }
 
@@ -527,6 +531,7 @@ class Pay2sApiService
             app(\App\Services\LoanPendingPaymentService::class)->tryMatchBankTransaction($model);
             if ($model->user_id) {
                 app(\App\Services\PaymentScheduleMatchService::class)->tryMatch($model);
+                app(\App\Services\FoodDebtPaymentMatchService::class)->tryMatch($model);
                 app(TransactionClassifier::class)->classify($model->fresh());
             }
         }
@@ -594,8 +599,12 @@ class Pay2sApiService
                 $t->save();
                 $updated++;
                 try {
-                    app(\App\Services\PaymentScheduleMatchService::class)->tryMatch($t->fresh());
-                    app(TransactionClassifier::class)->classify($t->fresh());
+                    $fresh = $t->fresh();
+                    app(\App\Services\PaymentScheduleMatchService::class)->tryMatch($fresh);
+                    if ($fresh->type === 'OUT') {
+                        app(\App\Services\FoodDebtPaymentMatchService::class)->tryMatch($fresh);
+                    }
+                    app(TransactionClassifier::class)->classify($fresh);
                 } catch (\Throwable $e) {
                     Log::warning('Pay2s backfill: tryMatch/classify failed for tx ' . $t->id . ': ' . $e->getMessage());
                 }

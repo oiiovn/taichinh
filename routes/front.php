@@ -178,6 +178,29 @@ Route::middleware('auth')->group(function () {
         Route::get('/cong-viec/programs/{id}', [\App\Http\Controllers\CongViec\BehaviorProgramController::class, 'show'])->name('cong-viec.programs.show');
     });
 
+    Route::middleware(['feature:food'])->group(function () {
+        Route::get('/food', function (\Illuminate\Http\Request $r) {
+            if (! $r->user()?->is_admin) {
+                return redirect()->route('food.cong-no');
+            }
+            return view('pages.food', ['title' => 'Food']);
+        })->name('food');
+        Route::get('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'show'])->name('food.bao-cao-ban-hang.show');
+        Route::get('/food/cong-no', [\App\Http\Controllers\Food\CongNoController::class, 'index'])->name('food.cong-no');
+        Route::middleware(['admin'])->group(function () {
+            Route::get('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'index'])->name('food.bao-cao-ban-hang');
+            Route::post('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'store'])->name('food.bao-cao-ban-hang.store');
+            Route::post('/food/bao-cao-ban-hang/{id}/cong-no', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'storeCongNo'])->name('food.bao-cao-ban-hang.cong-no.store');
+            Route::delete('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'destroy'])->name('food.bao-cao-ban-hang.destroy');
+            Route::get('/food/san-pham', [\App\Http\Controllers\Food\SanPhamController::class, 'index'])->name('food.san-pham');
+            Route::post('/food/san-pham/paste', [\App\Http\Controllers\Food\SanPhamController::class, 'pasteFromSheet'])->name('food.san-pham.paste');
+            Route::post('/food/san-pham', [\App\Http\Controllers\Food\SanPhamController::class, 'store'])->name('food.san-pham.store');
+            Route::put('/food/san-pham/{id}', [\App\Http\Controllers\Food\SanPhamController::class, 'update'])->name('food.san-pham.update');
+            Route::post('/food/san-pham/bulk-gia-von', [\App\Http\Controllers\Food\SanPhamController::class, 'bulkGiaVon'])->name('food.san-pham.bulk-gia-von');
+            Route::delete('/food/san-pham/{id}', [\App\Http\Controllers\Food\SanPhamController::class, 'destroy'])->name('food.san-pham.destroy');
+        });
+    });
+
     Route::middleware(['feature:thu_chi'])->group(function () {
         Route::get('/thu-chi', [\App\Http\Controllers\ThuChiController::class, 'index'])->name('thu-chi');
         Route::post('/thu-chi/income', [\App\Http\Controllers\ThuChiController::class, 'storeIncome'])->name('thu-chi.income.store');

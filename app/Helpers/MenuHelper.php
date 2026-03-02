@@ -11,6 +11,7 @@ class MenuHelper
             ['feature' => 'tai_chinh', 'icon' => 'finance', 'name' => 'Tài chính', 'path' => '/tai-chinh'],
             ['feature' => 'cong_viec', 'icon' => 'task', 'name' => 'Công việc', 'path' => '/cong-viec'],
             ['feature' => 'thu_chi', 'icon' => 'chart-bar', 'name' => 'Thu chi', 'path' => '/thu-chi'],
+            ['feature' => 'food', 'icon' => 'food', 'name' => 'Food', 'path' => '/food'],
         ];
         $user = auth()->user();
         if (!$user) {
@@ -80,6 +81,8 @@ class MenuHelper
             'card' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M2.25 8.25A2.25 2.25 0 0 1 4.5 6h15a2.25 2.25 0 0 1 2.25 2.25v7.5A2.25 2.25 0 0 1 19.5 18h-15a2.25 2.25 0 0 1-2.25-2.25v-7.5Zm2.25-.75a.75.75 0 0 0-.75.75v1.5h16.5v-1.5a.75.75 0 0 0-.75-.75h-15Zm-.75 4.5v4.5c0 .414.336.75.75.75h15a.75.75 0 0 0 .75-.75v-4.5H3.75Z" fill="currentColor"/></svg>',
 
             'chart-bar' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M3 3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V3Zm7 4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1V7Zm7 6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1h-2a1 1 0 0 1-1-1v-8Z" fill="currentColor"/></svg>',
+
+            'food' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 2v20" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M21 15V2v0a5 5 0 0 0-5 5v6c0 1.1.9 2 2 2h3Zm0 0v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 
             'chart-trend' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M3 17l6-6 4 4 8-12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 
