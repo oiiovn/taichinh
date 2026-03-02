@@ -7,6 +7,10 @@
 <div class="space-y-6">
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Công nợ</h2>
 
+    @if(session('success'))
+        <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-200">{{ session('success') }}</div>
+    @endif
+
     @if($canSelectDebtor && $debtors->isEmpty())
         <p class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">Chưa có công nợ. Từ trang Báo cáo bán hàng, nhấn "Xử lý công nợ" và chọn user để tạo.</p>
     @else
@@ -80,6 +84,13 @@
                                 </td>
                                 <td class="px-4 py-2">
                                     <a href="{{ route('food.bao-cao-ban-hang.show', $r) }}" class="text-brand-600 hover:underline dark:text-brand-400">Chi tiết</a>
+                                    @if(!$d->payment)
+                                        <span class="mx-1 text-gray-300 dark:text-gray-600">|</span>
+                                        <form action="{{ route('food.cong-no.thanh-toan-tien-mat', $d) }}" method="POST" class="inline" onsubmit="return confirm('Ghi nhận thanh toán tiền mặt {{ $fmt($d->debt_amount) }} đ cho báo cáo {{ $r->report_code }}?');">
+                                            @csrf
+                                            <button type="submit" class="text-emerald-600 hover:underline dark:text-emerald-400">Thanh toán tiền mặt</button>
+                                        </form>
+                                    @endif
                                 </td>
                             </tr>
                         @empty
@@ -110,8 +121,8 @@
                                 <tr class="border-b border-gray-100 dark:border-gray-700/50">
                                     <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $p->debt->report->report_code ?? '—' }}</td>
                                     <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $fmt($p->amount_paid) }} đ</td>
-                                    <td class="px-4 py-2 text-gray-600 dark:text-gray-400">{{ $p->transaction?->transaction_date?->format('d/m/Y H:i') ?? '—' }}</td>
-                                    <td class="px-4 py-2 text-gray-600 dark:text-gray-400">{{ Str::limit($p->transaction?->description ?? '—', 60) }}</td>
+                                    <td class="px-4 py-2 text-gray-600 dark:text-gray-400">{{ $p->transaction ? $p->transaction->transaction_date?->format('d/m/Y H:i') : $p->created_at->format('d/m/Y H:i') }}</td>
+                                    <td class="px-4 py-2 text-gray-600 dark:text-gray-400">{{ $p->transaction ? Str::limit($p->transaction->description ?? '—', 60) : 'Tiền mặt' }}</td>
                                 </tr>
                             @empty
                                 <tr>

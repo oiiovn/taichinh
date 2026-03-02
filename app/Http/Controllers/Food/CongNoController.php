@@ -8,6 +8,7 @@ use App\Models\FoodReportDebtPayment;
 use App\Models\FoodSalesReport;
 use App\Models\TransactionHistory;
 use App\Models\User;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -59,7 +60,7 @@ class CongNoController extends Controller
             }
             $debts = $debts->get();
 
-            $this->matchPayments($debts);
+            $this->matchPayments($debts, $user);
 
             $debts = FoodReportDebt::query()
                 ->with(['report', 'payment.transaction'])
@@ -100,9 +101,36 @@ class CongNoController extends Controller
         ]);
     }
 
-    private function matchPayments($debts): void
+    public function storeThanhToanTienMat(Request $request, FoodReportDebt $debt): RedirectResponse
     {
-        $usedTxIds = FoodReportDebtPayment::query()->pluck('transaction_history_id')->all();
+        $user = $request->user();
+        if (! $user) {
+            abort(401);
+        }
+        $report = $debt->report;
+        if (! $report) {
+            abort(404);
+        }
+        $isReportOwner = (int) $report->user_id === (int) $user->id;
+        $isDebtor = (int) $debt->debtor_user_id === (int) $user->id;
+        if (! $isReportOwner && ! $isDebtor) {
+            abort(403);
+        }
+        if ($debt->payment) {
+            return redirect()->route('food.cong-no', ['debtor_user_id' => $debt->debtor_user_id])->with('success', 'Công nợ này đã được thanh toán.');
+        }
+        $amount = (int) round((float) $debt->debt_amount);
+        FoodReportDebtPayment::query()->create([
+            'food_report_debt_id' => $debt->id,
+            'transaction_history_id' => null,
+            'amount_paid' => $amount,
+        ]);
+        return redirect()->route('food.cong-no', ['debtor_user_id' => $debt->debtor_user_id])->with('success', 'Đã ghi nhận thanh toán tiền mặt.');
+    }
+
+    private function matchPayments($debts, $user): void
+    {
+        $usedTxIds = FoodReportDebtPayment::query()->whereNotNull('transaction_history_id')->pluck('transaction_history_id')->all();
 
         foreach ($debts as $debt) {
             if ($debt->payment) {

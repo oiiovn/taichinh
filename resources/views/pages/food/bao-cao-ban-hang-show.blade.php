@@ -66,6 +66,28 @@
         </div>
     </div>
 
+    @if(($report->debts ?? collect())->isNotEmpty())
+        <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+            <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-200">Công nợ</h3>
+            <ul class="space-y-2 text-sm">
+                @foreach($report->debts as $d)
+                    <li class="flex flex-wrap items-center gap-2">
+                        <span class="text-gray-700 dark:text-gray-300">{{ $d->debtor?->name }}:</span>
+                        @if($d->payment)
+                            <span class="text-green-600 dark:text-green-400">Đã thanh toán</span>
+                        @else
+                            <span class="text-amber-600 dark:text-amber-400">Chưa thanh toán</span>
+                            <form action="{{ route('food.cong-no.thanh-toan-tien-mat', $d) }}" method="POST" class="inline" onsubmit="return confirm('Ghi nhận thanh toán tiền mặt {{ $fmtNguyen($d->debt_amount) }} đ?');">
+                                @csrf
+                                <button type="submit" class="text-emerald-600 hover:underline dark:text-emerald-400">Thanh toán tiền mặt</button>
+                            </form>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{-- Từng đơn hàng --}}
     @foreach($orders as $order)
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">

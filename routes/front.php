@@ -182,6 +182,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/food', [\App\Http\Controllers\Food\FoodController::class, 'index'])->name('food');
         Route::get('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'show'])->name('food.bao-cao-ban-hang.show');
         Route::get('/food/cong-no', [\App\Http\Controllers\Food\CongNoController::class, 'index'])->name('food.cong-no');
+        Route::post('/food/cong-no/debt/{debt}/thanh-toan-tien-mat', [\App\Http\Controllers\Food\CongNoController::class, 'storeThanhToanTienMat'])->name('food.cong-no.thanh-toan-tien-mat');
         Route::middleware(['admin'])->group(function () {
             Route::get('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'index'])->name('food.bao-cao-ban-hang');
             Route::post('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'store'])->name('food.bao-cao-ban-hang.store');
