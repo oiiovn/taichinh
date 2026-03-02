@@ -17,6 +17,9 @@ class UserRecurringPattern extends Model
         'amount_std',
         'avg_interval_days',
         'interval_std',
+        'interval_variance',
+        'amount_cv',
+        'miss_streak',
         'user_category_id',
         'confidence_score',
         'last_seen_at',
@@ -30,6 +33,9 @@ class UserRecurringPattern extends Model
         'amount_std' => 'decimal:2',
         'avg_interval_days' => 'decimal:2',
         'interval_std' => 'decimal:2',
+        'interval_variance' => 'float',
+        'amount_cv' => 'float',
+        'miss_streak' => 'integer',
         'confidence_score' => 'float',
         'last_seen_at' => 'datetime',
         'next_expected_at' => 'date',
@@ -72,5 +78,29 @@ class UserRecurringPattern extends Model
         $diffDays = abs($txDate->diffInDays($expected, false));
 
         return $diffDays <= $dateToleranceDays;
+    }
+
+    /**
+     * Confidence v3: 0.5*interval_stability + 0.3*amount_stability + 0.2*streak_consistency.
+     */
+    public function getCompositeConfidence(): float
+    {
+        $intervalStability = 1.0;
+        if ($this->interval_std > 0 && $this->avg_interval_days > 0) {
+            $cv = (float) $this->interval_std / (float) $this->avg_interval_days;
+            $intervalStability = max(0, 1.0 - min(1.0, $cv * 3));
+        }
+        $amountStability = 1.0;
+        if (isset($this->amount_cv) && $this->amount_cv !== null) {
+            $amountStability = max(0, 1.0 - min(1.0, (float) $this->amount_cv * 2));
+        } elseif ($this->amount_std > 0 && $this->avg_amount > 0) {
+            $cv = (float) $this->amount_std / (float) $this->avg_amount;
+            $amountStability = max(0, 1.0 - min(1.0, $cv * 2));
+        }
+        $streakConsistency = 1.0;
+        if (isset($this->miss_streak)) {
+            $streakConsistency = max(0, 1.0 - min(1.0, (int) $this->miss_streak / 5.0));
+        }
+        return (float) (0.5 * $intervalStability + 0.3 * $amountStability + 0.2 * $streakConsistency);
     }
 }

@@ -46,7 +46,15 @@ Tài liệu mô tả cách hệ thống dùng **AI / học máy**: phân loại 
 - **Metric:** Tỷ lệ thumbs up/down (từ financial_insight_feedback). Số lần user chỉnh/sửa insight nếu có.
 - **Fallback:** Khi không đủ dữ liệu: DataSufficiencyService trả narrative cố định (“Chưa đủ dữ liệu… Liên kết tài khoản…”). Khi API AI lỗi/timeout: có thể trả template cố định hoặc ẩn block insight (tùy implementation).
 
-## 6. Biến môi trường liên quan
+## 6. Transaction Classification Engine v3 (CLASSIFICATION_V3_ENABLED=true)
+
+- **Luồng:** Thu thập đa candidate (rule, behavior, recurring, global, GPT/keyword) → Unified scoring (0.4×source_weight + 0.3×historical_accuracy + 0.2×pattern_stability + 0.1×contextual_alignment) → Điều chỉnh theo anomaly (z-score amount), entropy merchant, recurring date drift → Chọn candidate có final_score cao nhất → Ghi `classification_meta` (candidate_scores, anomaly_flag, entropy, final_reason).
+- **Historical accuracy:** Bảng `classification_accuracy_by_source` (user_id, source, usage_count, wrong_count). Khi áp dụng nguồn → tăng usage_count; khi user sửa danh mục → recordWrong (wrong_count++, GlobalMerchantPattern nếu là global/AI).
+- **GlobalMerchantPattern:** Thêm correct_count, wrong_count, last_used_at, last_wrong_at, decay_factor. Confidence = accuracy × log(usage_count + 1) / 5 (không còn chỉ usage-based).
+- **GPT cache v2:** Key có semantic_hash + version; cache_confidence, cache_created_at; effective_confidence = cache_confidence × exp(-λ × days_since_cached).
+- **Recurring:** interval_variance, amount_cv, miss_streak; confidence = 0.5×interval_stability + 0.3×amount_stability + 0.2×streak_consistency.
+
+## 7. Biến môi trường liên quan
 
 | Key | Mô tả |
 |-----|-------|
@@ -55,12 +63,14 @@ Tài liệu mô tả cách hệ thống dùng **AI / học máy**: phân loại 
 | GPT_CLASSIFICATION_CONFIDENCE_THRESHOLD, CACHE_DAYS | Ngưỡng tin cậy, cache phân loại |
 | FINANCIAL_USE_COGNITIVE_LAYER | Bật cognitive layer cho Insight |
 | FINANCIAL_COGNITIVE_CONFIDENCE_THRESHOLD, FINANCIAL_INSIGHT_AI_CACHE_TTL_HOURS, FINANCIAL_COGNITIVE_TIMEOUT | Ngưỡng, TTL cache, timeout gọi AI |
+| CLASSIFICATION_V3_ENABLED, CLASSIFICATION_CACHE_DECAY_LAMBDA, CLASSIFICATION_ANOMALY_Z_THRESHOLD, CLASSIFICATION_MIN_FINAL_SCORE | Engine v3: bật, decay cache, ngưỡng anomaly, điểm tối thiểu áp dụng |
 
-## 7. Changelog AI
+## 8. Changelog AI
 
 | Ngày | Thay đổi |
 |------|----------|
 | 2026-02-24 | Viết lại AI Learning Doc: phân loại GPT, cognitive layer, payload, feedback, fallback, env. |
+| 2026-03-02 | Transaction Classification Engine v3: multi-candidate scoring, unified confidence, accuracy by source, GPT cache decay, anomaly/entropy, classification_meta. |
 
 ---
-*Cập nhật lần cuối: 2026-02-24.*
+*Cập nhật lần cuối: 2026-03-02.*

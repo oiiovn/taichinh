@@ -33,9 +33,8 @@ class UpdateGlobalMerchantPatternJob implements ShouldQueue
         );
 
         $pattern->increment('usage_count');
+        $pattern->update(['last_used_at' => now()]);
         $pattern->refresh();
-
-        $score = min(0.95, 0.5 + $pattern->usage_count * 0.01);
-        $pattern->update(['confidence_score' => $score]);
+        $pattern->update(['confidence_score' => $pattern->getConfidenceFromAccuracy()]);
     }
 }

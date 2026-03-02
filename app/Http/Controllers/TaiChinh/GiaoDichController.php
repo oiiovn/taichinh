@@ -10,6 +10,7 @@ use App\Models\UserCategory;
 use App\Models\UserMerchantRule;
 use App\Services\UserFinancialContextService;
 use App\Models\UserBehaviorPattern;
+use App\Services\Classification\ClassificationAccuracyRecorder;
 use App\Services\MerchantKeyNormalizer;
 use App\Services\TaiChinh\TaiChinhViewCache;
 use App\Services\TransactionClassifier;
@@ -166,29 +167,33 @@ class GiaoDichController extends Controller
                     $oldSource = $transaction->classification_source;
                     $oldSystemCategoryId = $transaction->system_category_id;
 
-                    if ($oldSource === TransactionClassifier::SOURCE_GLOBAL && $oldSystemCategoryId && $transaction->merchant_group) {
-                        $bucket = $transaction->amount_bucket ?? '';
-                        $pattern = GlobalMerchantPattern::where('merchant_group', $transaction->merchant_group)
-                            ->where('direction', $transaction->type)
-                            ->where('amount_bucket', $bucket)
-                            ->where('system_category_id', $oldSystemCategoryId)->first();
-                        if (! $pattern && ($bucket !== '' || $transaction->type !== '')) {
+                    $globalPatternId = null;
+                    if (in_array($oldSource, [TransactionClassifier::SOURCE_BEHAVIOR, TransactionClassifier::SOURCE_RECURRING, TransactionClassifier::SOURCE_GLOBAL, TransactionClassifier::SOURCE_AI], true)) {
+                        if ($oldSource === TransactionClassifier::SOURCE_GLOBAL && $oldSystemCategoryId && $transaction->merchant_group) {
+                            $bucket = $transaction->amount_bucket ?? '';
                             $pattern = GlobalMerchantPattern::where('merchant_group', $transaction->merchant_group)
-                                ->where('direction', '')->where('amount_bucket', '')
+                                ->where('direction', $transaction->type)
+                                ->where('amount_bucket', $bucket)
                                 ->where('system_category_id', $oldSystemCategoryId)->first();
+                            if (! $pattern && ($bucket !== '' || $transaction->type !== '')) {
+                                $pattern = GlobalMerchantPattern::where('merchant_group', $transaction->merchant_group)
+                                    ->where('direction', '')->where('amount_bucket', '')
+                                    ->where('system_category_id', $oldSystemCategoryId)->first();
+                            }
+                            if ($pattern) {
+                                $globalPatternId = $pattern->id;
+                            }
                         }
-                        if ($pattern) {
-                            $pattern->update(['confidence_score' => max(0, $pattern->confidence_score - 0.1)]);
+                        if ($oldSource === TransactionClassifier::SOURCE_AI && $oldSystemCategoryId && $transaction->merchant_group && $transaction->amount_bucket && $globalPatternId === null) {
+                            $pattern = GlobalMerchantPattern::where('merchant_group', $transaction->merchant_group)
+                                ->where('direction', $transaction->type)
+                                ->where('amount_bucket', $transaction->amount_bucket)
+                                ->where('system_category_id', $oldSystemCategoryId)->first();
+                            if ($pattern) {
+                                $globalPatternId = $pattern->id;
+                            }
                         }
-                    }
-                    if ($oldSource === TransactionClassifier::SOURCE_AI && $oldSystemCategoryId && $transaction->merchant_group && $transaction->amount_bucket) {
-                        $pattern = GlobalMerchantPattern::where('merchant_group', $transaction->merchant_group)
-                            ->where('direction', $transaction->type)
-                            ->where('amount_bucket', $transaction->amount_bucket)
-                            ->where('system_category_id', $oldSystemCategoryId)->first();
-                        if ($pattern) {
-                            $pattern->update(['confidence_score' => max(0, $pattern->confidence_score - 0.1)]);
-                        }
+                        app(ClassificationAccuracyRecorder::class)->recordWrong($user->id, $oldSource, $globalPatternId);
                     }
                     if ($oldSource === TransactionClassifier::SOURCE_BEHAVIOR && $transaction->merchant_group && $transaction->amount_bucket) {
                         $beh = UserBehaviorPattern::where('user_id', $user->id)

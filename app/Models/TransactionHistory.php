@@ -28,6 +28,7 @@ class TransactionHistory extends Model
         'classification_status',
         'classification_confidence',
         'classification_version',
+        'classification_meta',
         'transaction_date',
         'raw_json',
     ];
@@ -36,6 +37,7 @@ class TransactionHistory extends Model
         'amount' => 'decimal:2',
         'transaction_date' => 'datetime',
         'raw_json' => 'array',
+        'classification_meta' => 'array',
         'classification_confidence' => 'float',
     ];
 

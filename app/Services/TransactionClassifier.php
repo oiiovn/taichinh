@@ -10,6 +10,9 @@ use App\Models\UserCategory;
 use App\Models\UserMerchantRule;
 use App\Models\UserRecurringPattern;
 use App\Models\SystemCategory;
+use App\Services\Classification\CandidateCollector;
+use App\Services\Classification\ClassificationAccuracyRecorder;
+use App\Services\Classification\UnifiedScoringService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 
@@ -44,6 +47,11 @@ class TransactionClassifier
             $transaction->merchant_key = $pair['merchant_key'];
             $transaction->merchant_group = $pair['merchant_group'];
             $transaction->save();
+        }
+
+        if (config('classification.v3.enabled', false)) {
+            $this->classifyV3($transaction, $normalizer);
+            return;
         }
 
         // 1. User Rule: exact merchant_key rồi thử match na ná (key chuẩn hóa bỏ số)
@@ -211,6 +219,145 @@ class TransactionClassifier
                 $transaction->amount_bucket ?? ''
             );
         }
+    }
+
+    private function classifyV3(TransactionHistory $transaction, MerchantKeyNormalizer $normalizer): void
+    {
+        $rule = $this->findRuleForNormalize($transaction, $normalizer);
+        if ($rule !== null) {
+            $transaction->merchant_key = $normalizer->normalizeKeyForMatch($transaction->merchant_key);
+            $transaction->merchant_group = strpos($transaction->merchant_key, ' ') !== false
+                ? explode(' ', $transaction->merchant_key)[0]
+                : $transaction->merchant_key;
+            $transaction->save();
+        }
+
+        $collector = app(CandidateCollector::class);
+        $scorer = app(UnifiedScoringService::class);
+        $recorder = app(ClassificationAccuracyRecorder::class);
+
+        $candidates = $collector->collect($transaction->fresh());
+        if (empty($candidates)) {
+            $transaction->classification_status = TransactionHistory::CLASSIFICATION_STATUS_PENDING;
+            $transaction->classification_source = self::SOURCE_AI;
+            $transaction->classification_confidence = 0;
+            $transaction->classification_meta = [
+                'candidate_scores' => [],
+                'anomaly_flag' => false,
+                'entropy' => 0.0,
+                'final_reason' => 'no_candidates',
+            ];
+            $transaction->save();
+            return;
+        }
+
+        $result = $scorer->scoreCandidates($candidates, $transaction);
+        $scoredCandidates = $result['candidates'];
+        $best = $scorer->selectBest($scoredCandidates);
+
+        $minScore = (float) config('classification.v3.min_final_score_to_apply', 0.7);
+        $group = $transaction->merchant_group ?: $transaction->merchant_key;
+
+        if ($best !== null && ($best['final_score'] ?? 0) >= $minScore) {
+            $transaction->user_category_id = $best['user_category_id'] ?? null;
+            $transaction->system_category_id = $best['system_category_id'] ?? null;
+            if ($transaction->system_category_id && ! $transaction->user_category_id) {
+                $transaction->user_category_id = UserCategory::where('user_id', $transaction->user_id)
+                    ->where('based_on_system_category_id', $transaction->system_category_id)
+                    ->value('id');
+            }
+            $transaction->classification_status = $best['source'] === 'rule'
+                ? TransactionHistory::CLASSIFICATION_STATUS_RULE
+                : TransactionHistory::CLASSIFICATION_STATUS_AUTO;
+            $transaction->classification_source = $best['source'] === 'ai' ? self::SOURCE_AI : $best['source'];
+            $transaction->classification_confidence = $best['final_score'];
+            $transaction->classification_version = 2;
+            $transaction->classification_meta = $this->buildClassificationMeta($scoredCandidates, $result, $best['reason'] ?? $best['source'], $best['source'], $best['final_score']);
+            $transaction->save();
+
+            $recorder->recordUsage(
+                $transaction->user_id,
+                $best['source'],
+                $best['pattern_model'] === 'GlobalMerchantPattern' ? $best['pattern_id'] : null,
+                $best['pattern_model'] === 'UserRecurringPattern' ? $best['pattern_id'] : null
+            );
+
+            if ($best['pattern_model'] === 'UserRecurringPattern' && ! empty($best['pattern_id'])) {
+                $recurring = UserRecurringPattern::find($best['pattern_id']);
+                if ($recurring) {
+                    $this->updateRecurringPatternOnMatch($recurring, $transaction);
+                }
+            }
+
+            if ($best['source'] === 'ai' && ($best['final_score'] ?? 0) >= self::gptTeachThreshold() && $transaction->system_category_id) {
+                UpdateGlobalMerchantPatternJob::dispatch(
+                    $group,
+                    (int) $transaction->system_category_id,
+                    $transaction->type,
+                    $transaction->amount_bucket ?? ''
+                );
+            }
+        } else {
+            $transaction->classification_status = TransactionHistory::CLASSIFICATION_STATUS_PENDING;
+            $transaction->classification_source = self::SOURCE_AI;
+            $transaction->classification_confidence = $best['final_score'] ?? 0;
+            $transaction->classification_version = 2;
+            $transaction->classification_meta = $this->buildClassificationMeta($scoredCandidates, $result, 'below_threshold', null, $best['final_score'] ?? null);
+            $transaction->save();
+        }
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $scoredCandidates
+     */
+    private function buildClassificationMeta(array $scoredCandidates, array $result, string $finalReason, ?string $selectedSource, ?float $finalScore): array
+    {
+        $candidateScores = [];
+        foreach ($scoredCandidates as $c) {
+            $candidateScores[] = [
+                'source' => $c['source'] ?? '',
+                'final_score' => $c['final_score'] ?? 0,
+                'components' => $c['candidate_scores'] ?? [],
+            ];
+        }
+        return [
+            'candidate_scores' => $candidateScores,
+            'anomaly_flag' => $result['anomaly_flag'] ?? false,
+            'anomaly_z_score' => $result['anomaly_z_score'] ?? null,
+            'entropy' => $result['entropy'] ?? 0.0,
+            'final_reason' => $finalReason,
+            'selected_source' => $selectedSource,
+            'final_score' => $finalScore,
+        ];
+    }
+
+    private function findRuleForNormalize(TransactionHistory $transaction, MerchantKeyNormalizer $normalizer): ?object
+    {
+        $rule = UserMerchantRule::where('user_id', $transaction->user_id)
+            ->where('merchant_key', $transaction->merchant_key)
+            ->first();
+        if (! $rule && $transaction->merchant_key !== 'unknown') {
+            $normalizedKey = $normalizer->normalizeKeyForMatch($transaction->merchant_key);
+            $rules = UserMerchantRule::where('user_id', $transaction->user_id)->get();
+            foreach ($rules as $r) {
+                if ($normalizer->normalizeKeyForMatch($r->merchant_key) === $normalizedKey) {
+                    return $r;
+                }
+            }
+            $pattern = $normalizer->keyPatternForMatch($transaction->merchant_key);
+            $candidate = null;
+            foreach ($rules as $r) {
+                if ($normalizer->keyPatternForMatch($r->merchant_key) === $pattern) {
+                    if ($candidate === null || ($r->confirmed_count ?? 0) > ($candidate->confirmed_count ?? 0)) {
+                        $candidate = $r;
+                    }
+                }
+            }
+            if ($candidate !== null) {
+                $rule = $candidate;
+            }
+        }
+        return $rule;
     }
 
     private function matchRecurringPattern(TransactionHistory $transaction, string $group): ?UserRecurringPattern
