@@ -179,12 +179,7 @@ Route::middleware('auth')->group(function () {
     });
 
     Route::middleware(['feature:food'])->group(function () {
-        Route::get('/food', function (\Illuminate\Http\Request $r) {
-            if (! $r->user()?->is_admin) {
-                return redirect()->route('food.cong-no');
-            }
-            return view('pages.food', ['title' => 'Food']);
-        })->name('food');
+        Route::get('/food', [\App\Http\Controllers\Food\FoodController::class, 'index'])->name('food');
         Route::get('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'show'])->name('food.bao-cao-ban-hang.show');
         Route::get('/food/cong-no', [\App\Http\Controllers\Food\CongNoController::class, 'index'])->name('food.cong-no');
         Route::middleware(['admin'])->group(function () {
