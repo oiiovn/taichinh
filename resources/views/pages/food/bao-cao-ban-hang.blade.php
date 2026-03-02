@@ -37,6 +37,8 @@
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Tổng đơn</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Quyết toán</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Ngày tải lên</th>
+                    <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Công nợ (user)</th>
+                    <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Trạng thái thanh toán</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Thao tác</th>
                 </tr>
             </thead>
@@ -48,6 +50,24 @@
                         <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $r->total_orders }}</td>
                         <td class="px-4 py-2 text-gray-900 dark:text-white">{{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen((float) $r->total_cost + (float) $r->total_tien_cong) }} đ</td>
                         <td class="px-4 py-2 text-gray-600 dark:text-gray-400">{{ $r->uploaded_at->format('d/m/Y H:i') }}</td>
+                        <td class="px-4 py-2 text-gray-900 dark:text-white">
+                            @if($r->debts->isEmpty())
+                                <span class="text-gray-400">—</span>
+                            @else
+                                {{ $r->debts->map(fn ($d) => $d->debtor?->name ?? '—')->filter()->join(', ') }}
+                            @endif
+                        </td>
+                        <td class="px-4 py-2">
+                            @if($r->debts->isEmpty())
+                                <span class="text-gray-400">—</span>
+                            @else
+                                @foreach($r->debts as $d)
+                                    <span class="{{ $d->payment ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400' }}">
+                                        {{ $d->debtor?->name }}: {{ $d->payment ? 'Đã thanh toán' : 'Chưa thanh toán' }}
+                                    </span>@if(!$loop->last)<br>@endif
+                                @endforeach
+                            @endif
+                        </td>
                         <td class="px-4 py-2">
                             <a href="{{ route('food.bao-cao-ban-hang.show', $r) }}" class="text-brand-600 hover:underline dark:text-brand-400">Chi tiết</a>
                             <span class="mx-1 text-gray-300 dark:text-gray-600">|</span>
@@ -62,7 +82,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có báo cáo. Dán mẫu và nhấn "Tải báo cáo lên".</td>
+                        <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có báo cáo. Dán mẫu và nhấn "Tải báo cáo lên".</td>
                     </tr>
                 @endforelse
             </tbody>

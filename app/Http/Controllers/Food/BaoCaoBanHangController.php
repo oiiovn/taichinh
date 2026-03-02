@@ -59,6 +59,7 @@ class BaoCaoBanHangController extends Controller
         }
 
         $reports = FoodSalesReport::query()
+            ->with(['debts.debtor', 'debts.payment'])
             ->where('user_id', $user->id)
             ->orderByDesc('report_date')
             ->orderByDesc('uploaded_at')
