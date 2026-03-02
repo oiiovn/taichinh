@@ -64,11 +64,6 @@
             @endif
             @yield('taiChinhContent')
         </div>
-
-        {{-- Cột phải — timeline hành trình (chỉ tab Chiến lược) --}}
-        <div class="xl:w-72 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-900 shadow-theme-sm dark:border-gray-800 dark:bg-gray-900 dark:text-white px-5 py-7 xl:px-6 xl:py-8 min-h-[60vh]">
-            @yield('taiChinhRightColumn')
-        </div>
     </div>
     @if((request('tab') === 'no-khoan-vay') || request()->routeIs('tai-chinh.loans.index'))
     <script>(function(){if(window.self!==window.top){try{window.parent.postMessage({type:'no-khoan-vay-done'},'*');}catch(e){}}})();</script>

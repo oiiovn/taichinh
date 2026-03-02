@@ -27,11 +27,7 @@
                 <p class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">Bạn chưa có công nợ nào.</p>
             @else
             {{-- Thẻ thống kê --}}
-            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
-                <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-                    <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Số báo cáo</p>
-                    <p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ $totalReports }}</p>
-                </div>
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-4">
                 <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tổng quyết toán</p>
                     <p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ $fmt($totalQuyetToan) }} đ</p>
@@ -44,7 +40,7 @@
                     <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Còn lại</p>
                     <p class="mt-1 text-xl font-semibold text-gray-900 dark:text-white">{{ $fmt($conLai) }} đ</p>
                 </div>
-                <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:col-span-3 lg:col-span-1">
+                <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                     <p class="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Trạng thái</p>
                     <p class="mt-1 text-lg font-semibold {{ $trangThai === 'Đã thanh toán' ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400' }}">{{ $trangThai ?? '—' }}</p>
                 </div>
