@@ -113,7 +113,6 @@ class CongNoController extends Controller
             $code = $report->report_code;
 
             $tx = TransactionHistory::query()
-                ->where('user_id', $debt->debtor_user_id)
                 ->where('type', 'OUT')
                 ->whereNotIn('id', $usedTxIds)
                 ->whereRaw('LOWER(description) LIKE ?', ['%'.mb_strtolower($code).'%'])

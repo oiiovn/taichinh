@@ -14,7 +14,7 @@ class FoodDebtPaymentMatchService
      */
     public function tryMatch(TransactionHistory $tx): ?FoodReportDebtPayment
     {
-        if ($tx->type !== 'OUT' || ! $tx->user_id) {
+        if ($tx->type !== 'OUT') {
             return null;
         }
 
@@ -25,14 +25,12 @@ class FoodDebtPaymentMatchService
             return null;
         }
 
-        $alreadyUsed = FoodReportDebtPayment::where('transaction_history_id', $tx->id)->exists();
-        if ($alreadyUsed) {
+        if (FoodReportDebtPayment::where('transaction_history_id', $tx->id)->exists()) {
             return null;
         }
 
         $debts = FoodReportDebt::query()
             ->with('report')
-            ->where('debtor_user_id', $tx->user_id)
             ->whereDoesntHave('payment')
             ->get();
 
