@@ -42,6 +42,25 @@ class FoodController extends Controller
             $period = self::PERIOD_MONTH;
         }
 
+        $from = null;
+        $to = null;
+        $fromDateInput = $request->input('from_date');
+        $toDateInput = $request->input('to_date');
+        if ($fromDateInput && $toDateInput) {
+            $from = $this->parseDate($fromDateInput);
+            $to = $this->parseDate($toDateInput);
+            if ($from && $to) {
+                if ($from->gt($to)) {
+                    [$from, $to] = [$to, $from];
+                }
+                $from = $from->copy()->startOfDay();
+                $to = $to->copy()->endOfDay();
+            }
+        }
+        if (! $from || ! $to) {
+            [$from, $to] = $this->getDateRange($period);
+        }
+
         $thuIds = $request->input('thu_category_ids', []);
         $chiIds = $request->input('chi_category_ids', []);
         if (! is_array($thuIds)) {
@@ -61,7 +80,6 @@ class FoodController extends Controller
             $chiIds = $request->session()->get('food_tongquan_chi_category_ids', []);
         }
 
-        [$from, $to] = $this->getDateRange($period);
         $thuTotal = 0.0;
         $chiTotal = 0.0;
 
@@ -131,6 +149,8 @@ class FoodController extends Controller
             'chartThu' => $chartThu,
             'chartChi' => $chartChi,
             'chartLoiNhuan' => $chartLoiNhuan,
+            'fromDateInput' => $from ? $from->format('Y-m-d') : '',
+            'toDateInput' => $to ? $to->format('Y-m-d') : '',
         ]);
     }
 
@@ -164,10 +184,30 @@ class FoodController extends Controller
         return [$from, $to];
     }
 
+    private function parseDate(?string $value): ?Carbon
+    {
+        if (! $value || ! is_string($value)) {
+            return null;
+        }
+        $value = trim($value);
+        foreach (['Y-m-d', 'd/m/Y', 'd-m-Y'] as $format) {
+            try {
+                $c = Carbon::createFromFormat($format, $value);
+                if ($c instanceof Carbon) {
+                    return $c;
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
+
+        return null;
+    }
+
     private function getPeriodLabel(string $period): string
     {
         return match ($period) {
-            self::PERIOD_DAY => 'Ngày',
+            self::PERIOD_DAY => 'Hôm nay',
             self::PERIOD_WEEK => 'Tuần',
             self::PERIOD_MONTH => 'Tháng này',
             self::PERIOD_3MONTH => '3 tháng',

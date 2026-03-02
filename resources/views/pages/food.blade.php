@@ -6,7 +6,7 @@
     $tab = in_array(request('tab'), $validTabs) ? request('tab') : 'tong-quan';
     $fmt = fn ($n) => \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($n);
     $periods = [
-        'ngay' => 'Ngày',
+        'ngay' => 'Hôm nay',
         'tuan' => 'Tuần',
         'thang' => 'Tháng này',
         '3-thang' => '3 tháng',
@@ -21,17 +21,25 @@
     $thuTotal = (float) ($thuTotal ?? 0);
     $chiTotal = (float) ($chiTotal ?? 0);
     $loiNhuan = (float) ($loiNhuan ?? 0);
+    $fromDateInput = $fromDateInput ?? '';
+    $toDateInput = $toDateInput ?? '';
 @endphp
 @if($tab === 'tong-quan')
     <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Tổng quan</h2>
 
-    {{-- Bộ lọc thời gian + nút mở form Tạo thống kê --}}
+    {{-- Bộ lọc thời gian + từ ngày đến ngày + nút mở form Tạo thống kê --}}
     <div class="mb-4" x-data="{ open: false }">
-        <div class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-3">
             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Bộ lọc:</span>
             @foreach($periods as $val => $label)
                 <a href="{{ route('food', ['period' => $val]) }}" class="rounded-lg border px-3 py-1.5 text-sm {{ $period === $val ? 'border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700' }}">{{ $label }}</a>
             @endforeach
+            <form method="get" action="{{ route('food') }}" class="flex flex-wrap items-center gap-2">
+                <input type="hidden" name="period" value="{{ $period }}">
+                <input type="text" id="food-from-date" name="from_date" value="{{ $fromDateInput }}" placeholder="Từ ngày" readonly class="relative z-10 w-[4rem] min-h-[38px] cursor-pointer rounded-lg border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" autocomplete="off">
+                <input type="text" id="food-to-date" name="to_date" value="{{ $toDateInput }}" placeholder="Đến ngày" readonly class="relative z-10 w-[4rem] min-h-[38px] cursor-pointer rounded-lg border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" autocomplete="off">
+                <button type="submit" class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">Áp dụng</button>
+            </form>
             <button type="button" @click="open = !open" class="flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 bg-white text-lg leading-none text-gray-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700" :aria-expanded="open" :title="open ? 'Thu gọn' : 'Tạo thống kê'">
                 <span x-show="!open">+</span>
                 <span x-show="open" x-cloak style="display: none;">−</span>
@@ -42,6 +50,8 @@
         <div x-show="open" x-cloak x-transition class="mb-6 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50" style="display: none;">
         <form method="get" action="{{ route('food') }}" class="flex flex-wrap gap-6">
             <input type="hidden" name="period" value="{{ $period }}">
+            @if($fromDateInput)<input type="hidden" name="from_date" value="{{ $fromDateInput }}">@endif
+            @if($toDateInput)<input type="hidden" name="to_date" value="{{ $toDateInput }}">@endif
             <div class="min-w-[220px]">
                 <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">Danh mục thu</label>
                 <div class="max-h-40 overflow-y-auto rounded-lg border border-gray-200 bg-white p-2 dark:border-gray-600 dark:bg-gray-800">
@@ -145,6 +155,21 @@
     }
     if (document.readyState === 'complete') renderFoodChart();
     else window.addEventListener('load', renderFoodChart);
+
+    (function initFoodDatePickers() {
+        function run() {
+            if (typeof window.flatpickr === 'undefined') return;
+            var fromEl = document.getElementById('food-from-date');
+            var toEl = document.getElementById('food-to-date');
+            if (!fromEl || !toEl) return;
+            var opts = { dateFormat: 'Y-m-d', allowInput: false, appendTo: document.body, static: false };
+            if (window.flatpickr.l10ns && window.flatpickr.l10ns.vn) opts.locale = 'vn';
+            window.flatpickr(fromEl, opts);
+            window.flatpickr(toEl, opts);
+        }
+        if (document.readyState === 'complete') run();
+        else window.addEventListener('load', run);
+    })();
     </script>
 @else
     <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Danh sách</h2>
