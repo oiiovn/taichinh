@@ -53,9 +53,9 @@
             {{-- Danh sách báo cáo --}}
             <div>
                 <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-200">Danh sách báo cáo</h3>
-                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm dark:border-gray-700">
+                <div class="max-h-[16rem] overflow-auto rounded-xl border border-gray-200 shadow-sm dark:border-gray-700">
                 <table class="w-full min-w-[640px] text-left text-sm">
-                    <thead class="border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800">
+                    <thead class="sticky top-0 z-10 border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800">
                         <tr>
                             <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Mã báo cáo</th>
                             <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Ngày báo cáo</th>
@@ -106,9 +106,9 @@
             {{-- Lịch sử thanh toán --}}
             <div>
                 <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-200">Lịch sử thanh toán</h3>
-                <div class="overflow-x-auto rounded-xl border border-gray-200 shadow-sm dark:border-gray-700">
+                <div class="max-h-[16rem] overflow-auto rounded-xl border border-gray-200 shadow-sm dark:border-gray-700">
                     <table class="w-full min-w-[500px] text-left text-sm">
-                        <thead class="border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800">
+                        <thead class="sticky top-0 z-10 border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800">
                             <tr>
                                 <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Mã báo cáo</th>
                                 <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Số tiền</th>
