@@ -113,9 +113,9 @@
         $chartChi = $chartChi ?? [];
         $chartLoiNhuan = $chartLoiNhuan ?? [];
     @endphp
-    <div class="mt-8 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+    <div class="mt-8 rounded-xl border border-gray-200 bg-white p-4 pr-8 dark:border-gray-700 dark:bg-gray-800">
         <p class="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Biểu đồ theo ngày</p>
-        <div class="min-w-0 overflow-hidden">
+        <div class="min-w-0">
             <div id="food-tongquan-chart" class="min-h-[280px] w-full" data-dates="{{ json_encode($chartDates) }}" data-thu="{{ json_encode($chartThu) }}" data-chi="{{ json_encode($chartChi) }}" data-loinhuan="{{ json_encode($chartLoiNhuan) }}"></div>
         </div>
     </div>
@@ -143,11 +143,12 @@
                 { name: 'Lợi nhuận', data: loiNhuan }
             ],
             chart: { type: 'line', height: 280, width: '100%', toolbar: { show: false }, zoom: { enabled: false } },
+            grid: { padding: { left: 24, right: 56, top: 16, bottom: 16 } },
             stroke: { curve: 'smooth', width: 2 },
             colors: ['#22c55e', '#ef4444', '#3b82f6'],
             xaxis: { categories: dates, tickAmount: dates.length > 20 ? 12 : undefined, labels: { maxHeight: 40, rotate: -45 } },
             yaxis: { labels: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' đ'; } } },
-            legend: { position: 'top', horizontalAlign: 'right' },
+            legend: { position: 'bottom', horizontalAlign: 'center' },
             tooltip: { y: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' đ'; } } },
             dataLabels: { enabled: false }
         });

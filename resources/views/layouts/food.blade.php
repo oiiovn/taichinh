@@ -41,8 +41,8 @@
         </nav>
 
         {{-- Nội dung (không cột phải) --}}
-        <div class="flex-1 min-w-0 flex flex-col rounded-xl border border-gray-200 bg-white text-gray-900 shadow-theme-sm dark:border-gray-800 dark:bg-gray-900 dark:text-white min-h-[60vh]">
-            <div class="flex-1 overflow-auto px-5 py-7 xl:pl-10 xl:pr-5 xl:py-12">
+        <div class="flex-1 min-w-0 flex flex-col rounded-xl border border-gray-200 bg-white text-gray-900 shadow-theme-sm dark:border-gray-800 dark:bg-gray-900 dark:text-white min-h-[60vh] overflow-hidden">
+            <div class="flex-1 overflow-auto overflow-x-hidden px-5 pr-8 py-7 xl:pl-10 xl:pr-10 xl:py-12">
                 @yield('foodContent')
             </div>
         </div>

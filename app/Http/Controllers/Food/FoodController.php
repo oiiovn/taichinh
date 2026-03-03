@@ -36,8 +36,13 @@ class FoodController extends Controller
         $danhMucThu = UserCategory::where('user_id', $user->id)->where('type', 'income')->orderBy('name')->get();
         $danhMucChi = UserCategory::where('user_id', $user->id)->where('type', 'expense')->orderBy('name')->get();
 
-        $period = $request->input('period', self::PERIOD_MONTH);
+        $saved = $user->food_tongquan_settings ?? [];
         $validPeriods = [self::PERIOD_DAY, self::PERIOD_WEEK, self::PERIOD_MONTH, self::PERIOD_3MONTH, self::PERIOD_6MONTH, self::PERIOD_12MONTH];
+
+        $period = $request->input('period');
+        if ($period === null) {
+            $period = $request->session()->get('food_tongquan_period') ?? $saved['period'] ?? self::PERIOD_MONTH;
+        }
         if (! in_array($period, $validPeriods, true)) {
             $period = self::PERIOD_MONTH;
         }
@@ -46,7 +51,9 @@ class FoodController extends Controller
         $to = null;
         $fromDateInput = $request->input('from_date');
         $toDateInput = $request->input('to_date');
-        if ($fromDateInput && $toDateInput) {
+        $hasExplicitDates = $fromDateInput !== null && $fromDateInput !== '' && $toDateInput !== null && $toDateInput !== '';
+        $hasExplicitPeriod = $request->has('period');
+        if ($hasExplicitDates) {
             $from = $this->parseDate($fromDateInput);
             $to = $this->parseDate($toDateInput);
             if ($from && $to) {
@@ -58,26 +65,71 @@ class FoodController extends Controller
             }
         }
         if (! $from || ! $to) {
+            if ($hasExplicitPeriod) {
+                [$from, $to] = $this->getDateRange($period);
+            } else {
+                $fromDateInput = $request->session()->get('food_tongquan_from_date') ?? $saved['from_date'] ?? null;
+                $toDateInput = $request->session()->get('food_tongquan_to_date') ?? $saved['to_date'] ?? null;
+                if ($fromDateInput && $toDateInput) {
+                    $from = $this->parseDate($fromDateInput);
+                    $to = $this->parseDate($toDateInput);
+                    if ($from && $to) {
+                        if ($from->gt($to)) {
+                            [$from, $to] = [$to, $from];
+                        }
+                        $from = $from->copy()->startOfDay();
+                        $to = $to->copy()->endOfDay();
+                    }
+                }
+            }
+        }
+        if (! $from || ! $to) {
             [$from, $to] = $this->getDateRange($period);
         }
 
-        $thuIds = $request->input('thu_category_ids', []);
-        $chiIds = $request->input('chi_category_ids', []);
-        if (! is_array($thuIds)) {
-            $thuIds = $thuIds ? [$thuIds] : [];
-        }
-        if (! is_array($chiIds)) {
-            $chiIds = $chiIds ? [$chiIds] : [];
-        }
-        $thuIds = array_filter(array_map('intval', $thuIds));
-        $chiIds = array_filter(array_map('intval', $chiIds));
+        $hasFilterParams = $request->has('period') || $request->has('from_date') || $request->has('to_date');
+        $hasCategoryParams = $request->has('thu_category_ids') || $request->has('chi_category_ids');
+        $fromRequest = $hasFilterParams || $hasCategoryParams;
 
-        if ($request->has('thu_category_ids') || $request->has('chi_category_ids')) {
+        if ($fromRequest) {
+            if ($hasCategoryParams) {
+                $thuIds = $request->input('thu_category_ids', []);
+                $chiIds = $request->input('chi_category_ids', []);
+                if (! is_array($thuIds)) {
+                    $thuIds = $thuIds ? [$thuIds] : [];
+                }
+                if (! is_array($chiIds)) {
+                    $chiIds = $chiIds ? [$chiIds] : [];
+                }
+                $thuIds = array_filter(array_map('intval', $thuIds));
+                $chiIds = array_filter(array_map('intval', $chiIds));
+            } else {
+                $thuIds = $request->session()->get('food_tongquan_thu_category_ids') ?? $saved['thu_category_ids'] ?? [];
+                $chiIds = $request->session()->get('food_tongquan_chi_category_ids') ?? $saved['chi_category_ids'] ?? [];
+                $thuIds = is_array($thuIds) ? array_filter(array_map('intval', $thuIds)) : [];
+                $chiIds = is_array($chiIds) ? array_filter(array_map('intval', $chiIds)) : [];
+            }
+        } else {
+            $thuIds = $request->session()->get('food_tongquan_thu_category_ids') ?? $saved['thu_category_ids'] ?? [];
+            $chiIds = $request->session()->get('food_tongquan_chi_category_ids') ?? $saved['chi_category_ids'] ?? [];
+            $thuIds = is_array($thuIds) ? array_filter(array_map('intval', $thuIds)) : [];
+            $chiIds = is_array($chiIds) ? array_filter(array_map('intval', $chiIds)) : [];
+        }
+
+        if ($fromRequest) {
+            $request->session()->put('food_tongquan_period', $period);
+            $request->session()->put('food_tongquan_from_date', $from ? $from->format('Y-m-d') : null);
+            $request->session()->put('food_tongquan_to_date', $to ? $to->format('Y-m-d') : null);
             $request->session()->put('food_tongquan_thu_category_ids', $thuIds);
             $request->session()->put('food_tongquan_chi_category_ids', $chiIds);
-        } else {
-            $thuIds = $request->session()->get('food_tongquan_thu_category_ids', []);
-            $chiIds = $request->session()->get('food_tongquan_chi_category_ids', []);
+            $user->food_tongquan_settings = [
+                'period' => $period,
+                'from_date' => $from ? $from->format('Y-m-d') : null,
+                'to_date' => $to ? $to->format('Y-m-d') : null,
+                'thu_category_ids' => $thuIds,
+                'chi_category_ids' => $chiIds,
+            ];
+            $user->save();
         }
 
         $thuTotal = 0.0;

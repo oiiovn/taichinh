@@ -39,6 +39,7 @@ class User extends Authenticatable
         'threshold_metrics_computed_at',
         'plan',
         'plan_expires_at',
+        'food_tongquan_settings',
         'phone',
         'bio',
         'facebook_url',
@@ -86,6 +87,7 @@ class User extends Authenticatable
             'behavior_events_consent' => 'boolean',
             'low_balance_threshold' => 'integer',
             'threshold_metrics_computed_at' => 'datetime',
+            'food_tongquan_settings' => 'array',
         ];
     }
 
