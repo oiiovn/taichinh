@@ -32,19 +32,19 @@
         @endif
     </div>
 
-    {{-- Thẻ thu chi + sparkline (12 tháng) --}}
+    {{-- Thẻ thu chi + sparkline --}}
     @if($summary || $hasMonthly)
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
         @if($summary)
             <div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 dark:text-white">
-                <p class="mb-1 text-theme-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Tổng thu (12 tháng)</p>
+                <p class="mb-1 text-theme-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Tổng thu ({{ $currentMonthLabel ?? 'Tháng ' . now()->format('n/Y') }})</p>
                 <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ number_format($summary['total_thu']) }} ₫</p>
                 @if($hasMonthly)
                     <div class="mt-2 h-8 w-full" data-sparkline="{{ json_encode(array_map(fn($m) => (float)$m['thu'], $monthlyList)) }}" data-sparkline-color="#22c55e"></div>
                 @endif
             </div>
             <div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 dark:text-white">
-                <p class="mb-1 text-theme-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Tổng chi (12 tháng)</p>
+                <p class="mb-1 text-theme-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">Tổng chi ({{ $currentMonthLabel ?? 'Tháng ' . now()->format('n/Y') }})</p>
                 <p class="text-lg font-semibold text-gray-900 dark:text-white">{{ number_format($summary['total_chi']) }} ₫</p>
                 @if($hasMonthly)
                     <div class="mt-2 h-8 w-full" data-sparkline="{{ json_encode(array_map(fn($m) => (float)$m['chi'], $monthlyList)) }}" data-sparkline-color="#ef4444"></div>

@@ -79,9 +79,11 @@ class HouseholdController extends Controller
         $currentPlan = $user->plan;
         $planExpiringSoon = $currentPlan && $planExpiresAt && GoiHienTaiController::planExpiresWithinDays($planExpiresAt, 3);
         $householdMonthlyAnalytics = ! empty($linkedAccountNumbers)
-            ? app(AnalyticsAggregateService::class)->monthlyInOut($owner->id, $linkedAccountNumbers, 12)
+            ? app(AnalyticsAggregateService::class)->monthlyInOut($owner->id, $linkedAccountNumbers, 1)
             : ['monthly' => [], 'summary' => ['total_thu' => 0, 'total_chi' => 0, 'net_cashflow' => 0, 'pct_change_net' => null], 'has_actual_data' => false];
+        $currentMonthLabel = 'Tháng ' . now()->format('n/Y');
         return view('pages.tai-chinh.nhom-gia-dinh.show', [
+            'currentMonthLabel' => $currentMonthLabel,
             'household' => $household,
             'transactionHistory' => $transactions,
             'userCategories' => $userCategories,
