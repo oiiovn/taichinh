@@ -58,14 +58,16 @@ class CongNoController extends Controller
             if ($isAdmin) {
                 $debts = $debts->whereHas('report', fn ($q) => $q->where('user_id', $user->id));
             }
-            $debts = $debts->get();
+            $debts = $debts->get()->sortByDesc(fn ($d) => $d->report?->report_date)->values();
 
             $this->matchPayments($debts, $user);
 
             $debts = FoodReportDebt::query()
                 ->with(['report', 'payment.transaction'])
                 ->whereIn('id', $debts->pluck('id'))
-                ->get();
+                ->get()
+                ->sortByDesc(fn ($d) => $d->report?->report_date)
+                ->values();
             foreach ($debts as $d) {
                 $totalQuyetToan += (float) $d->debt_amount;
                 if ($d->payment) {
