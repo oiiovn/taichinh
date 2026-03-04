@@ -141,7 +141,10 @@ class FoodController extends Controller
 
         $linkedAccounts = $contextSvc->getLinkedAccountNumbers($user);
         if (! empty($linkedAccounts)) {
-            $baseQuery->whereIn('account_number', $linkedAccounts);
+            $baseQuery->where(function ($q) use ($linkedAccounts) {
+                $q->whereIn('account_number', $linkedAccounts)
+                    ->orWhere('account_number', \App\Models\TransactionHistory::ACCOUNT_TIEN_MAT);
+            });
         }
 
         if (! empty($thuIds)) {
@@ -167,14 +170,20 @@ class FoodController extends Controller
             if (! empty($thuIds)) {
                 $q = TransactionHistory::query()->where('user_id', $user->id)->where('type', 'IN')->whereIn('user_category_id', $thuIds)->whereBetween('transaction_date', [$dayStart, $dayEnd]);
                 if (! empty($linkedAccounts)) {
-                    $q->whereIn('account_number', $linkedAccounts);
+                    $q->where(function ($q2) use ($linkedAccounts) {
+                        $q2->whereIn('account_number', $linkedAccounts)
+                            ->orWhere('account_number', \App\Models\TransactionHistory::ACCOUNT_TIEN_MAT);
+                    });
                 }
                 $dayThu = (float) $q->sum('amount');
             }
             if (! empty($chiIds)) {
                 $q = TransactionHistory::query()->where('user_id', $user->id)->where('type', 'OUT')->whereIn('user_category_id', $chiIds)->whereBetween('transaction_date', [$dayStart, $dayEnd]);
                 if (! empty($linkedAccounts)) {
-                    $q->whereIn('account_number', $linkedAccounts);
+                    $q->where(function ($q2) use ($linkedAccounts) {
+                        $q2->whereIn('account_number', $linkedAccounts)
+                            ->orWhere('account_number', \App\Models\TransactionHistory::ACCOUNT_TIEN_MAT);
+                    });
                 }
                 $dayChi = (float) $q->sum(DB::raw('ABS(amount)'));
             }

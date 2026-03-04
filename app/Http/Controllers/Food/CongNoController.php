@@ -124,13 +124,7 @@ class CongNoController extends Controller
         }
         $amount = (int) round((float) $debt->debt_amount);
         $adminUser = User::where('email', 'admin@gmail.com')->first() ?? $report->user;
-        $foodCategory = UserCategory::where('user_id', $adminUser->id)
-            ->where('type', 'expense')
-            ->where('name', 'Food')
-            ->first();
-        if (! $foodCategory) {
-            $foodCategory = UserCategory::where('user_id', $adminUser->id)->where('type', 'expense')->orderBy('name')->first();
-        }
+        $foodCategory = $this->resolveFoodExpenseCategory($adminUser);
         $tx = null;
         if ($adminUser && $foodCategory) {
             $tx = TransactionHistory::create([
@@ -152,6 +146,24 @@ class CongNoController extends Controller
             'amount_paid' => $amount,
         ]);
         return redirect()->route('food.cong-no', ['debtor_user_id' => $debt->debtor_user_id])->with('success', 'Đã ghi nhận thanh toán tiền mặt.');
+    }
+
+    /**
+     * Tìm danh mục chi Food/Ăn uống của user để gán cho giao dịch tiền mặt.
+     */
+    private function resolveFoodExpenseCategory(User $user): ?UserCategory
+    {
+        $q = UserCategory::where('user_id', $user->id)->where('type', 'expense');
+        $foodCategory = (clone $q)->where('name', 'Food')->first()
+            ?? (clone $q)->where('name', 'Ăn uống')->first()
+            ?? (clone $q)->whereRaw('LOWER(TRIM(name)) = ?', ['food'])->first()
+            ?? (clone $q)->whereRaw('LOWER(TRIM(name)) = ?', ['ăn uống'])->first()
+            ?? (clone $q)->whereRaw('LOWER(name) LIKE ?', ['%food%'])->orderBy('name')->first()
+            ?? (clone $q)->whereRaw('LOWER(name) LIKE ?', ['%ăn uống%'])->orderBy('name')->first();
+        if ($foodCategory) {
+            return $foodCategory;
+        }
+        return $q->orderBy('name')->first();
     }
 
     private function matchPayments($debts, $user): void
