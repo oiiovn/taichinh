@@ -82,7 +82,11 @@ class UserFinancialContextService
                 if (! empty($linkedAccountNumbers)) {
                     $q->where(function ($q2) use ($linkedAccountNumbers) {
                         $q2->whereIn('account_number', $linkedAccountNumbers)
-                            ->orWhereHas('bankAccount', fn ($q3) => $q3->whereIn('account_number', $linkedAccountNumbers));
+                            ->orWhereHas('bankAccount', fn ($q3) => $q3->whereIn('account_number', $linkedAccountNumbers))
+                            ->orWhere(function ($q3) {
+                                $q3->whereNull('pay2s_bank_account_id')
+                                    ->where('account_number', TransactionHistory::ACCOUNT_TIEN_MAT);
+                            });
                     });
                 }
                 if (! empty($linkedAccountNumbers)) {

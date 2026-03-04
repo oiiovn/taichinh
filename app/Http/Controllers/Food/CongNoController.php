@@ -8,6 +8,7 @@ use App\Models\FoodReportDebtPayment;
 use App\Models\FoodSalesReport;
 use App\Models\TransactionHistory;
 use App\Models\User;
+use App\Models\UserCategory;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -122,9 +123,32 @@ class CongNoController extends Controller
             return redirect()->route('food.cong-no', ['debtor_user_id' => $debt->debtor_user_id])->with('success', 'Công nợ này đã được thanh toán.');
         }
         $amount = (int) round((float) $debt->debt_amount);
+        $adminUser = User::where('email', 'admin@gmail.com')->first() ?? $report->user;
+        $foodCategory = UserCategory::where('user_id', $adminUser->id)
+            ->where('type', 'expense')
+            ->where('name', 'Food')
+            ->first();
+        if (! $foodCategory) {
+            $foodCategory = UserCategory::where('user_id', $adminUser->id)->where('type', 'expense')->orderBy('name')->first();
+        }
+        $tx = null;
+        if ($adminUser && $foodCategory) {
+            $tx = TransactionHistory::create([
+                'external_id' => 'TIEN_MAT_' . $debt->id . '_' . now()->format('YmdHis'),
+                'user_id' => $adminUser->id,
+                'pay2s_bank_account_id' => null,
+                'account_number' => TransactionHistory::ACCOUNT_TIEN_MAT,
+                'type' => 'OUT',
+                'amount' => $amount,
+                'description' => 'Thanh toán tiền mặt - ' . ($report->report_code ?? ''),
+                'transaction_date' => now(),
+                'user_category_id' => $foodCategory->id,
+                'classification_status' => TransactionHistory::CLASSIFICATION_STATUS_USER_CONFIRMED,
+            ]);
+        }
         FoodReportDebtPayment::query()->create([
             'food_report_debt_id' => $debt->id,
-            'transaction_history_id' => null,
+            'transaction_history_id' => $tx?->id,
             'amount_paid' => $amount,
         ]);
         return redirect()->route('food.cong-no', ['debtor_user_id' => $debt->debtor_user_id])->with('success', 'Đã ghi nhận thanh toán tiền mặt.');

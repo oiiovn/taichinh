@@ -46,6 +46,9 @@ class TransactionHistory extends Model
     public const CLASSIFICATION_STATUS_RULE = 'rule';
     public const CLASSIFICATION_STATUS_USER_CONFIRMED = 'user_confirmed';
 
+    /** account_number cho giao dịch tiền mặt (không trừ vào tài khoản liên kết). */
+    public const ACCOUNT_TIEN_MAT = 'TIEN_MAT';
+
     public static function resolveAmountBucket(int $amount): string
     {
         $abs = abs($amount);

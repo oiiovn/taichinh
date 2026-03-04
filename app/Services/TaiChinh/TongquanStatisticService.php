@@ -75,7 +75,10 @@ class TongquanStatisticService
             ->whereBetween('transaction_date', [$from, $to]);
 
         if (! empty($linkedAccountNumbers)) {
-            $baseQuery->whereIn('account_number', $linkedAccountNumbers);
+            $baseQuery->where(function ($q) use ($linkedAccountNumbers) {
+                $q->whereIn('account_number', $linkedAccountNumbers)
+                    ->orWhere('account_number', TransactionHistory::ACCOUNT_TIEN_MAT);
+            });
         }
 
         $thuTotal = 0.0;
@@ -105,7 +108,10 @@ class TongquanStatisticService
                     ->whereIn('user_category_id', $thuCategoryIds)
                     ->whereBetween('transaction_date', [$dayStart, $dayEnd]);
                 if (! empty($linkedAccountNumbers)) {
-                    $q->whereIn('account_number', $linkedAccountNumbers);
+                    $q->where(function ($q2) use ($linkedAccountNumbers) {
+                        $q2->whereIn('account_number', $linkedAccountNumbers)
+                            ->orWhere('account_number', TransactionHistory::ACCOUNT_TIEN_MAT);
+                    });
                 }
                 $dayThu = (float) $q->sum('amount');
             }
@@ -116,7 +122,10 @@ class TongquanStatisticService
                     ->whereIn('user_category_id', $chiCategoryIds)
                     ->whereBetween('transaction_date', [$dayStart, $dayEnd]);
                 if (! empty($linkedAccountNumbers)) {
-                    $q->whereIn('account_number', $linkedAccountNumbers);
+                    $q->where(function ($q2) use ($linkedAccountNumbers) {
+                        $q2->whereIn('account_number', $linkedAccountNumbers)
+                            ->orWhere('account_number', TransactionHistory::ACCOUNT_TIEN_MAT);
+                    });
                 }
                 $dayChi = (float) $q->sum(DB::raw('ABS(amount)'));
             }
