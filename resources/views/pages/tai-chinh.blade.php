@@ -17,7 +17,9 @@
     @if($tab === 'dashboard')
         <div class="space-y-6">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Dashboard</h2>
-            @include('pages.tai-chinh.partials.dashboard-the-lien-ket')
+            @if(empty($dashboardFilterActive))
+                @include('pages.tai-chinh.partials.dashboard-the-lien-ket')
+            @endif
             @include('pages.tai-chinh.partials.dashboard-thong-ke')
         </div>
     @elseif($tab === 'tai-khoan')

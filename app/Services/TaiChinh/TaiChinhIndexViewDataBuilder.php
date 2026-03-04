@@ -186,9 +186,20 @@ class TaiChinhIndexViewDataBuilder
             $viewData['timelineMaturity'] = 'new';
         }
 
+        $dashboardFilterActive = $tab === 'dashboard' && ($request->has('period') || $request->has('from_date') || $request->has('to_date'));
+        $viewData['dashboardFilterActive'] = $dashboardFilterActive;
         if (! $isLightTab) {
             $this->attachAnalyticsData($user, $linkedAccountNumbers, $request, $viewData);
-            $this->attachDashboardData($user, $userBankAccounts, $linkedAccountNumbers, $accounts, $accountBalances, $viewData);
+            if ($dashboardFilterActive) {
+                $viewData['dashboardCardEvents'] = [];
+                $viewData['dashboardBalanceDeltas'] = [];
+                $viewData['dashboardTodaySummary'] = [];
+                $viewData['dashboardWeekSummary'] = [];
+                $viewData['dashboardSyncStatus'] = ['has_error' => false, 'by_account' => []];
+                $viewData['dashboardPerAccount'] = [];
+            } else {
+                $this->attachDashboardData($user, $userBankAccounts, $linkedAccountNumbers, $accounts, $accountBalances, $viewData);
+            }
         }
         if ($tab === 'dashboard' && $user) {
             $this->attachTongquanStatistics($user, $linkedAccountNumbers, $request, $viewData);
@@ -256,20 +267,21 @@ class TaiChinhIndexViewDataBuilder
         $viewData['tongquanFormFromDate'] = $formFromDate;
         $viewData['tongquanFormToDate'] = $formToDate;
 
+        $from = TongquanStatisticService::parseDate($formFromDate)?->startOfDay();
+        $to = TongquanStatisticService::parseDate($formToDate)?->endOfDay();
+        if (! $from || ! $to) {
+            [$from, $to] = TongquanStatisticService::getDateRangeFromPeriod($formPeriod);
+        }
+
         $stats = $user->userTongquanStatistics()->get();
         $list = [];
         foreach ($stats as $stat) {
-            $from = $stat->from_date?->copy()->startOfDay();
-            $to = $stat->to_date?->copy()->endOfDay();
-            if (! $from || ! $to) {
-                [$from, $to] = TongquanStatisticService::getDateRangeFromPeriod($stat->period ?? 'thang');
-            }
             $thuIds = $stat->thu_category_ids ?? [];
             $chiIds = $stat->chi_category_ids ?? [];
             $data = $this->tongquanStatisticService->compute(
                 (int) $user->id,
-                $from,
-                $to,
+                $from->copy(),
+                $to->copy(),
                 is_array($thuIds) ? $thuIds : [],
                 is_array($chiIds) ? $chiIds : [],
                 $linkedAccountNumbers
