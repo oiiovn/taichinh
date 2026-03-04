@@ -4,6 +4,7 @@ namespace App\Services\TaiChinh;
 
 use App\Models\BudgetThreshold;
 use App\Models\IncomeGoal;
+use App\Models\UserTongquanStatistic;
 use App\Models\PaymentSchedule;
 use App\Services\PaymentScheduleObligationService;
 use App\Models\SystemCategory;
@@ -41,6 +42,7 @@ class TaiChinhIndexViewDataBuilder
         protected AdaptiveThresholdService $adaptiveThresholdService,
         protected BudgetThresholdService $budgetThresholdService,
         protected IncomeGoalService $incomeGoalService,
+        protected TongquanStatisticService $tongquanStatisticService,
     ) {}
 
     public function buildForAjaxTable(Request $request): array
@@ -188,6 +190,9 @@ class TaiChinhIndexViewDataBuilder
             $this->attachAnalyticsData($user, $linkedAccountNumbers, $request, $viewData);
             $this->attachDashboardData($user, $userBankAccounts, $linkedAccountNumbers, $accounts, $accountBalances, $viewData);
         }
+        if ($tab === 'dashboard' && $user) {
+            $this->attachTongquanStatistics($user, $linkedAccountNumbers, $request, $viewData);
+        }
         $viewData['title'] = 'Tài chính';
         $viewData['insightGptPrompt'] = InsightPayloadService::GPT_SYSTEM_PROMPT;
         $this->attachBudgetAndIncomeGoalData($user, $linkedAccountNumbers, $request, $viewData);
@@ -226,6 +231,59 @@ class TaiChinhIndexViewDataBuilder
             'accounts' => collect(),
             'accountBalances' => [],
         ];
+    }
+
+    private function attachTongquanStatistics(object $user, array $linkedAccountNumbers, Request $request, array &$viewData): void
+    {
+        $editId = $request->integer('edit_stat');
+        $viewData['editTongquanStatistic'] = $editId > 0
+            ? UserTongquanStatistic::where('user_id', $user->id)->where('id', $editId)->first()
+            : null;
+
+        $validPeriods = ['ngay', 'tuan', 'thang', '3-thang', '6-thang', '12-thang'];
+        $formPeriod = $request->input('period');
+        if (! in_array($formPeriod, $validPeriods, true)) {
+            $formPeriod = 'thang';
+        }
+        $formFromDate = $request->input('from_date');
+        $formToDate = $request->input('to_date');
+        if (! $formFromDate || ! $formToDate) {
+            [$fromCarbon, $toCarbon] = TongquanStatisticService::getDateRangeFromPeriod($formPeriod);
+            $formFromDate = $formFromDate ?? $fromCarbon->format('Y-m-d');
+            $formToDate = $formToDate ?? $toCarbon->format('Y-m-d');
+        }
+        $viewData['tongquanFormPeriod'] = $formPeriod;
+        $viewData['tongquanFormFromDate'] = $formFromDate;
+        $viewData['tongquanFormToDate'] = $formToDate;
+
+        $stats = $user->userTongquanStatistics()->get();
+        $list = [];
+        foreach ($stats as $stat) {
+            $from = $stat->from_date?->copy()->startOfDay();
+            $to = $stat->to_date?->copy()->endOfDay();
+            if (! $from || ! $to) {
+                [$from, $to] = TongquanStatisticService::getDateRangeFromPeriod($stat->period ?? 'thang');
+            }
+            $thuIds = $stat->thu_category_ids ?? [];
+            $chiIds = $stat->chi_category_ids ?? [];
+            $data = $this->tongquanStatisticService->compute(
+                (int) $user->id,
+                $from,
+                $to,
+                is_array($thuIds) ? $thuIds : [],
+                is_array($chiIds) ? $chiIds : [],
+                $linkedAccountNumbers
+            );
+            $list[] = [
+                'stat' => $stat,
+                'from' => $from,
+                'to' => $to,
+                'data' => $data,
+            ];
+        }
+        $viewData['tongquanStatistics'] = $list;
+        $viewData['danhMucThu'] = $user->userCategories()->where('type', 'income')->orderBy('name')->get();
+        $viewData['danhMucChi'] = $user->userCategories()->where('type', 'expense')->orderBy('name')->get();
     }
 
     private function attachAnalyticsData(?object $user, array $linkedAccountNumbers, Request $request, array &$viewData): void

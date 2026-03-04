@@ -18,6 +18,7 @@
         <div class="space-y-6">
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Dashboard</h2>
             @include('pages.tai-chinh.partials.dashboard-the-lien-ket')
+            @include('pages.tai-chinh.partials.dashboard-thong-ke')
         </div>
     @elseif($tab === 'tai-khoan')
         @include('pages.tai-chinh.tai-khoan')

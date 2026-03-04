@@ -120,6 +120,11 @@ class User extends Authenticatable
         return $this->hasMany(UserCategory::class);
     }
 
+    public function userTongquanStatistics(): HasMany
+    {
+        return $this->hasMany(UserTongquanStatistic::class)->orderBy('created_at', 'desc');
+    }
+
     public function userLiabilities(): HasMany
     {
         return $this->hasMany(UserLiability::class);
