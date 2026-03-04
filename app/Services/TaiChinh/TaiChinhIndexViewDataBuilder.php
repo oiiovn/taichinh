@@ -124,11 +124,13 @@ class TaiChinhIndexViewDataBuilder
 
         $tab = $request->get('tab', 'dashboard');
         $isLightTab = in_array($tab, self::LIGHT_TABS, true);
+        $dashboardFilterActive = $tab === 'dashboard' && ($request->has('period') || $request->has('from_date') || $request->has('to_date'));
+        $useLightPayload = $isLightTab || ($dashboardFilterActive && $user);
         if ($user && $request->boolean('refresh_insight')) {
             TaiChinhViewCache::forgetHeavy($user->id);
         }
 
-        if ($isLightTab && $user) {
+        if ($useLightPayload && $user) {
             $viewData = array_merge($contextPayload, [
                 'insight_from_cache' => null,
                 'projection' => null,
@@ -186,10 +188,11 @@ class TaiChinhIndexViewDataBuilder
             $viewData['timelineMaturity'] = 'new';
         }
 
-        $dashboardFilterActive = $tab === 'dashboard' && ($request->has('period') || $request->has('from_date') || $request->has('to_date'));
         $viewData['dashboardFilterActive'] = $dashboardFilterActive;
-        if (! $isLightTab) {
+        if (! $isLightTab && ! $dashboardFilterActive) {
             $this->attachAnalyticsData($user, $linkedAccountNumbers, $request, $viewData);
+        }
+        if (! $isLightTab) {
             if ($dashboardFilterActive) {
                 $viewData['dashboardCardEvents'] = [];
                 $viewData['dashboardBalanceDeltas'] = [];

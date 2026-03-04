@@ -94,41 +94,46 @@ class TongquanStatisticService
         $chartThu = [];
         $chartChi = [];
         $chartLoiNhuan = [];
+        $thuByDay = [];
+        $chiByDay = [];
+        $accountFilter = function ($q) use ($linkedAccountNumbers) {
+            if (! empty($linkedAccountNumbers)) {
+                $q->where(function ($q2) use ($linkedAccountNumbers) {
+                    $q2->whereIn('account_number', $linkedAccountNumbers)
+                        ->orWhere('account_number', TransactionHistory::ACCOUNT_TIEN_MAT);
+                });
+            }
+        };
+        if (! empty($thuCategoryIds)) {
+            $q = TransactionHistory::query()
+                ->where('user_id', $userId)
+                ->where('type', 'IN')
+                ->whereIn('user_category_id', $thuCategoryIds)
+                ->whereBetween('transaction_date', [$from, $to]);
+            $accountFilter($q);
+            $thuByDay = $q->select(DB::raw('DATE(transaction_date) as d'), DB::raw('SUM(amount) as s'))
+                ->groupBy(DB::raw('DATE(transaction_date)'))
+                ->pluck('s', 'd')
+                ->all();
+        }
+        if (! empty($chiCategoryIds)) {
+            $q = TransactionHistory::query()
+                ->where('user_id', $userId)
+                ->where('type', 'OUT')
+                ->whereIn('user_category_id', $chiCategoryIds)
+                ->whereBetween('transaction_date', [$from, $to]);
+            $accountFilter($q);
+            $chiByDay = $q->select(DB::raw('DATE(transaction_date) as d'), DB::raw('SUM(ABS(amount)) as s'))
+                ->groupBy(DB::raw('DATE(transaction_date)'))
+                ->pluck('s', 'd')
+                ->all();
+        }
         $cursor = $from->copy();
         while ($cursor->lte($to)) {
-            $dayStart = $cursor->copy()->startOfDay();
-            $dayEnd = $cursor->copy()->endOfDay();
+            $d = $cursor->format('Y-m-d');
             $chartDates[] = $cursor->format('d/m');
-            $dayThu = 0.0;
-            $dayChi = 0.0;
-            if (! empty($thuCategoryIds)) {
-                $q = TransactionHistory::query()
-                    ->where('user_id', $userId)
-                    ->where('type', 'IN')
-                    ->whereIn('user_category_id', $thuCategoryIds)
-                    ->whereBetween('transaction_date', [$dayStart, $dayEnd]);
-                if (! empty($linkedAccountNumbers)) {
-                    $q->where(function ($q2) use ($linkedAccountNumbers) {
-                        $q2->whereIn('account_number', $linkedAccountNumbers)
-                            ->orWhere('account_number', TransactionHistory::ACCOUNT_TIEN_MAT);
-                    });
-                }
-                $dayThu = (float) $q->sum('amount');
-            }
-            if (! empty($chiCategoryIds)) {
-                $q = TransactionHistory::query()
-                    ->where('user_id', $userId)
-                    ->where('type', 'OUT')
-                    ->whereIn('user_category_id', $chiCategoryIds)
-                    ->whereBetween('transaction_date', [$dayStart, $dayEnd]);
-                if (! empty($linkedAccountNumbers)) {
-                    $q->where(function ($q2) use ($linkedAccountNumbers) {
-                        $q2->whereIn('account_number', $linkedAccountNumbers)
-                            ->orWhere('account_number', TransactionHistory::ACCOUNT_TIEN_MAT);
-                    });
-                }
-                $dayChi = (float) $q->sum(DB::raw('ABS(amount)'));
-            }
+            $dayThu = (float) ($thuByDay[$d] ?? 0);
+            $dayChi = (float) ($chiByDay[$d] ?? 0);
             $chartThu[] = (int) round($dayThu);
             $chartChi[] = (int) round($dayChi);
             $chartLoiNhuan[] = (int) round($dayThu - $dayChi);
