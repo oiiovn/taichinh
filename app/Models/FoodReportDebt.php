@@ -20,16 +20,17 @@ class FoodReportDebt extends Model
         'only_tien_cong' => 'boolean',
     ];
 
-    /** Số tiền công nợ: chỉ tiền công nếu only_tien_cong, else tổng quyết toán. */
+    /** Số tiền công nợ: chỉ tiền công + thưởng nếu only_tien_cong, else tổng quyết toán (vốn + tiền công + thưởng). */
     public function getDebtAmountAttribute(): float
     {
         $report = $this->report;
         if (! $report) {
             return 0.0;
         }
+        $bonus = (float) ($report->bonus ?? 0);
         return $this->only_tien_cong
-            ? (float) $report->total_tien_cong
-            : (float) $report->total_cost + (float) $report->total_tien_cong;
+            ? (float) $report->total_tien_cong + $bonus
+            : (float) $report->total_cost + (float) $report->total_tien_cong + $bonus;
     }
 
     public function report(): BelongsTo

@@ -106,6 +106,56 @@
             </form>
         </div>
 
+        {{-- Thưởng báo cáo bán hàng (theo tổng vốn) --}}
+        <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/5 p-5 md:p-6">
+            <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Thưởng báo cáo bán hàng</h3>
+            <p class="mb-5 text-sm text-gray-500 dark:text-gray-400">Báo cáo có tổng vốn đạt từng mức sẽ được cộng thêm thưởng (ngoài tiền công). Áp dụng bậc cao nhất mà tổng vốn đạt (vd: &gt;600k → 80k, &gt;400k → 60k).</p>
+            <form action="{{ route('admin.he-thong.bonus-tiers.store') }}" method="POST" class="mb-5 flex flex-wrap items-end gap-3">
+                @csrf
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Chỉ tiêu tổng vốn (VNĐ)</label>
+                    <input type="number" name="min_total_cost" value="{{ old('min_total_cost') }}" min="0" step="1000" placeholder="VD: 400000" required
+                        class="w-40 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Thưởng (VNĐ)</label>
+                    <input type="number" name="bonus_amount" value="{{ old('bonus_amount') }}" min="0" step="1000" placeholder="VD: 60000" required
+                        class="w-36 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                </div>
+                <button type="submit" class="rounded-lg bg-success-500 px-4 py-2 text-sm font-medium text-white hover:bg-success-600 dark:bg-success-600 dark:hover:bg-success-500">Thêm mức</button>
+            </form>
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[400px] text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-200 dark:border-gray-700">
+                            <th class="pb-2 text-left font-medium text-gray-700 dark:text-gray-300">Tổng vốn từ (VNĐ)</th>
+                            <th class="pb-2 text-left font-medium text-gray-700 dark:text-gray-300">Thưởng (VNĐ)</th>
+                            <th class="pb-2 text-right font-medium text-gray-700 dark:text-gray-300">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse(($bonusTiers ?? []) as $tier)
+                            <tr class="border-b border-gray-100 dark:border-gray-700/50">
+                                <td class="py-2.5">{{ number_format((float) $tier->min_total_cost, 0, ',', '.') }}</td>
+                                <td class="py-2.5">{{ number_format((float) $tier->bonus_amount, 0, ',', '.') }}</td>
+                                <td class="py-2.5 text-right">
+                                    <form action="{{ route('admin.he-thong.bonus-tiers.destroy', $tier) }}" method="POST" class="inline" onsubmit="return confirm('Xóa mức thưởng này?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="3" class="py-4 text-center text-gray-500 dark:text-gray-400">Chưa có mức thưởng. Thêm mức ở form trên.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         {{-- Cấu hình thanh toán web (dùng cho hiển thị QR thanh toán khi user mua gói) --}}
         <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/5 p-5 md:p-6">
             <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Cấu hình thanh toán web</h3>

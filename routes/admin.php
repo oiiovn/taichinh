@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Models\FoodReportBonusTier;
 use App\Models\PaymentConfig;
 use App\Models\Pay2sApiConfig;
 use App\Models\PlanConfig;
@@ -21,8 +22,13 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
             'paymentConfig' => PaymentConfig::getConfig(),
             'pay2sApiConfig' => Pay2sApiConfig::first(),
             'planConfig' => PlanConfig::getFullConfig(),
+            'bonusTiers' => FoodReportBonusTier::orderByDesc('min_total_cost')->get(),
         ]);
     })->name('he-thong');
+
+    Route::post('/he-thong/bonus-tiers', [\App\Http\Controllers\Admin\FoodReportBonusTierController::class, 'store'])->name('he-thong.bonus-tiers.store');
+    Route::put('/he-thong/bonus-tiers/{bonusTier}', [\App\Http\Controllers\Admin\FoodReportBonusTierController::class, 'update'])->name('he-thong.bonus-tiers.update');
+    Route::delete('/he-thong/bonus-tiers/{bonusTier}', [\App\Http\Controllers\Admin\FoodReportBonusTierController::class, 'destroy'])->name('he-thong.bonus-tiers.destroy');
 
     Route::put('/he-thong/thanh-toan', [\App\Http\Controllers\Admin\PaymentConfigController::class, 'update'])->name('he-thong.payment.update');
     Route::put('/he-thong/pay2s-api', [\App\Http\Controllers\Admin\Pay2sApiConfigController::class, 'update'])->name('he-thong.pay2s-api.update');

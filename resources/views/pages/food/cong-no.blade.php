@@ -70,7 +70,12 @@
                         @forelse($debts as $d)
                             @php $r = $d->report; @endphp
                             <tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                                <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $r->report_code }}</td>
+                                <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">
+                                    <span>{{ $r->report_code }}</span>
+                                    @if($r && (float) ($r->bonus ?? 0) > 0)
+                                        <span class="ml-1.5 inline-flex rounded-full bg-emerald-500 px-1.5 py-0.5 text-xs font-medium text-white dark:bg-emerald-600" title="Thưởng">+{{ $fmt($r->bonus) }} đ</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $r->report_date->format('d/m/Y') }}</td>
                                 <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $r->total_orders }}</td>
                                 <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $fmt($d->debt_amount) }} đ</td>
@@ -119,7 +124,13 @@
                         <tbody>
                             @forelse($paymentHistory as $p)
                                 <tr class="border-b border-gray-100 dark:border-gray-700/50">
-                                    <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $p->debt->report->report_code ?? '—' }}</td>
+                                    <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">
+                                    @php $rep = $p->debt->report ?? null; @endphp
+                                    <span>{{ $rep ? $rep->report_code : '—' }}</span>
+                                    @if($rep && (float) ($rep->bonus ?? 0) > 0)
+                                        <span class="ml-1.5 inline-flex rounded-full bg-emerald-500 px-1.5 py-0.5 text-xs font-medium text-white dark:bg-emerald-600" title="Thưởng">+{{ $fmt($rep->bonus) }} đ</span>
+                                    @endif
+                                </td>
                                     <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $fmt($p->amount_paid) }} đ</td>
                                     <td class="px-4 py-2 text-gray-600 dark:text-gray-400">{{ $p->transaction ? $p->transaction->transaction_date?->format('d/m/Y H:i') : $p->created_at->format('d/m/Y H:i') }}</td>
                                     <td class="px-4 py-2 text-gray-600 dark:text-gray-400">{{ $p->transaction ? Str::limit($p->transaction->description ?? '—', 60) : 'Tiền mặt' }}</td>

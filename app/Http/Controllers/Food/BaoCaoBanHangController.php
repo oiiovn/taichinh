@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Food;
 
 use App\Http\Controllers\Controller;
 use App\Models\FoodProduct;
+use App\Models\FoodReportBonusTier;
 use App\Models\FoodReportDebt;
 use App\Models\FoodSalesReport;
 use App\Models\FoodSalesReportItem;
@@ -160,6 +161,8 @@ class BaoCaoBanHangController extends Controller
             $totalTienCong += $donCost > self::NGUONG_VON_TIEN_CONG_CAO ? self::TIEN_CONG_CAO : self::TIEN_CONG_THAP;
         }
 
+        $bonus = FoodReportBonusTier::getBonusForTotalCost($totalCost);
+
         $nextCode = $this->nextReportCode($user->id);
 
         $report = FoodSalesReport::query()->create([
@@ -169,6 +172,7 @@ class BaoCaoBanHangController extends Controller
             'total_orders' => $totalOrders,
             'total_cost' => $totalCost,
             'total_tien_cong' => $totalTienCong,
+            'bonus' => (int) round($bonus),
             'uploaded_at' => now(),
         ]);
 

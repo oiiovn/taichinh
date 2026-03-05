@@ -6,18 +6,27 @@
     $fmt = fn ($n) => \App\Helpers\BaoCaoHelper::formatGiaVon($n);
     $displayTotalCost = $display_total_cost ?? (float) $report->total_cost;
     $displayTienCong = $display_total_tien_cong ?? (float) $report->total_tien_cong;
-    $quyetToan = $displayTotalCost + $displayTienCong;
+    $displayBonus = (float) ($report->bonus ?? 0);
+    $quyetToan = $displayTotalCost + $displayTienCong + $displayBonus;
 @endphp
 <div class="space-y-6">
     {{-- Header báo cáo --}}
     <div class="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
         <div>
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ $report->report_code }}</h2>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+            {{ $report->report_code }}
+            @if($displayBonus > 0)
+                <span class="ml-2 inline-flex rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-medium text-white dark:bg-emerald-600" title="Thưởng">+{{ $fmtNguyen($displayBonus) }} đ</span>
+            @endif
+        </h2>
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Ngày {{ $report->report_date->format('d/m/Y') }}</p>
             <p class="mt-1 text-sm text-gray-700 dark:text-gray-300">{{ $report->total_orders }} đơn hàng</p>
             <div class="mt-3 space-y-1 text-sm">
                 <p class="text-gray-700 dark:text-gray-300">Tổng vốn: <span class="font-medium">{{ $fmtNguyen($displayTotalCost) }} đ</span></p>
                 <p class="text-gray-700 dark:text-gray-300">Tiền công: <span class="font-medium">{{ $fmtNguyen($displayTienCong) }} đ</span></p>
+                @if($displayBonus > 0)
+                    <p class="text-gray-700 dark:text-gray-300">Thưởng: <span class="font-medium">{{ $fmtNguyen($displayBonus) }} đ</span></p>
+                @endif
                 <p class="text-gray-700 dark:text-gray-300">Quyết toán: <span class="font-medium">{{ $fmtNguyen($quyetToan) }} đ</span></p>
             </div>
         </div>

@@ -17,6 +17,7 @@ class FoodSalesReport extends Model
         'total_orders',
         'total_cost',
         'total_tien_cong',
+        'bonus',
         'uploaded_at',
     ];
 
@@ -25,6 +26,7 @@ class FoodSalesReport extends Model
         'uploaded_at' => 'datetime',
         'total_cost' => 'decimal:4',
         'total_tien_cong' => 'decimal:0',
+        'bonus' => 'decimal:0',
     ];
 
     public function user(): BelongsTo
@@ -42,9 +44,9 @@ class FoodSalesReport extends Model
         return $this->hasMany(FoodReportDebt::class, 'food_sales_report_id');
     }
 
-    /** Quyết toán = Tổng vốn + Tiền công */
+    /** Quyết toán = Tổng vốn + Tiền công + Thưởng */
     public function getQuyetToanAttribute(): float
     {
-        return (float) $this->total_cost + (float) $this->total_tien_cong;
+        return (float) $this->total_cost + (float) $this->total_tien_cong + (float) ($this->bonus ?? 0);
     }
 }
