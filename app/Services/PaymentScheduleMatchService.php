@@ -10,7 +10,8 @@ use Illuminate\Support\Collection;
 class PaymentScheduleMatchService
 {
     /**
-     * Nếu giao dịch OUT match với một lịch thanh toán (đã thanh toán) thì cập nhật last_paid_date, last_matched_transaction_id và tính hạn kế tiếp.
+     * Gán giao dịch OUT vào lịch thanh toán nếu khớp; cập nhật last_paid_date, next_due_date.
+     * Gọi tự động từ sync/backfill khi có giao dịch mới.
      */
     public function tryMatch(TransactionHistory $transaction): ?PaymentSchedule
     {
@@ -65,14 +66,12 @@ class PaymentScheduleMatchService
 
     private function matchScore(PaymentSchedule $schedule, Carbon $txDate, float $txAmount, string $desc): int
     {
-        $graceDays = (int) ($schedule->grace_window_days ?? 7);
-        $due = $schedule->next_due_date ? Carbon::parse($schedule->next_due_date) : null;
+        $due = $schedule->next_due_date ? Carbon::parse($schedule->next_due_date)->startOfDay() : null;
         if (! $due) {
             return 0;
         }
-        $windowStart = $due->copy()->subDays($graceDays);
-        $windowEnd = $due->copy()->addDays($graceDays);
-        if ($txDate->lt($windowStart) || $txDate->gt($windowEnd)) {
+        [$windowStart, $windowEnd] = $this->getMatchWindow($schedule, $due);
+        if ($txDate->copy()->startOfDay()->lt($windowStart) || $txDate->copy()->startOfDay()->gt($windowEnd)) {
             return 0;
         }
 
@@ -107,13 +106,61 @@ class PaymentScheduleMatchService
         }
 
         if ($schedule->transfer_note_pattern !== null && $schedule->transfer_note_pattern !== '') {
-            if (mb_strpos($desc, $schedule->transfer_note_pattern) === false) {
+            $pattern = trim((string) $schedule->transfer_note_pattern);
+            if (! $this->descriptionMatchesPattern($desc, $pattern)) {
                 return 0;
             }
-            $score += 15;
+            $score += 50;
         }
 
         return $score;
+    }
+
+    /**
+     * Mô tả giao dịch khớp nội dung thanh toán: exact hoặc fuzzy 1 ký tự (vd. SGACX2852 vs SGACX2862).
+     */
+    private function descriptionMatchesPattern(string $desc, string $pattern): bool
+    {
+        if ($pattern === '') {
+            return true;
+        }
+        if (mb_strpos($desc, $pattern) !== false) {
+            return true;
+        }
+        $len = mb_strlen($pattern);
+        if ($len < 6) {
+            return false;
+        }
+        $maxDistance = $len <= 8 ? 2 : 1;
+        $descLen = mb_strlen($desc);
+        for ($i = 0; $i <= $descLen - $len; $i++) {
+            $sub = mb_substr($desc, $i, $len);
+            if ($this->levenshteinUtf8($sub, $pattern) <= $maxDistance) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private function levenshteinUtf8(string $a, string $b): int
+    {
+        $aChars = preg_split('//u', $a, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        $bChars = preg_split('//u', $b, -1, PREG_SPLIT_NO_EMPTY) ?: [];
+        return levenshtein(implode('', $aChars), implode('', $bChars));
+    }
+
+    /**
+     * Ép gán giao dịch vào lịch (bỏ qua cửa sổ), cập nhật last_paid_date + next_due_date.
+     * Dùng khi rematch không match được (vd. Wifi FPT 330k SGACX2862).
+     */
+    public function forceMatch(PaymentSchedule $schedule, TransactionHistory $transaction): void
+    {
+        PaymentSchedule::where('last_matched_transaction_id', $transaction->id)->update([
+            'last_matched_transaction_id' => null,
+            'last_paid_date' => null,
+        ]);
+        $txDate = $transaction->transaction_date ? Carbon::parse($transaction->transaction_date) : Carbon::now();
+        $this->applyMatch($schedule, $transaction, $txDate);
     }
 
     private function applyMatch(PaymentSchedule $schedule, TransactionHistory $transaction, Carbon $txDate): void
@@ -130,6 +177,79 @@ class PaymentScheduleMatchService
         }
 
         $schedule->save();
+    }
+
+    /**
+     * Ép cập nhật next_due_date từ last_paid_date cho lịch đã match nhưng chưa advance (vd. auto_advance_on_match từng tắt).
+     */
+    public function advanceNextDueFromLastPaid(PaymentSchedule $schedule): bool
+    {
+        $lastPaid = $schedule->last_paid_date ? Carbon::parse($schedule->last_paid_date)->startOfDay() : null;
+        if (! $lastPaid) {
+            return false;
+        }
+        $newNext = $this->computeNextDueDate($schedule, $lastPaid);
+        if ($schedule->next_due_date && Carbon::parse($schedule->next_due_date)->startOfDay()->eq($newNext->startOfDay())) {
+            return false;
+        }
+        $schedule->next_due_date = $newNext;
+        $schedule->save();
+
+        return true;
+    }
+
+    /**
+     * Cửa sổ match: từ (hạn kỳ trước - grace) đến (next_due + grace) để giao dịch thanh toán sớm (vd. 06/03 cho hạn 12/03) vẫn match khi lịch đã advance (next_due 12/04).
+     *
+     * @return array{0: Carbon, 1: Carbon}
+     */
+    private function getMatchWindow(PaymentSchedule $schedule, Carbon $nextDue): array
+    {
+        $graceDays = (int) ($schedule->grace_window_days ?? 7);
+        $windowEnd = $nextDue->copy()->addDays($graceDays);
+        $previousDue = $this->previousDueDate($schedule, $nextDue);
+        $windowStart = $previousDue->copy()->subDays($graceDays);
+        return [$windowStart, $windowEnd];
+    }
+
+    private function previousDueDate(PaymentSchedule $schedule, Carbon $nextDue): Carbon
+    {
+        $prev = $nextDue->copy();
+        $dayOfMonth = $schedule->day_of_month ? (int) $schedule->day_of_month : null;
+        switch ($schedule->frequency) {
+            case PaymentSchedule::FREQUENCY_MONTHLY:
+                $prev->subMonth();
+                if ($dayOfMonth >= 1 && $dayOfMonth <= 31) {
+                    $prev->day(min($dayOfMonth, $prev->daysInMonth));
+                }
+                return $prev;
+            case PaymentSchedule::FREQUENCY_EVERY_2_MONTHS:
+                $prev->subMonths(2);
+                if ($dayOfMonth >= 1 && $dayOfMonth <= 31) {
+                    $prev->day(min($dayOfMonth, $prev->daysInMonth));
+                }
+                return $prev;
+            case PaymentSchedule::FREQUENCY_QUARTERLY:
+                $prev->subMonths(3);
+                if ($dayOfMonth >= 1 && $dayOfMonth <= 31) {
+                    $prev->day(min($dayOfMonth, $prev->daysInMonth));
+                }
+                return $prev;
+            case PaymentSchedule::FREQUENCY_YEARLY:
+                $prev->subYear();
+                if ($dayOfMonth >= 1 && $dayOfMonth <= 31) {
+                    $prev->day(min($dayOfMonth, $prev->daysInMonth));
+                }
+                return $prev;
+            case PaymentSchedule::FREQUENCY_CUSTOM_DAYS:
+                $interval = (int) $schedule->interval_value;
+                if ($interval < 1) {
+                    $interval = 30;
+                }
+                return $prev->subDays($interval);
+            default:
+                return $prev->subMonth();
+        }
     }
 
     private function computeNextDueDate(PaymentSchedule $schedule, Carbon $paidDate): Carbon
