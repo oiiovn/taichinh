@@ -70,8 +70,19 @@ class LoanLedgerService
         return $this->getTotalAccruedInterestAsOf($contract, $asOf) - $this->getTotalPaidInterestAsOf($contract, $asOf);
     }
 
+    /**
+     * Thêm bút toán lãi. Idempotent: nếu đã tồn tại accrual cùng (contract, effective_date) thì trả về bản ghi cũ.
+     */
     public function addAccrual(LoanContract $contract, float $interestAmount, Carbon $effectiveDate): LoanLedgerEntry
     {
+        $dateOnly = $effectiveDate->copy()->startOfDay()->format('Y-m-d');
+        $existing = LoanLedgerEntry::where('loan_contract_id', $contract->id)
+            ->where('type', LoanLedgerEntry::TYPE_ACCRUAL)
+            ->whereDate('effective_date', $dateOnly)
+            ->first();
+        if ($existing !== null) {
+            return $existing;
+        }
         $principalDelta = 0.0;
         $interestDelta = $interestAmount;
         if ($contract->interest_calculation === LoanContract::INTEREST_CALCULATION_COMPOUND && $interestAmount > 0) {
