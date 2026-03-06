@@ -158,14 +158,28 @@ class TaiChinhIndexViewDataBuilder
                 'dashboardPerAccount' => [],
             ]);
         } elseif ($user) {
-            $viewData = $this->insightPipeline->run($user, $contextPayload)->toArray();
-            $viewData['timelineSnapshots'] = $this->loadTimelineSnapshotsForStrategy($user->id);
-            $viewData['timelineMaturity'] = $this->computeTimelineMaturity(
-                $viewData['dataSufficiency'] ?? [],
-                isset($viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'])
-                    ? $viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'] : null
-            );
-            $viewData['insight_from_cache'] = false;
+            $forceRefreshInsight = $request->boolean('refresh_insight');
+            $cachedInsight = ! $forceRefreshInsight ? TaiChinhViewCache::getSafe(TaiChinhViewCache::insightKey($user->id)) : null;
+            if ($cachedInsight !== null && is_array($cachedInsight)) {
+                $viewData = array_merge($contextPayload, $cachedInsight);
+                $viewData['timelineSnapshots'] = $this->loadTimelineSnapshotsForStrategy($user->id);
+                $viewData['timelineMaturity'] = $this->computeTimelineMaturity(
+                    $viewData['dataSufficiency'] ?? [],
+                    isset($viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'])
+                        ? $viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'] : null
+                );
+                $viewData['insight_from_cache'] = true;
+            } else {
+                $viewData = $this->insightPipeline->run($user, $contextPayload)->toArray();
+                $viewData['timelineSnapshots'] = $this->loadTimelineSnapshotsForStrategy($user->id);
+                $viewData['timelineMaturity'] = $this->computeTimelineMaturity(
+                    $viewData['dataSufficiency'] ?? [],
+                    isset($viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'])
+                        ? $viewData['insightPayload']['cognitive_input']['liquidity_context']['liquidity_status'] : null
+                );
+                $viewData['insight_from_cache'] = false;
+                TaiChinhViewCache::putSafe(TaiChinhViewCache::insightKey($user->id), array_diff_key($viewData, $contextPayload), TaiChinhViewCache::ttlWithJitter(TaiChinhViewCache::TTL_INSIGHT_SECONDS));
+            }
         } else {
             $viewData = array_merge($contextPayload, [
                 'insight_from_cache' => null,
@@ -309,6 +323,14 @@ class TaiChinhIndexViewDataBuilder
         }
         $phanTichMonths = (int) $request->input('phan_tich_months', 12);
         $phanTichStk = $request->input('phan_tich_stk');
+        $useAnalyticsCache = $phanTichMonths === 12 && empty($phanTichStk);
+        if ($useAnalyticsCache) {
+            $cached = TaiChinhViewCache::getSafe(TaiChinhViewCache::analyticsKey($user->id));
+            if ($cached !== null && is_array($cached)) {
+                $viewData['analyticsData'] = $cached;
+                return;
+            }
+        }
         $analyticsAccounts = $phanTichStk ? array_filter([$phanTichStk]) : $linkedAccountNumbers;
         $monthlyResult = $this->analyticsAggregateService->monthlyInOut($user->id, $analyticsAccounts, $phanTichMonths);
         $byCategory = $this->analyticsAggregateService->expenseByCategory($user->id, $analyticsAccounts, $phanTichMonths);
@@ -334,6 +356,9 @@ class TaiChinhIndexViewDataBuilder
             'strategySummary' => $strategySummary,
             'health_status' => $healthStatus,
         ];
+        if ($useAnalyticsCache) {
+            TaiChinhViewCache::putSafe(TaiChinhViewCache::analyticsKey($user->id), $viewData['analyticsData'], TaiChinhViewCache::ttlWithJitter(TaiChinhViewCache::TTL_ANALYTICS_SECONDS));
+        }
     }
 
     private function attachDashboardData(?object $user, Collection $userBankAccounts, array $linkedAccountNumbers, Collection $accounts, array $accountBalances, array &$viewData): void
@@ -347,16 +372,44 @@ class TaiChinhIndexViewDataBuilder
         if (! $user || empty($linkedAccountNumbers)) {
             return;
         }
-        $viewData['dashboardBalanceDeltas'] = $this->dashboardCardService->getBalanceDeltas($user->id, $linkedAccountNumbers, $viewData['accountBalances'] ?? []);
-        $viewData['dashboardTodaySummary'] = $this->dashboardCardService->getTodaySummary($user->id, $linkedAccountNumbers);
-        $viewData['dashboardWeekSummary'] = $this->dashboardCardService->getWeekSummary($user->id, $linkedAccountNumbers);
+        $balances = $viewData['accountBalances'] ?? [];
+        $todayBatch = $this->dashboardCardService->getTodaySummaryBatch($user->id, $linkedAccountNumbers);
+        $weekBatch = $this->dashboardCardService->getWeekSummaryBatch($user->id, $linkedAccountNumbers);
+        $deltaBatch = $this->dashboardCardService->getBalanceDeltasBatch($user->id, $linkedAccountNumbers, $balances);
+
+        $viewData['dashboardTodaySummary'] = [
+            'total_in' => array_sum(array_column($todayBatch, 'total_in')),
+            'total_out' => array_sum(array_column($todayBatch, 'total_out')),
+            'count' => (int) array_sum(array_column($todayBatch, 'count')),
+        ];
+        $thisWeekIn = array_sum(array_map(fn ($w) => $w['this_week']['in'], $weekBatch));
+        $thisWeekOut = array_sum(array_map(fn ($w) => $w['this_week']['out'], $weekBatch));
+        $lastWeekIn = array_sum(array_map(fn ($w) => $w['last_week']['in'], $weekBatch));
+        $lastWeekOut = array_sum(array_map(fn ($w) => $w['last_week']['out'], $weekBatch));
+        $daysCompared = ! empty($weekBatch) ? reset($weekBatch)['days_compared'] : 0;
+        $viewData['dashboardWeekSummary'] = [
+            'this_week' => ['in' => $thisWeekIn, 'out' => $thisWeekOut],
+            'last_week' => ['in' => $lastWeekIn, 'out' => $lastWeekOut],
+            'pct_in' => $lastWeekIn != 0 ? round((($thisWeekIn - $lastWeekIn) / $lastWeekIn) * 100, 1) : null,
+            'pct_out' => $lastWeekOut != 0 ? round((($thisWeekOut - $lastWeekOut) / $lastWeekOut) * 100, 1) : null,
+            'days_compared' => $daysCompared,
+        ];
+        $totalChange = array_sum(array_map(fn ($d) => $d['total']['change'] ?? 0, $deltaBatch));
+        $totalBalance = array_sum(array_intersect_key($balances, array_flip($linkedAccountNumbers)));
+        $totalYesterday = $totalBalance - $totalChange;
+        $viewData['dashboardBalanceDeltas'] = [
+            'total' => [
+                'change' => (int) $totalChange,
+                'percent' => $totalYesterday != 0 ? round((($totalChange / abs($totalYesterday)) * 100), 1) : null,
+            ],
+        ];
+
         $viewData['dashboardSyncStatus'] = $this->dashboardCardService->getSyncStatus($userBankAccounts, $accounts, $user->id);
-        $totalBalance = array_sum(array_intersect_key($viewData['accountBalances'] ?? [], array_flip($linkedAccountNumbers)));
         $adaptiveThresholds = $this->adaptiveThresholdService->getAdaptiveThresholds($user, $linkedAccountNumbers, $totalBalance > 0 ? $totalBalance : null);
         $viewData['dashboardCardEvents'] = $this->dashboardCardService->buildCardEvents(
             $user->id,
             $linkedAccountNumbers,
-            $viewData['accountBalances'] ?? [],
+            $balances,
             $viewData['dashboardTodaySummary'],
             $viewData['dashboardWeekSummary'],
             $viewData['dashboardSyncStatus'],
@@ -372,10 +425,10 @@ class TaiChinhIndexViewDataBuilder
             if ($stk === '') {
                 continue;
             }
-            $bal = ($viewData['accountBalances'] ?? [])[$stk] ?? 0;
-            $perAccToday = $this->dashboardCardService->getTodaySummary($user->id, [$stk]);
-            $perAccWeek = $this->dashboardCardService->getWeekSummary($user->id, [$stk]);
-            $perAccBalanceDelta = $this->dashboardCardService->getBalanceDeltas($user->id, [$stk], [$stk => $bal]);
+            $bal = $balances[$stk] ?? 0;
+            $perAccToday = $todayBatch[$stk] ?? ['total_in' => 0.0, 'total_out' => 0.0, 'count' => 0];
+            $perAccWeek = $weekBatch[$stk] ?? ['this_week' => ['in' => 0, 'out' => 0], 'last_week' => ['in' => 0, 'out' => 0], 'pct_in' => null, 'pct_out' => null, 'days_compared' => 0];
+            $perAccBalanceDelta = $deltaBatch[$stk] ?? ['total' => ['change' => 0, 'percent' => null]];
             $viewData['dashboardPerAccount'][$stk] = [
                 'today' => $perAccToday,
                 'week' => $perAccWeek,

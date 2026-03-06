@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\TaiChinhController;
 use App\Http\Controllers\TaiChinh\GiaoDichController;
 use Illuminate\Http\Request;
@@ -34,5 +35,11 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::post('/tai-chinh/insight-feedback', [TaiChinhController::class, 'storeInsightFeedback'])->name('tai-chinh.insight-feedback');
         // Danh sách giao dịch (page, per_page, stk, loai, q, category_id)
         Route::get('/tai-chinh/giao-dich', [GiaoDichController::class, 'giaoDichJson'])->name('tai-chinh.giao-dich');
+
+        // Lazy dashboard: từng block (cards, analytics, debt, projection)
+        Route::get('/dashboard/cards', [DashboardController::class, 'cards'])->name('dashboard.cards');
+        Route::get('/dashboard/analytics', [DashboardController::class, 'analytics'])->name('dashboard.analytics');
+        Route::get('/dashboard/debt', [DashboardController::class, 'debt'])->name('dashboard.debt');
+        Route::get('/dashboard/projection', [DashboardController::class, 'projection'])->name('dashboard.projection');
     });
 });

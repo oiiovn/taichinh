@@ -112,6 +112,7 @@ class BankAccountController extends Controller
                 $uba->update(['external_id' => $accountNumber]);
             }
             TaiChinhViewCache::forget($user->id);
+            TaiChinhViewCache::forgetFinancialContext($user->id);
             return redirect()->route('tai-chinh')->with('success', 'Đã lưu tài khoản ngân hàng.');
         } catch (\Throwable $e) {
             Log::error('BankAccountController@store: ' . $e->getMessage(), [
@@ -162,6 +163,7 @@ class BankAccountController extends Controller
                 ]);
             }
             TaiChinhViewCache::forget($user->id);
+            TaiChinhViewCache::forgetFinancialContext($user->id);
             return redirect()->route('tai-chinh', ['tab' => 'tai-khoan'])->with('success', 'Đã cập nhật số dư cuối.');
         } catch (\Throwable $e) {
             Log::error('BankAccountController@updateAccountBalance: ' . $e->getMessage(), [
@@ -190,6 +192,7 @@ class BankAccountController extends Controller
             $last4 = substr($accountNumber, -4);
             $acc->delete();
             TaiChinhViewCache::forget($user->id);
+            TaiChinhViewCache::forgetFinancialContext($user->id);
             return redirect()->route('tai-chinh', ['tab' => 'tai-khoan'])->with('success', 'Đã gỡ liên kết tài khoản •••• ' . $last4 . '.');
         } catch (\Throwable $e) {
             Log::error('BankAccountController@unlink: ' . $e->getMessage(), [

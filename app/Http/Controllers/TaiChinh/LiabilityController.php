@@ -130,6 +130,7 @@ class LiabilityController extends Controller
         try {
             UserLiability::create($data);
             TaiChinhViewCache::forget($user->id);
+            TaiChinhViewCache::forgetFinancialContext($user->id);
             $msg = $data['direction'] === UserLiability::DIRECTION_RECEIVABLE ? 'Đã thêm khoản cho vay.' : 'Đã thêm khoản nợ / vay.';
             return $this->redirectToTab()->with('success', $msg);
         } catch (\Throwable $e) {
@@ -171,6 +172,7 @@ class LiabilityController extends Controller
             $liability->auto_accrue = $request->boolean('auto_accrue', $liability->auto_accrue);
             $liability->save();
             TaiChinhViewCache::forget($user->id);
+            TaiChinhViewCache::forgetFinancialContext($user->id);
             return $this->redirectToTab()->with('success', 'Đã cập nhật khoản nợ.');
         } catch (\Throwable $e) {
             Log::error('LiabilityController@update: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
@@ -192,6 +194,8 @@ class LiabilityController extends Controller
 
         try {
             $liability->update(['status' => UserLiability::STATUS_CLOSED]);
+            TaiChinhViewCache::forget($user->id);
+            TaiChinhViewCache::forgetFinancialContext($user->id);
             return $this->redirectToTab()->with('success', 'Đã đóng khoản nợ.');
         } catch (\Throwable $e) {
             Log::error('LiabilityController@close: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
@@ -214,6 +218,7 @@ class LiabilityController extends Controller
         try {
             $liability->delete();
             TaiChinhViewCache::forget($user->id);
+            TaiChinhViewCache::forgetFinancialContext($user->id);
             return $this->redirectToTab()->with('success', 'Đã xóa khoản nợ / khoản vay.');
         } catch (\Throwable $e) {
             Log::error('LiabilityController@destroy: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
@@ -262,6 +267,7 @@ class LiabilityController extends Controller
                 (float) $data['amount']
             ));
             TaiChinhViewCache::forget($user->id);
+            TaiChinhViewCache::forgetFinancialContext($user->id);
             return $this->redirectToTab()->with('success', 'Đã ghi nhận thanh toán.')->with('notification_flash', true);
         } catch (\Throwable $e) {
             Log::error('LiabilityController@storePayment: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);
@@ -314,6 +320,7 @@ class LiabilityController extends Controller
                 (float) $data['amount']
             ));
             TaiChinhViewCache::forget($user->id);
+            TaiChinhViewCache::forgetFinancialContext($user->id);
             return $this->redirectToTab()->with('success', 'Đã ghi nhận lãi thủ công.')->with('notification_flash', true);
         } catch (\Throwable $e) {
             Log::error('LiabilityController@storeAccrual: ' . $e->getMessage(), ['user_id' => $user->id, 'trace' => $e->getTraceAsString()]);

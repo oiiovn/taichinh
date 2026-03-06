@@ -76,7 +76,7 @@ class TaiChinhController extends Controller
         }
         $viewData = $builder->build($request);
         if ($userId && ! $tabGiaoDich && ! $tabDashboard) {
-            TaiChinhViewCache::putSafe(TaiChinhViewCache::key($userId), $viewData, TaiChinhViewCache::TTL_SECONDS);
+            TaiChinhViewCache::putSafe(TaiChinhViewCache::key($userId), $viewData, TaiChinhViewCache::ttlWithJitter(TaiChinhViewCache::TTL_SECONDS));
             TaiChinhViewCache::putStale($userId, $viewData);
         }
         return view('pages.tai-chinh', $viewData);

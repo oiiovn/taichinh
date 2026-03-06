@@ -131,6 +131,39 @@ class DashboardCardService
     }
 
     /**
+     * Batch: tổng hợp hôm nay theo từng account_number. 1 query. Key = account_number.
+     *
+     * @return array<string, array{total_in: float, total_out: float, count: int}>
+     */
+    public function getTodaySummaryBatch(int $userId, array $accountNumbers): array
+    {
+        if (empty($accountNumbers)) {
+            return [];
+        }
+        $todayStart = Carbon::today()->startOfDay();
+        $todayEnd = Carbon::today()->endOfDay();
+        $rows = TransactionHistory::where('user_id', $userId)
+            ->whereIn('account_number', $accountNumbers)
+            ->whereBetween('transaction_date', [$todayStart, $todayEnd])
+            ->selectRaw("account_number, SUM(CASE WHEN type = 'IN' THEN amount ELSE 0 END) as total_in, SUM(CASE WHEN type = 'OUT' THEN amount ELSE 0 END) as total_out, COUNT(*) as cnt")
+            ->groupBy('account_number')
+            ->get();
+        $default = ['total_in' => 0.0, 'total_out' => 0.0, 'count' => 0];
+        $out = array_fill_keys(array_map(fn ($n) => trim((string) $n), $accountNumbers), $default);
+        foreach ($rows as $r) {
+            $stk = trim((string) ($r->account_number ?? ''));
+            if ($stk !== '') {
+                $out[$stk] = [
+                    'total_in' => (float) ($r->total_in ?? 0),
+                    'total_out' => (float) ($r->total_out ?? 0),
+                    'count' => (int) ($r->cnt ?? 0),
+                ];
+            }
+        }
+        return $out;
+    }
+
+    /**
      * Tuần này vs tuần trước: so sánh cùng số ngày đầu tuần (N ngày đầu tuần này vs N ngày đầu tuần trước)
      * để tránh so sánh 2 ngày với 7 ngày.
      */
@@ -174,6 +207,109 @@ class DashboardCardService
             'pct_out' => $pctOut,
             'days_compared' => $daysCompared,
         ];
+    }
+
+    /**
+     * Batch: tuần này vs tuần trước theo từng account_number. 2 query (this week, last week).
+     *
+     * @return array<string, array{this_week: array{in: float, out: float}, last_week: array{in: float, out: float}, pct_in: float|null, pct_out: float|null, days_compared: int}>
+     */
+    public function getWeekSummaryBatch(int $userId, array $accountNumbers): array
+    {
+        if (empty($accountNumbers)) {
+            return [];
+        }
+        $today = Carbon::today();
+        $thisWeekStart = $today->copy()->startOfWeek();
+        $lastWeekStart = $today->copy()->subWeek()->startOfWeek();
+        $daysIntoThisWeek = (int) $thisWeekStart->diffInDays($today, false) + 1;
+        $daysCompared = min(7, max(1, $daysIntoThisWeek));
+        $thisWeekEndCompare = $today->copy()->endOfDay();
+        $lastWeekEndCompare = $lastWeekStart->copy()->addDays($daysCompared - 1)->endOfDay();
+
+        $thisRows = TransactionHistory::where('user_id', $userId)
+            ->whereIn('account_number', $accountNumbers)
+            ->whereBetween('transaction_date', [$thisWeekStart, $thisWeekEndCompare])
+            ->selectRaw("account_number, SUM(CASE WHEN type = 'IN' THEN amount ELSE 0 END) as in_sum, SUM(CASE WHEN type = 'OUT' THEN amount ELSE 0 END) as out_sum")
+            ->groupBy('account_number')
+            ->get();
+        $lastRows = TransactionHistory::where('user_id', $userId)
+            ->whereIn('account_number', $accountNumbers)
+            ->whereBetween('transaction_date', [$lastWeekStart, $lastWeekEndCompare])
+            ->selectRaw("account_number, SUM(CASE WHEN type = 'IN' THEN amount ELSE 0 END) as in_sum, SUM(CASE WHEN type = 'OUT' THEN amount ELSE 0 END) as out_sum")
+            ->groupBy('account_number')
+            ->get();
+        $thisRowsByStk = [];
+        foreach ($thisRows as $r) {
+            $thisRowsByStk[trim((string) ($r->account_number ?? ''))] = $r;
+        }
+        $lastRowsByStk = [];
+        foreach ($lastRows as $r) {
+            $lastRowsByStk[trim((string) ($r->account_number ?? ''))] = $r;
+        }
+
+        $out = [];
+        foreach ($accountNumbers as $stk) {
+            $stk = trim((string) $stk);
+            $thisRow = $thisRowsByStk[$stk] ?? null;
+            $lastRow = $lastRowsByStk[$stk] ?? null;
+            $thisIn = (float) ($thisRow ? ($thisRow->in_sum ?? 0) : 0);
+            $thisOut = (float) ($thisRow ? ($thisRow->out_sum ?? 0) : 0);
+            $lastIn = (float) ($lastRow ? ($lastRow->in_sum ?? 0) : 0);
+            $lastOut = (float) ($lastRow ? ($lastRow->out_sum ?? 0) : 0);
+            $pctIn = $lastIn != 0 ? round((($thisIn - $lastIn) / $lastIn) * 100, 1) : null;
+            $pctOut = $lastOut != 0 ? round((($thisOut - $lastOut) / $lastOut) * 100, 1) : null;
+            $out[$stk] = [
+                'this_week' => ['in' => $thisIn, 'out' => $thisOut],
+                'last_week' => ['in' => $lastIn, 'out' => $lastOut],
+                'pct_in' => $pctIn,
+                'pct_out' => $pctOut,
+                'days_compared' => $daysCompared,
+            ];
+        }
+        return $out;
+    }
+
+    /**
+     * Batch: delta số dư hôm nay so với hôm qua theo từng account. 1 query.
+     *
+     * @return array<string, array{total: array{change: int, percent: float|null}}>
+     */
+    public function getBalanceDeltasBatch(int $userId, array $accountNumbers, array $accountBalances): array
+    {
+        if (empty($accountNumbers)) {
+            return [];
+        }
+        $todayStart = Carbon::today()->startOfDay();
+        $todayEnd = Carbon::today()->endOfDay();
+        $rows = TransactionHistory::where('user_id', $userId)
+            ->whereIn('account_number', $accountNumbers)
+            ->whereBetween('transaction_date', [$todayStart, $todayEnd])
+            ->selectRaw("account_number, SUM(CASE WHEN type = 'IN' THEN amount ELSE -amount END) as delta")
+            ->groupBy('account_number')
+            ->get();
+        $deltaByStk = [];
+        foreach ($rows as $r) {
+            $stk = trim((string) ($r->account_number ?? ''));
+            if ($stk !== '') {
+                $deltaByStk[$stk] = (float) ($r->delta ?? 0);
+            }
+        }
+        $out = [];
+        foreach ($accountNumbers as $stk) {
+            $stk = trim((string) $stk);
+            $delta = $deltaByStk[$stk] ?? 0.0;
+            $balance = (float) ($accountBalances[$stk] ?? 0);
+            $yesterday = $balance - $delta;
+            $percent = $yesterday != 0 ? round((($delta / abs($yesterday)) * 100), 1) : null;
+            $out[$stk] = [
+                'total' => [
+                    'change' => (int) round($delta),
+                    'percent' => $percent,
+                ],
+            ];
+        }
+        return $out;
     }
 
     /**

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\TransactionHistory;
 use App\Models\User;
+use Illuminate\Contracts\Pagination\CursorPaginator;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -107,8 +108,52 @@ class UserFinancialContextService
                         ->orWhereRaw('LOWER(CAST(COALESCE(account_number, \'\') AS CHAR)) LIKE ?', [$term]);
                 });
             })
-            ->orderBy('transaction_date', 'desc');
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc');
 
         return $query->paginate($perPage)->withQueryString();
+    }
+
+    /**
+     * Cursor pagination cho giao dịch (tránh offset lớn khi bảng > 100k rows).
+     * Sắp xếp: transaction_date desc, id desc (unique cho cursor).
+     */
+    public function getCursorPaginatedTransactions(User $user, array $linkedAccountNumbers, Request $request, int $perPage = 20): CursorPaginator
+    {
+        $query = TransactionHistory::with(['bankAccount', 'userCategory', 'systemCategory', 'depositor'])
+            ->where(function ($q) use ($user, $linkedAccountNumbers) {
+                $q->where('user_id', $user->id);
+                if (! empty($linkedAccountNumbers)) {
+                    $q->where(function ($q2) use ($linkedAccountNumbers) {
+                        $q2->whereIn('account_number', $linkedAccountNumbers)
+                            ->orWhereHas('bankAccount', fn ($q3) => $q3->whereIn('account_number', $linkedAccountNumbers))
+                            ->orWhere(function ($q3) {
+                                $q3->whereNull('pay2s_bank_account_id')
+                                    ->where('account_number', TransactionHistory::ACCOUNT_TIEN_MAT);
+                            });
+                    });
+                }
+                if (! empty($linkedAccountNumbers)) {
+                    $q->orWhere(function ($q2) use ($linkedAccountNumbers) {
+                        $q2->whereNull('user_id')->whereIn('account_number', $linkedAccountNumbers);
+                    });
+                }
+            });
+
+        $query->when($request->filled('stk'), fn ($q) => $q->where('account_number', $request->input('stk')))
+            ->when($request->filled('loai') && in_array($request->input('loai'), ['IN', 'OUT'], true), fn ($q) => $q->where('type', $request->input('loai')))
+            ->when($request->boolean('pending'), fn ($q) => $q->where('classification_status', 'pending'))
+            ->when($request->filled('category_id'), fn ($q) => $q->where('user_category_id', $request->input('category_id')))
+            ->when($request->filled('q'), function ($q) use ($request) {
+                $term = '%' . mb_strtolower(trim($request->input('q'))) . '%';
+                $q->where(function ($q2) use ($term) {
+                    $q2->whereRaw('LOWER(description) LIKE ?', [$term])
+                        ->orWhereRaw('LOWER(CAST(COALESCE(account_number, \'\') AS CHAR)) LIKE ?', [$term]);
+                });
+            })
+            ->orderBy('transaction_date', 'desc')
+            ->orderBy('id', 'desc');
+
+        return $query->cursorPaginate($perPage);
     }
 }

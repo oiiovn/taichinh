@@ -57,8 +57,8 @@ class GiaoDichController extends Controller
     }
 
     /**
-     * API: Trả danh sách giao dịch dạng JSON (cho app mobile).
-     * Query: page, per_page (mặc định 20), stk, loai, q, category_id (giống web).
+     * API: Trả danh sách giao dịch dạng JSON (cursor pagination).
+     * Query: cursor (trang sau), per_page (mặc định 20), stk, loai, q, category_id.
      */
     public function giaoDichJson(Request $request): \Illuminate\Http\JsonResponse
     {
@@ -71,17 +71,25 @@ class GiaoDichController extends Controller
             $context = $contextSvc->ensureCategoriesAndGetContext($user);
             $linkedAccountNumbers = $context['linkedAccountNumbers'];
             $perPage = min((int) $request->input('per_page', 20), 100);
-            $transactions = ! empty($linkedAccountNumbers)
-                ? $contextSvc->getPaginatedTransactions($user, $linkedAccountNumbers, $request, $perPage)
-                : TransactionHistory::where('user_id', $user->id)->whereRaw('1 = 0')->paginate($perPage)->withQueryString();
-
+            if (empty($linkedAccountNumbers)) {
+                return response()->json([
+                    'data' => [],
+                    'meta' => [
+                        'per_page' => $perPage,
+                        'next_cursor' => null,
+                        'prev_cursor' => null,
+                        'has_more_pages' => false,
+                    ],
+                ]);
+            }
+            $paginator = $contextSvc->getCursorPaginatedTransactions($user, $linkedAccountNumbers, $request, $perPage);
             return response()->json([
-                'data' => $transactions->items(),
+                'data' => $paginator->items(),
                 'meta' => [
-                    'current_page' => $transactions->currentPage(),
-                    'last_page' => $transactions->lastPage(),
-                    'per_page' => $transactions->perPage(),
-                    'total' => $transactions->total(),
+                    'per_page' => $paginator->perPage(),
+                    'next_cursor' => $paginator->hasMorePages() ? $paginator->nextCursor()?->encode() : null,
+                    'prev_cursor' => $paginator->previousCursor()?->encode(),
+                    'has_more_pages' => $paginator->hasMorePages(),
                 ],
             ]);
         } catch (\Throwable $e) {
