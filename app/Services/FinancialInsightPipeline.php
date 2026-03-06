@@ -110,6 +110,10 @@ class FinancialInsightPipeline
         $semanticView = $this->semanticLayer->buildSemanticView($user, $semanticFrom, $semanticTo);
         $economicContext = $this->economicContextService->compute($semanticView);
 
+        $snapshots = $this->driftAnalyzer->loadLastSnapshots($user->id);
+        $thresholdSummary = $this->budgetThresholdService->getThresholdSummaryForUser($user->id, $linkedAccountNumbers);
+        $incomeGoalSummary = $this->incomeGoalService->getGoalSummaryForUser($user->id, $linkedAccountNumbers);
+
         $lastSnapshotWithError = FinancialStateSnapshot::where('user_id', $user->id)
             ->whereNotNull('forecast_error')
             ->orderBy('snapshot_date', 'desc')
@@ -164,25 +168,23 @@ class FinancialInsightPipeline
             $objective,
             $behavioralScores
         );
-        $narrativeResult = $this->narrativeBuilder->build(
+
+        $canonical = $projection['sources']['canonical'] ?? [];
+        [$narrativeResult, $insightPayload, $behaviorProfile] = $this->runPostOptimizationStages(
+            $user,
             $financialState,
             $priorityMode,
-            $projection,
-            $projectionOptimization['root_causes'] ?? [],
-            $projectionOptimization['strategic_guidance']['guidance_lines'] ?? []
-        );
-        $insightPayload = $this->insightPayloadService->build(
-            $position,
             $projection,
             $projectionOptimization,
             $activeOwe,
             $activeReceive,
             $months,
             $strategyProfile,
-            $economicContext
+            $economicContext,
+            $position,
+            $canonical,
+            $semanticView
         );
-        $canonical = $projection['sources']['canonical'] ?? [];
-        $behaviorProfile = $this->behavioralProfileService->compute($user, $canonical, $semanticView);
         $insightPayload = $this->behavioralProfileService->injectIntoPayload($insightPayload, $behaviorProfile);
 
         $debtIntelligence = $insightPayload['debt_intelligence'] ?? [];
@@ -197,20 +199,16 @@ class FinancialInsightPipeline
             $strategyProfile,
             $sources
         );
-        $snapshots = $this->driftAnalyzer->loadLastSnapshots($user->id);
         $driftSignals = $this->driftAnalyzer->analyze($currentState, $snapshots);
         $insightPayload = $this->injectDriftIntoPayload($insightPayload, $driftSignals);
         $insightPayload = $this->injectEconomicContext($insightPayload, $economicContext);
 
-        $linkedAccountNumbers = $context['linkedAccountNumbers'] ?? [];
-        $thresholdSummary = $this->budgetThresholdService->getThresholdSummaryForUser($user->id, $linkedAccountNumbers);
         $budgetContext = [
             'debt_stress_index' => isset($debtIntelligence['debt_stress_index']) ? (int) $debtIntelligence['debt_stress_index'] : null,
             'surplus_positive' => isset($canonical['free_cashflow_after_debt']) ? (float) $canonical['free_cashflow_after_debt'] >= -500_000 : null,
             'recommended_surplus_retention_pct' => null,
         ];
         $budgetIntelligence = $this->budgetIntelligenceService->compute($user->id, $linkedAccountNumbers, $thresholdSummary, $budgetContext);
-        $incomeGoalSummary = $this->incomeGoalService->getGoalSummaryForUser($user->id, $linkedAccountNumbers);
         $cognitive = $insightPayload['cognitive_input'] ?? [];
         $cognitive['threshold_summary'] = $thresholdSummary;
         $cognitive['budget_intelligence'] = $budgetIntelligence;
@@ -329,6 +327,48 @@ class FinancialInsightPipeline
         ]);
 
         return new InsightResult($out);
+    }
+
+    /**
+     * Các stage độc lập sau optimization: narrative, insightPayload, behavioral.
+     * Chạy tuần tự; có thể chuyển sang Concurrency::run khi có facade.
+     *
+     * @return array{0: array, 1: array, 2: \App\DTOs\BehavioralProfileDTO}
+     */
+    private function runPostOptimizationStages(
+        User $user,
+        array $financialState,
+        array $priorityMode,
+        array $projection,
+        array $projectionOptimization,
+        $activeOwe,
+        $activeReceive,
+        int $months,
+        array $strategyProfile,
+        array $economicContext,
+        array $position,
+        array $canonical,
+        array $semanticView
+    ): array {
+        $narrativeResult = $this->narrativeBuilder->build(
+            $financialState,
+            $priorityMode,
+            $projection,
+            $projectionOptimization['root_causes'] ?? [],
+            $projectionOptimization['strategic_guidance']['guidance_lines'] ?? []
+        );
+        $insightPayload = $this->insightPayloadService->build(
+            $position,
+            $projection,
+            $projectionOptimization,
+            $activeOwe,
+            $activeReceive,
+            $months,
+            $strategyProfile,
+            $economicContext
+        );
+        $behaviorProfile = $this->behavioralProfileService->compute($user, $canonical, $semanticView);
+        return [$narrativeResult, $insightPayload, $behaviorProfile];
     }
 
     /**

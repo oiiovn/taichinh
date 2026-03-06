@@ -82,16 +82,27 @@ class TaiChinhIndexViewDataBuilder
         $currentAccountCount = $userBankAccounts->count();
         $canAddAccount = $maxAccounts > 0 && $planStillValid && $currentAccountCount < $maxAccounts;
 
-        $userLiabilities = $user ? $user->userLiabilities()->with(['accruals', 'payments'])->orderBy('direction')->orderBy('status')->orderBy('created_at', 'desc')->get() : collect();
-        $loanContracts = $user ? $this->unifiedLoansBuilder->getLoanContractsForUser($user) : collect();
-        $unifiedLoans = $this->unifiedLoansBuilder->build($userLiabilities, $loanContracts, $user?->id ?? 0);
-        $liabilitySummary = $this->liabilitySummaryService->build($userLiabilities, $loanContracts, $user?->id ?? 0);
-        $liquidBalance = array_sum($accountBalances ?? []);
-        $position = $this->financialPositionService->build($liabilitySummary, $unifiedLoans, $liquidBalance);
-        $oweItems = $unifiedLoans->where('is_receivable', false)->values();
-        $receiveItems = $unifiedLoans->where('is_receivable', true)->values();
-        $oweStats = $this->loanColumnStatsService->build($oweItems->where('is_active', true)->values());
-        $receiveStats = $this->loanColumnStatsService->build($receiveItems->where('is_active', true)->values());
+        $snapshot = $user ? $this->getOrBuildFinancialContextSnapshot($user, $accountBalances ?? []) : null;
+        if ($snapshot !== null) {
+            $position = $snapshot['position'];
+            $oweItems = $snapshot['oweItems'];
+            $receiveItems = $snapshot['receiveItems'];
+            $liabilitySummary = $snapshot['liabilitySummary'];
+            $unifiedLoans = $snapshot['unifiedLoans'];
+            $oweStats = $snapshot['oweStats'];
+            $receiveStats = $snapshot['receiveStats'];
+            $userLiabilities = $snapshot['userLiabilities'];
+        } else {
+            $userLiabilities = collect();
+            $loanContracts = collect();
+            $unifiedLoans = collect();
+            $liabilitySummary = [];
+            $position = [];
+            $oweItems = collect();
+            $receiveItems = collect();
+            $oweStats = [];
+            $receiveStats = [];
+        }
 
         $contextPayload = [
             'position' => $position,
@@ -249,6 +260,58 @@ class TaiChinhIndexViewDataBuilder
         }
 
         return $viewData;
+    }
+
+    /**
+     * Snapshot financial context: cache (TTL 5m) hoặc build một lần (liabilities, loans, position, owe/receive, stats).
+     * Reuse cho insight + analytics + dashboard trong cùng request và request sau.
+     */
+    private function getOrBuildFinancialContextSnapshot(\App\Models\User $user, array $accountBalances): ?array
+    {
+        $cacheKey = TaiChinhViewCache::financialContextKey($user->id);
+        $cached = TaiChinhViewCache::getSafe($cacheKey);
+        if ($cached !== null && is_array($cached)) {
+            $oweItems = collect($cached['owe_items'] ?? []);
+            $receiveItems = collect($cached['receive_items'] ?? []);
+            return [
+                'position' => $cached['position'] ?? [],
+                'oweItems' => $oweItems,
+                'receiveItems' => $receiveItems,
+                'liabilitySummary' => $cached['liability_summary'] ?? [],
+                'unifiedLoans' => $oweItems->concat($receiveItems),
+                'oweStats' => $cached['owe_stats'] ?? [],
+                'receiveStats' => $cached['receive_stats'] ?? [],
+                'userLiabilities' => collect(),
+            ];
+        }
+        $userLiabilities = $user->userLiabilities()->with(['accruals', 'payments'])->orderBy('direction')->orderBy('status')->orderBy('created_at', 'desc')->get();
+        $loanContracts = $this->unifiedLoansBuilder->getLoanContractsForUser($user);
+        $unifiedLoans = $this->unifiedLoansBuilder->build($userLiabilities, $loanContracts, $user->id);
+        $liabilitySummary = $this->liabilitySummaryService->build($userLiabilities, $loanContracts, $user->id);
+        $liquidBalance = array_sum($accountBalances);
+        $position = $this->financialPositionService->build($liabilitySummary, $unifiedLoans, $liquidBalance);
+        $oweItems = $unifiedLoans->where('is_receivable', false)->values();
+        $receiveItems = $unifiedLoans->where('is_receivable', true)->values();
+        $oweStats = $this->loanColumnStatsService->build($oweItems->where('is_active', true)->values());
+        $receiveStats = $this->loanColumnStatsService->build($receiveItems->where('is_active', true)->values());
+        TaiChinhViewCache::putSafe($cacheKey, [
+            'position' => $position,
+            'owe_items' => $oweItems->all(),
+            'receive_items' => $receiveItems->all(),
+            'liability_summary' => $liabilitySummary,
+            'owe_stats' => $oweStats,
+            'receive_stats' => $receiveStats,
+        ], TaiChinhViewCache::ttlWithJitter(TaiChinhViewCache::TTL_FINANCIAL_CONTEXT_SECONDS));
+        return [
+            'position' => $position,
+            'oweItems' => $oweItems,
+            'receiveItems' => $receiveItems,
+            'liabilitySummary' => $liabilitySummary,
+            'unifiedLoans' => $unifiedLoans,
+            'oweStats' => $oweStats,
+            'receiveStats' => $receiveStats,
+            'userLiabilities' => $userLiabilities,
+        ];
     }
 
     private function emptyContext(): array

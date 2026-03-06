@@ -83,7 +83,8 @@ class PaymentScheduleMatchService
             $tolerancePct = $schedule->amount_tolerance_pct ? (float) $schedule->amount_tolerance_pct : 10;
             $low = $expected * (1 - $tolerancePct / 100);
             $high = $expected * (1 + $tolerancePct / 100);
-            if ($txAmount < $low || $txAmount > $high) {
+            $absAmount = abs($txAmount);
+            if ($absAmount < $low || $absAmount > $high) {
                 return 0;
             }
             $score += 20;
@@ -125,7 +126,7 @@ class PaymentScheduleMatchService
         }
 
         if ($schedule->auto_update_amount) {
-            $schedule->expected_amount = (float) $transaction->amount;
+            $schedule->expected_amount = abs((float) $transaction->amount);
         }
 
         $schedule->save();
