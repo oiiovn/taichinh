@@ -28,11 +28,14 @@ class WarmTaiChinhViewJob implements ShouldQueue
             return;
         }
         try {
-            $request = Request::create(route('tai-chinh'), 'GET');
+            $request = Request::create(route('tai-chinh', ['tab' => 'chien-luoc']), 'GET');
             $request->setUserResolver(fn () => $user);
             $viewData = app(TaiChinhIndexViewDataBuilder::class)->build($request);
-            TaiChinhViewCache::putSafe(TaiChinhViewCache::key($this->userId), $viewData, TaiChinhViewCache::TTL_SECONDS);
-            TaiChinhViewCache::putStale($this->userId, $viewData);
+            $ttl = TaiChinhViewCache::ttlWithJitter(TaiChinhViewCache::TTL_SECONDS);
+            TaiChinhViewCache::putSafe(TaiChinhViewCache::key($this->userId), $viewData, $ttl);
+            if (($viewData['insufficientData'] ?? true) === false) {
+                TaiChinhViewCache::putStale($this->userId, $viewData);
+            }
         } catch (\Throwable $e) {
             Log::warning('WarmTaiChinhViewJob failed: ' . $e->getMessage(), ['user_id' => $this->userId]);
         }

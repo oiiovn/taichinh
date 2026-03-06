@@ -14,8 +14,8 @@ class TaiChinhViewCache
     /** TTL cache view chính (30 phút). */
     public const TTL_SECONDS = 1800; // 30 phút
 
-    /** TTL stale — giữ bản cũ lâu để luôn có dữ liệu hiển thị khi cache hết hạn. */
-    public const TTL_STALE_SECONDS = 604800; // 7 ngày
+    /** TTL stale — giữ bản cũ 2 ngày (tránh trả bản "Chưa đủ" quá lâu khi job warm chậm/lỗi). */
+    public const TTL_STALE_SECONDS = 172800; // 2 ngày
 
     /** TTL cache insight/analytics/dashboard — tối đa 12h một lần. */
     public const TTL_HEAVY_SECONDS = 43200; // 12 giờ

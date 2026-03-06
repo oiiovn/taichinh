@@ -75,7 +75,8 @@ class TaiChinhController extends Controller
             }
         }
         $viewData = $builder->build($request);
-        if ($userId && ! $tabGiaoDich && ! $tabDashboard) {
+        // Chỉ ghi view cache khi có payload đầy đủ (insight), tránh tab nhẹ (tai-khoan, no-khoan-vay, …) ghi đè bằng "Chưa đủ dữ liệu"
+        if ($userId && ! $tabGiaoDich && ! $tabDashboard && ($viewData['insufficientData'] ?? true) === false) {
             TaiChinhViewCache::putSafe(TaiChinhViewCache::key($userId), $viewData, TaiChinhViewCache::ttlWithJitter(TaiChinhViewCache::TTL_SECONDS));
             TaiChinhViewCache::putStale($userId, $viewData);
         }
