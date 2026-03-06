@@ -39,6 +39,18 @@ class TaiChinhController extends Controller
         try {
             return $this->indexHandle($request);
         } catch (\Throwable $e) {
+            // #region agent log
+            $logPath = '/Applications/XAMPP/xamppfiles/htdocs/canhan/.cursor/debug-6dda4c.log';
+            $entry = json_encode([
+                'sessionId' => '6dda4c',
+                'hypothesisId' => 'ERR',
+                'location' => basename($e->getFile()) . ':' . $e->getLine(),
+                'message' => $e->getMessage(),
+                'data' => ['class' => get_class($e), 'file' => $e->getFile(), 'line' => $e->getLine(), 'userId' => $request->user()?->id],
+                'timestamp' => (int) (microtime(true) * 1000),
+            ]);
+            @file_put_contents($logPath, $entry . "\n", FILE_APPEND | LOCK_EX);
+            // #endregion
             Log::error('TaiChinhController@index: ' . $e->getMessage(), [
                 'user_id' => $request->user()?->id,
                 'trace' => $e->getTraceAsString(),

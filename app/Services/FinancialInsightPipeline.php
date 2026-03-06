@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Data\SemanticTransactionCollection;
 use App\DTOs\InsightResult;
 use App\Models\FinancialStateSnapshot;
 use App\Models\User;
@@ -348,7 +349,7 @@ class FinancialInsightPipeline
         array $economicContext,
         array $position,
         array $canonical,
-        array $semanticView
+        SemanticTransactionCollection $semanticView
     ): array {
         $narrativeResult = $this->narrativeBuilder->build(
             $financialState,

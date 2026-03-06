@@ -58,10 +58,15 @@ class TaiChinhIndexViewDataBuilder
 
     public function build(Request $request): array
     {
+        $logPath = '/Applications/XAMPP/xamppfiles/htdocs/canhan/.cursor/debug-6dda4c.log';
         $user = $request->user();
         if ($user) {
             $user->refresh();
         }
+        // #region agent log
+        $entry = json_encode(['sessionId' => '6dda4c', 'hypothesisId' => 'A', 'location' => 'TaiChinhIndexViewDataBuilder.php:build:beforeContext', 'message' => 'before ensureCategoriesAndGetContext', 'data' => ['userId' => $user?->id], 'timestamp' => (int) (microtime(true) * 1000)]);
+        @file_put_contents($logPath, $entry . "\n", FILE_APPEND | LOCK_EX);
+        // #endregion
         $context = $user ? $this->contextService->ensureCategoriesAndGetContext($user) : $this->emptyContext();
         $userBankAccounts = $context['userBankAccounts'];
         $linkedAccountNumbers = $context['linkedAccountNumbers'];
@@ -82,7 +87,15 @@ class TaiChinhIndexViewDataBuilder
         $currentAccountCount = $userBankAccounts->count();
         $canAddAccount = $maxAccounts > 0 && $planStillValid && $currentAccountCount < $maxAccounts;
 
+        // #region agent log
+        $entry = json_encode(['sessionId' => '6dda4c', 'hypothesisId' => 'A', 'location' => 'TaiChinhIndexViewDataBuilder.php:build:afterContext', 'message' => 'after ensureCategoriesAndGetContext', 'data' => [], 'timestamp' => (int) (microtime(true) * 1000)]);
+        @file_put_contents($logPath, $entry . "\n", FILE_APPEND | LOCK_EX);
+        // #endregion
         $snapshot = $user ? $this->getOrBuildFinancialContextSnapshot($user, $accountBalances ?? []) : null;
+        // #region agent log
+        $entry = json_encode(['sessionId' => '6dda4c', 'hypothesisId' => 'B', 'location' => 'TaiChinhIndexViewDataBuilder.php:build:afterSnapshot', 'message' => 'after getOrBuildFinancialContextSnapshot', 'data' => ['hasSnapshot' => $snapshot !== null], 'timestamp' => (int) (microtime(true) * 1000)]);
+        @file_put_contents($logPath, $entry . "\n", FILE_APPEND | LOCK_EX);
+        // #endregion
         if ($snapshot !== null) {
             $position = $snapshot['position'];
             $oweItems = $snapshot['oweItems'];
@@ -171,6 +184,10 @@ class TaiChinhIndexViewDataBuilder
         } elseif ($user) {
             $forceRefreshInsight = $request->boolean('refresh_insight');
             $cachedInsight = ! $forceRefreshInsight ? TaiChinhViewCache::getSafe(TaiChinhViewCache::insightKey($user->id)) : null;
+            // #region agent log
+            $entry = json_encode(['sessionId' => '6dda4c', 'hypothesisId' => 'C', 'location' => 'TaiChinhIndexViewDataBuilder.php:build:beforeInsight', 'message' => 'before insight run or cache merge', 'data' => ['hasCachedInsight' => $cachedInsight !== null && is_array($cachedInsight)], 'timestamp' => (int) (microtime(true) * 1000)]);
+            @file_put_contents($logPath, $entry . "\n", FILE_APPEND | LOCK_EX);
+            // #endregion
             if ($cachedInsight !== null && is_array($cachedInsight)) {
                 $viewData = array_merge($contextPayload, $cachedInsight);
                 $viewData['timelineSnapshots'] = $this->loadTimelineSnapshotsForStrategy($user->id);
@@ -191,6 +208,10 @@ class TaiChinhIndexViewDataBuilder
                 $viewData['insight_from_cache'] = false;
                 TaiChinhViewCache::putSafe(TaiChinhViewCache::insightKey($user->id), array_diff_key($viewData, $contextPayload), TaiChinhViewCache::ttlWithJitter(TaiChinhViewCache::TTL_INSIGHT_SECONDS));
             }
+            // #region agent log
+            $entry = json_encode(['sessionId' => '6dda4c', 'hypothesisId' => 'C', 'location' => 'TaiChinhIndexViewDataBuilder.php:build:afterInsight', 'message' => 'after insight run or cache merge', 'data' => [], 'timestamp' => (int) (microtime(true) * 1000)]);
+            @file_put_contents($logPath, $entry . "\n", FILE_APPEND | LOCK_EX);
+            // #endregion
         } else {
             $viewData = array_merge($contextPayload, [
                 'insight_from_cache' => null,
@@ -214,6 +235,10 @@ class TaiChinhIndexViewDataBuilder
         }
 
         $viewData['dashboardFilterActive'] = $dashboardFilterActive;
+        // #region agent log
+        $entry = json_encode(['sessionId' => '6dda4c', 'hypothesisId' => 'D', 'location' => 'TaiChinhIndexViewDataBuilder.php:build:beforeAttach', 'message' => 'before attachAnalyticsData/attachDashboardData', 'data' => [], 'timestamp' => (int) (microtime(true) * 1000)]);
+        @file_put_contents($logPath, $entry . "\n", FILE_APPEND | LOCK_EX);
+        // #endregion
         if (! $isLightTab && ! $dashboardFilterActive) {
             $this->attachAnalyticsData($user, $linkedAccountNumbers, $request, $viewData);
         }
@@ -234,6 +259,10 @@ class TaiChinhIndexViewDataBuilder
         }
         $viewData['title'] = 'Tài chính';
         $viewData['insightGptPrompt'] = InsightPayloadService::GPT_SYSTEM_PROMPT;
+        // #region agent log
+        $entry = json_encode(['sessionId' => '6dda4c', 'hypothesisId' => 'E', 'location' => 'TaiChinhIndexViewDataBuilder.php:build:beforeBudget', 'message' => 'before attachBudgetAndIncomeGoalData', 'data' => [], 'timestamp' => (int) (microtime(true) * 1000)]);
+        @file_put_contents($logPath, $entry . "\n", FILE_APPEND | LOCK_EX);
+        // #endregion
         $this->attachBudgetAndIncomeGoalData($user, $linkedAccountNumbers, $request, $viewData);
         $viewData['paymentSchedules'] = $user ? PaymentSchedule::where('user_id', $user->id)->orderBy('next_due_date')->get() : collect();
         if ($user) {
