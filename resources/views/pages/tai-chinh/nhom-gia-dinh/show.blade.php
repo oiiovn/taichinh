@@ -65,6 +65,27 @@
     </div>
     @endif
 
+    @php $memberDepositorStats = $memberDepositorStats ?? []; @endphp
+    @if(count($memberDepositorStats) > 0)
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        @foreach($memberDepositorStats as $stat)
+        @php
+            $rank = $loop->iteration;
+            $amountColor = $rank === 1 ? 'text-green-600 dark:text-green-400' : ($rank === 2 ? 'text-amber-600 dark:text-amber-400' : 'text-orange-600 dark:text-orange-400');
+        @endphp
+        <div class="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900 dark:text-white">
+            <p class="mb-1 text-theme-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">{{ $stat['name'] ?: 'Thành viên' }}</p>
+            <p class="text-lg font-semibold {{ $amountColor }}">{{ number_format((int) $stat['total_this_month']) }} ₫</p>
+            @if(isset($stat['pct_change']) && $stat['pct_change'] !== null)
+            <p class="mt-0.5 text-theme-xs {{ $stat['pct_change'] >= 0 ? 'text-success-600 dark:text-success-400' : 'text-error-600 dark:text-error-400' }}">{{ $stat['pct_change'] >= 0 ? '+' : '' }}{{ number_format($stat['pct_change'], 1) }}% so với tháng trước</p>
+            @else
+            <p class="mt-0.5 text-theme-xs text-gray-500 dark:text-gray-400">— so với tháng trước</p>
+            @endif
+        </div>
+        @endforeach
+    </div>
+    @endif
+
     <form method="GET" action="{{ route('tai-chinh.nhom-gia-dinh.show', $household->id) }}" id="form-household-giao-dich-filter" class="mb-4 flex flex-wrap items-center gap-3">
         <input type="text" name="q" value="{{ request('q') }}" placeholder="Tìm mô tả, Số TK..."
             class="h-10 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">

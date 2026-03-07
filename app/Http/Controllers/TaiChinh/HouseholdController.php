@@ -84,6 +84,7 @@ class HouseholdController extends Controller
             ? app(AnalyticsAggregateService::class)->monthlyInOut($owner->id, $linkedAccountNumbers, 1)
             : ['monthly' => [], 'summary' => ['total_thu' => 0, 'total_chi' => 0, 'net_cashflow' => 0, 'pct_change_net' => null], 'has_actual_data' => false];
         $currentMonthLabel = 'Tháng ' . now()->format('n/Y');
+        $memberDepositorStats = self::memberDepositorStats($household, $owner->id, $linkedAccountNumbers);
         return view('pages.tai-chinh.nhom-gia-dinh.show', [
             'currentMonthLabel' => $currentMonthLabel,
             'household' => $household,
@@ -101,7 +102,78 @@ class HouseholdController extends Controller
             'householdMonthlyAnalytics' => $householdMonthlyAnalytics,
             'depositorOptions' => self::depositorOptionsForHousehold($household),
             'updateDepositorUrlTemplate' => url()->route('tai-chinh.nhom-gia-dinh.transactions.depositor', ['household' => $household->id, 'transaction' => '__TXID__']),
+            'memberDepositorStats' => $memberDepositorStats,
         ]);
+    }
+
+    /**
+     * Tổng nạp theo từng thành viên (trừ chủ nhóm) trong tháng này và tháng trước, % thay đổi.
+     *
+     * @param  array<string>  $linkedAccountNumbers
+     * @return array<int, array{user_id: int, name: string, total_this_month: float, total_prev_month: float, pct_change: ?float}>
+     */
+    protected static function memberDepositorStats(Household $household, int $ownerUserId, array $linkedAccountNumbers = []): array
+    {
+        $members = $household->members()->where('user_id', '!=', $household->owner_user_id)->with('user')->get();
+        if ($members->isEmpty()) {
+            return [];
+        }
+        $memberIds = $members->pluck('user_id')->unique()->filter()->values()->all();
+        $now = now();
+        $startThis = $now->copy()->startOfMonth();
+        $endThis = $now->copy()->endOfMonth();
+        $startPrev = $now->copy()->subMonth()->startOfMonth();
+        $endPrev = $now->copy()->subMonth()->endOfMonth();
+
+        $q = TransactionHistory::query()
+            ->where('user_id', $ownerUserId)
+            ->where('type', 'IN')
+            ->whereNotNull('depositor_user_id')
+            ->whereIn('depositor_user_id', $memberIds);
+
+        if (! empty($linkedAccountNumbers)) {
+            $q->where(function ($qb) use ($linkedAccountNumbers) {
+                $qb->whereIn('account_number', $linkedAccountNumbers)
+                    ->orWhereHas('bankAccount', fn ($q2) => $q2->whereIn('account_number', $linkedAccountNumbers));
+            });
+        }
+
+        $thisMonth = (clone $q)->whereBetween('transaction_date', [$startThis, $endThis])
+            ->selectRaw('depositor_user_id, SUM(amount) as total')
+            ->groupBy('depositor_user_id')
+            ->get()
+            ->keyBy('depositor_user_id');
+        $prevMonth = (clone $q)->whereBetween('transaction_date', [$startPrev, $endPrev])
+            ->selectRaw('depositor_user_id, SUM(amount) as total')
+            ->groupBy('depositor_user_id')
+            ->get()
+            ->keyBy('depositor_user_id');
+
+        $result = [];
+        foreach ($members as $m) {
+            $u = $m->user;
+            if (! $u) {
+                continue;
+            }
+            $uid = (int) $u->id;
+            $thisVal = (float) ($thisMonth->get($uid)?->total ?? 0);
+            $prevVal = (float) ($prevMonth->get($uid)?->total ?? 0);
+            $pct = null;
+            if ($prevVal != 0) {
+                $pct = (($thisVal - $prevVal) / $prevVal) * 100;
+            } elseif ($thisVal > 0) {
+                $pct = 100.0;
+            }
+            $result[] = [
+                'user_id' => $uid,
+                'name' => $u->name ?? '',
+                'total_this_month' => $thisVal,
+                'total_prev_month' => $prevVal,
+                'pct_change' => $pct,
+            ];
+        }
+        usort($result, fn ($a, $b) => $b['total_this_month'] <=> $a['total_this_month']);
+        return array_slice($result, 0, 3);
     }
 
     public function updateTransactionDepositor(Request $request, int $household, int $transaction): JsonResponse
