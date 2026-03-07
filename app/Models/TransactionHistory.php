@@ -21,6 +21,7 @@ class TransactionHistory extends Model
         'description',
         'merchant_key',
         'merchant_group',
+        'merchant_vector',
         'classification_source',
         'system_category_id',
         'user_category_id',
@@ -37,6 +38,7 @@ class TransactionHistory extends Model
         'amount' => 'decimal:2',
         'transaction_date' => 'datetime',
         'raw_json' => 'array',
+        'merchant_vector' => 'array',
         'classification_meta' => 'array',
         'classification_confidence' => 'float',
     ];

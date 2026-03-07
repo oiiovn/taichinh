@@ -3,7 +3,7 @@
 **TailAdmin Laravel** is a modern, production-ready admin dashboard template powered by **Laravel 12**, **Tailwind CSS v4**, **Alpine.js**, and a clean, modular architecture. TailAdmin is one of the most popular Tailwind CSS dashboard now also available for Larvael. It’s designed for building fast, scalable admin panels, CRM dashboards, SaaS backends, and any data-driven application where clarity and performance matter.
 Ứng dụng web: liên kết tài khoản ngân hàng, thu chi, nợ/khoản vay, phân tích và gợi ý chiến lược. Stack: Laravel 12, Tailwind CSS v4, Alpine.js (UI từ [TailAdmin Laravel](https://tailadmin.com/laravel)). **Tài liệu:** [docs/](docs/README.md).
 
-* **Tài liệu dự án:** [docs/](docs/README.md) | **UI template:** [TailAdmin Laravel](https://tailadmin.com/laravel)
+* **Tài liệu dự án:** [docs/](docs/README.md) | **Triển khai & push hot:** [docs/DEPLOY_AND_PUSH_HOT.md](docs/DEPLOY_AND_PUSH_HOT.md) | **UI template:** [TailAdmin Laravel](https://tailadmin.com/laravel)
 
 
 ## ✨ Stack (Key Features)

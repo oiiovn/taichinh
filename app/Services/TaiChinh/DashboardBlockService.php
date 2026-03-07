@@ -86,7 +86,8 @@ class DashboardBlockService
         $syncStatus = $this->dashboardCardService->getSyncStatus($userBankAccounts, $accounts, $user->id);
         $adaptiveThresholds = $this->adaptiveThresholdService->getAdaptiveThresholds($user, $linkedAccountNumbers, $totalBalance > 0 ? $totalBalance : null);
         $giaoDichUrl = route('tai-chinh', ['tab' => 'giao-dich']);
-        $cardEvents = $this->dashboardCardService->buildCardEvents(
+        $firstStk = $userBankAccounts->isNotEmpty() ? trim((string) ($userBankAccounts->first()->account_number ?? '')) : null;
+        $batchResult = $this->dashboardCardService->buildCardEventsBatch(
             $user->id,
             $linkedAccountNumbers,
             $balances,
@@ -94,12 +95,17 @@ class DashboardBlockService
             $weekSummary,
             $syncStatus,
             $balanceDeltas,
+            $todayBatch,
+            $weekBatch,
+            $deltaBatch,
             $giaoDichUrl,
             $user->low_balance_threshold,
             $user->balance_change_amount_threshold ?? $adaptiveThresholds['balance_change_amount'],
             $user->spend_spike_ratio ?? $adaptiveThresholds['spike_ratio'],
-            $user->week_anomaly_pct ?? $adaptiveThresholds['week_anomaly_pct']
+            $user->week_anomaly_pct ?? $adaptiveThresholds['week_anomaly_pct'],
+            $firstStk
         );
+        $cardEvents = $batchResult['all'];
 
         $perAccount = [];
         foreach ($userBankAccounts as $acc) {
@@ -107,7 +113,6 @@ class DashboardBlockService
             if ($stk === '') {
                 continue;
             }
-            $bal = $balances[$stk] ?? 0;
             $perAccToday = $todayBatch[$stk] ?? ['total_in' => 0.0, 'total_out' => 0.0, 'count' => 0];
             $perAccWeek = $weekBatch[$stk] ?? ['this_week' => ['in' => 0, 'out' => 0], 'last_week' => ['in' => 0, 'out' => 0], 'pct_in' => null, 'pct_out' => null, 'days_compared' => 0];
             $perAccDelta = $deltaBatch[$stk] ?? ['total' => ['change' => 0, 'percent' => null]];
@@ -115,20 +120,7 @@ class DashboardBlockService
                 'today' => $perAccToday,
                 'week' => $perAccWeek,
                 'balance_delta' => $perAccDelta,
-                'events' => $this->dashboardCardService->buildCardEvents(
-                    $user->id,
-                    [$stk],
-                    [$stk => $bal],
-                    $perAccToday,
-                    $perAccWeek,
-                    $syncStatus,
-                    $perAccDelta,
-                    $giaoDichUrl,
-                    $user->low_balance_threshold,
-                    $user->balance_change_amount_threshold ?? $adaptiveThresholds['balance_change_amount'],
-                    $user->spend_spike_ratio ?? $adaptiveThresholds['spike_ratio'],
-                    $user->week_anomaly_pct ?? $adaptiveThresholds['week_anomaly_pct']
-                ),
+                'events' => $batchResult['by_account'][$stk] ?? [],
             ];
         }
 

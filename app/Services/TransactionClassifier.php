@@ -37,6 +37,8 @@ class TransactionClassifier
     public const SOURCE_BEHAVIOR = 'behavior';
     public const SOURCE_RECURRING = 'recurring';
     public const SOURCE_GLOBAL = 'global';
+    public const SOURCE_EMBEDDING_RULE = 'embedding_rule';
+    public const SOURCE_EMBEDDING_GLOBAL = 'embedding_global';
     public const SOURCE_AI = 'ai';
 
     public function classify(TransactionHistory $transaction): void
@@ -296,6 +298,13 @@ class TransactionClassifier
                     $transaction->type,
                     $transaction->amount_bucket ?? ''
                 );
+            }
+
+            if (in_array($best['source'], [self::SOURCE_EMBEDDING_RULE, self::SOURCE_EMBEDDING_GLOBAL], true)) {
+                $embeddingService = app(\App\Services\MerchantEmbeddingService::class);
+                if ($embeddingService->isEnabled() && trim($transaction->merchant_key ?? '') !== '' && $transaction->merchant_key !== 'unknown') {
+                    $embeddingService->getOrCreateForMerchantKey($transaction->merchant_key);
+                }
             }
         } else {
             $transaction->classification_status = TransactionHistory::CLASSIFICATION_STATUS_PENDING;

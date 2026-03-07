@@ -588,6 +588,172 @@ class DashboardCardService
     }
 
     /**
+     * Một lần build events cho all + theo từng STK (dùng batch query), tránh gọi buildCardEvents 1+N lần.
+     *
+     * @param  array<string, array>  $todayBatch  [ stk => [ total_in, total_out, count ] ]
+     * @param  array<string, array>  $weekBatch   [ stk => [ pct_out, days_compared, ... ] ]
+     * @param  array<string, array>  $deltaBatch  [ stk => [ total => [ change, percent ] ] ]
+     * @param  string|null  $firstStkForGlobal  STK của thẻ đầu tiên (nhận event toàn cụm); null = linkedAccountNumbers[0]
+     * @return array{all: array, by_account: array<string, array>}
+     */
+    public function buildCardEventsBatch(
+        int $userId,
+        array $linkedAccountNumbers,
+        array $accountBalances,
+        array $todaySummary,
+        array $weekSummary,
+        array $syncStatus,
+        array $balanceDeltas,
+        array $todayBatch,
+        array $weekBatch,
+        array $deltaBatch,
+        string $giaoDichUrl,
+        ?int $lowBalanceThreshold = null,
+        ?int $balanceChangeAmountThreshold = null,
+        ?float $spendSpikeRatio = null,
+        ?int $weekAnomalyPctThreshold = null,
+        ?string $firstStkForGlobal = null
+    ): array {
+        $allEvents = $this->buildCardEvents(
+            $userId,
+            $linkedAccountNumbers,
+            $accountBalances,
+            $todaySummary,
+            $weekSummary,
+            $syncStatus,
+            $balanceDeltas,
+            $giaoDichUrl,
+            $lowBalanceThreshold,
+            $balanceChangeAmountThreshold,
+            $spendSpikeRatio,
+            $weekAnomalyPctThreshold
+        );
+        $byAccount = [];
+        if (empty($linkedAccountNumbers)) {
+            return ['all' => $allEvents, 'by_account' => $byAccount];
+        }
+        $threshold = $lowBalanceThreshold ?? self::LOW_BALANCE_THRESHOLD_DEFAULT;
+        $balanceChangeAmount = $balanceChangeAmountThreshold ?? self::BALANCE_CHANGE_AMOUNT_THRESHOLD;
+        $spikeRatio = $spendSpikeRatio ?? self::SPEND_SPIKE_RATIO;
+        $weekAnomalyPct = $weekAnomalyPctThreshold ?? 50;
+        $avgOut7Batch = $this->getAverageOutLastDaysBatch($userId, $linkedAccountNumbers, 7);
+        $hasManyShortBatch = $this->hasManyOutInShortWindowBatch($userId, $linkedAccountNumbers);
+        $syncStks = [];
+        if ($syncStatus['has_error'] ?? false) {
+            foreach ($syncStatus['by_account'] ?? [] as $stk => $info) {
+                if (! ($info['ok'] ?? true)) {
+                    $syncStks[] = $stk;
+                }
+            }
+        }
+        $globalEventTypes = ['burn_risk', 'negative_streak', 'income_drop', 'high_dependency', 'unclassified_risk', 'runway_risk', 'income_volatility_risk', 'overdraft_risk', 'unknown_merchant'];
+        $globalEvents = array_values(array_filter($allEvents, function ($ev) use ($globalEventTypes) {
+            $type = $ev['type'] ?? '';
+            $hasAccount = isset($ev['account_number']) && (string) $ev['account_number'] !== '';
+            $hasAccounts = ! empty($ev['account_numbers']);
+            return in_array($type, $globalEventTypes, true) && ! $hasAccount && ! $hasAccounts;
+        }));
+        $syncEvent = null;
+        foreach ($allEvents as $ev) {
+            if (($ev['type'] ?? '') === 'sync_error') {
+                $syncEvent = $ev;
+                break;
+            }
+        }
+        $firstStk = $firstStkForGlobal !== null && $firstStkForGlobal !== ''
+            ? trim($firstStkForGlobal)
+            : (isset($linkedAccountNumbers[0]) ? trim((string) $linkedAccountNumbers[0]) : null);
+        foreach ($linkedAccountNumbers as $stk) {
+            $stk = trim((string) $stk);
+            if ($stk === '') {
+                continue;
+            }
+            $perEv = [];
+            if ($syncEvent !== null && in_array($stk, $syncStks, true)) {
+                $perEv[] = $this->withSeverity(array_merge($syncEvent, ['account_number' => $stk]));
+            }
+            $balance = (float) ($accountBalances[$stk] ?? 0);
+            if ($balance > 0 && $balance < $threshold) {
+                $perEv[] = $this->withSeverity([
+                    'type' => 'low_balance',
+                    'icon' => '📉',
+                    'label' => 'Số dư thấp',
+                    'description' => 'Dưới ' . number_format($threshold / 1000000, 1) . ' triệu ₫',
+                    'threshold' => $threshold,
+                    'url' => $giaoDichUrl,
+                    'account_number' => $stk,
+                ]);
+            }
+            $perDelta = $deltaBatch[$stk]['total'] ?? null;
+            if ($perDelta && isset($perDelta['change'])) {
+                $change = (float) $perDelta['change'];
+                $pct = $perDelta['percent'] ?? null;
+                $absChange = abs($change);
+                if ($absChange >= $balanceChangeAmount || ($pct !== null && abs($pct) >= self::BALANCE_CHANGE_PCT_THRESHOLD)) {
+                    $perEv[] = $this->withSeverity([
+                        'type' => 'balance_change',
+                        'icon' => $change >= 0 ? '📈' : '📉',
+                        'label' => 'Số dư thay đổi mạnh',
+                        'description' => ($change >= 0 ? '+' : '') . number_format($change, 0, ',', '.') . ' ₫ so với hôm qua',
+                        'url' => $giaoDichUrl,
+                        'account_number' => $stk,
+                    ]);
+                }
+            }
+            $perToday = $todayBatch[$stk] ?? ['total_in' => 0.0, 'total_out' => 0.0, 'count' => 0];
+            $avgOut7 = $avgOut7Batch[$stk] ?? 0.0;
+            if ($avgOut7 > 0 && ($perToday['total_out'] ?? 0) > 0 && ($perToday['total_out']) >= $avgOut7 * $spikeRatio) {
+                $pct = (int) round($spikeRatio * 100);
+                $perEv[] = $this->withSeverity([
+                    'type' => 'spend_spike',
+                    'icon' => '🔥',
+                    'label' => 'Chi vượt ngưỡng',
+                    'description' => 'Chi hôm nay cao hơn ~' . $pct . '% mức trung bình 7 ngày',
+                    'url' => $giaoDichUrl,
+                    'account_number' => $stk,
+                ]);
+            }
+            $perWeek = $weekBatch[$stk] ?? [];
+            $weekOutPct = $perWeek['pct_out'] ?? null;
+            $daysCompared = $perWeek['days_compared'] ?? 7;
+            $weekCompareSuffix = $daysCompared < 7 ? ' (' . $daysCompared . ' ngày đầu tuần)' : '';
+            if ($weekOutPct !== null && abs($weekOutPct) >= $weekAnomalyPct) {
+                $perEv[] = $this->withSeverity([
+                    'type' => 'week_anomaly',
+                    'icon' => '📊',
+                    'label' => $weekOutPct > 0 ? 'Chi tuần này tăng mạnh' : 'Chi tuần này giảm mạnh',
+                    'description' => ($weekOutPct >= 0 ? '+' : '') . $weekOutPct . '% so với tuần trước' . $weekCompareSuffix,
+                    'url' => $giaoDichUrl,
+                    'account_number' => $stk,
+                ]);
+            }
+            if ($hasManyShortBatch[$stk] ?? false) {
+                $perEv[] = $this->withSeverity([
+                    'type' => 'many_short',
+                    'icon' => '⏱️',
+                    'label' => 'Nhiều giao dịch trong thời gian ngắn',
+                    'description' => '≥ ' . self::MANY_TRANSACTIONS_COUNT . ' giao dịch trừ tiền trong ' . self::MANY_TRANSACTIONS_HOURS . ' giờ',
+                    'url' => $giaoDichUrl,
+                    'account_number' => $stk,
+                ]);
+            }
+            if ($stk === $firstStk) {
+                foreach ($globalEvents as $ge) {
+                    $perEv[] = $this->withSeverity($ge);
+                }
+            }
+            $perEv = $this->applyCooldownFilter($userId, $perEv);
+            $perEv = $this->applyEventFatigueLogic($perEv);
+            usort($perEv, function ($a, $b) {
+                return ($b['severity'] ?? 0) <=> ($a['severity'] ?? 0);
+            });
+            $perEv = array_slice($perEv, 0, self::MAX_EVENTS_DISPLAY);
+            $byAccount[$stk] = $this->attachEventDetailUrls($perEv);
+        }
+        return ['all' => $allEvents, 'by_account' => $byAccount];
+    }
+
+    /**
      * Gán url chi tiết sự kiện (tai-chinh.su-kien) cho từng event: type + stk (4 số cuối, hoặc null nếu nhiều tài khoản).
      */
     public function attachEventDetailUrls(array $events): array
@@ -683,6 +849,55 @@ class DashboardCardService
             ->whereBetween('transaction_date', [$from, $to])
             ->sum('amount');
         return $days > 0 ? $sum / $days : 0;
+    }
+
+    /** Trung bình chi theo từng STK (N ngày). Một query, trả [ stk => avg ]. */
+    private function getAverageOutLastDaysBatch(int $userId, array $linkedAccountNumbers, int $days): array
+    {
+        if (empty($linkedAccountNumbers) || $days < 1) {
+            return [];
+        }
+        $from = Carbon::today()->subDays($days)->startOfDay();
+        $to = Carbon::yesterday()->endOfDay();
+        $rows = TransactionHistory::where('user_id', $userId)
+            ->whereIn('account_number', $linkedAccountNumbers)
+            ->where('type', 'OUT')
+            ->whereBetween('transaction_date', [$from, $to])
+            ->selectRaw('account_number, SUM(ABS(amount)) as total')
+            ->groupBy('account_number')
+            ->get();
+        $out = array_fill_keys(array_map(fn ($n) => trim((string) $n), $linkedAccountNumbers), 0.0);
+        foreach ($rows as $r) {
+            $stk = trim((string) ($r->account_number ?? ''));
+            if ($stk !== '' && array_key_exists($stk, $out)) {
+                $out[$stk] = (float) $r->total / $days;
+            }
+        }
+        return $out;
+    }
+
+    /** Nhiều giao dịch OUT trong cửa sổ ngắn: theo từng STK. Một query, trả [ stk => bool ]. */
+    private function hasManyOutInShortWindowBatch(int $userId, array $linkedAccountNumbers): array
+    {
+        if (empty($linkedAccountNumbers)) {
+            return [];
+        }
+        $since = Carbon::now()->subHours(self::MANY_TRANSACTIONS_HOURS);
+        $rows = TransactionHistory::where('user_id', $userId)
+            ->whereIn('account_number', $linkedAccountNumbers)
+            ->where('type', 'OUT')
+            ->where('transaction_date', '>=', $since)
+            ->selectRaw('account_number, COUNT(*) as cnt')
+            ->groupBy('account_number')
+            ->get();
+        $out = array_fill_keys(array_map(fn ($n) => trim((string) $n), $linkedAccountNumbers), false);
+        foreach ($rows as $r) {
+            $stk = trim((string) ($r->account_number ?? ''));
+            if ($stk !== '' && array_key_exists($stk, $out) && (int) $r->cnt >= self::MANY_TRANSACTIONS_COUNT) {
+                $out[$stk] = true;
+            }
+        }
+        return $out;
     }
 
     /**

@@ -7,6 +7,8 @@ return [
             'rule' => 1.0,
             'recurring' => 0.9,
             'behavior' => 0.75,
+            'embedding_rule' => 0.85,
+            'embedding_global' => 0.72,
             'global' => 0.7,
             'ai' => 0.65,
         ],

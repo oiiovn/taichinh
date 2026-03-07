@@ -10,6 +10,7 @@ use App\Models\UserCategory;
 use App\Models\UserMerchantRule;
 use App\Models\UserRecurringPattern;
 use App\Services\MerchantKeyNormalizer;
+use App\Services\MerchantEmbeddingService;
 use App\Services\TransactionClassificationGptService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -20,7 +21,8 @@ class CandidateCollector
 
     public function __construct(
         private MerchantKeyNormalizer $normalizer,
-        private TransactionClassificationGptService $gptService
+        private TransactionClassificationGptService $gptService,
+        private MerchantEmbeddingService $embeddingService
     ) {}
 
     /**
@@ -54,6 +56,11 @@ class CandidateCollector
         $global = $this->findGlobalCandidate($group, $transaction->type, $transaction->amount_bucket);
         if ($global !== null) {
             $candidates[] = $global;
+        }
+
+        $embedding = $this->findEmbeddingCandidate($transaction);
+        if ($embedding !== null) {
+            $candidates[] = $embedding;
         }
 
         $gpt = $this->findGptCandidate($transaction, $group);
@@ -281,6 +288,63 @@ class CandidateCollector
             'pattern_id' => $pattern->id,
             'pattern_model' => 'GlobalMerchantPattern',
             'reason' => 'global_pattern',
+        ];
+    }
+
+    private function findEmbeddingCandidate(TransactionHistory $transaction): ?array
+    {
+        if (! $this->embeddingService->isEnabled()) {
+            return null;
+        }
+
+        $cfg = config('merchant_embedding.classification', []);
+        $minSimilarity = (float) ($cfg['min_similarity'] ?? 0.72);
+        $maxCandidates = (int) ($cfg['max_candidates'] ?? 5);
+
+        $vector = $transaction->merchant_vector;
+        if (! is_array($vector) || empty($vector)) {
+            $text = trim($transaction->description ?? '') !== ''
+                ? $transaction->description
+                : ($transaction->merchant_key ?? 'unknown');
+            $vector = $this->embeddingService->embed($text);
+        }
+
+        if (empty($vector)) {
+            return null;
+        }
+
+        $nearest = $this->embeddingService->findNearest($vector, $maxCandidates, $minSimilarity);
+        if (empty($nearest)) {
+            return null;
+        }
+
+        $resolved = $this->embeddingService->resolveCategoryFromNearest(
+            $transaction->user_id,
+            $transaction->type ?? '',
+            $nearest
+        );
+        if ($resolved === null) {
+            return null;
+        }
+
+        $score = $resolved['score'];
+        $userCategoryId = $resolved['user_category_id'];
+        $systemCategoryId = $resolved['system_category_id'];
+        if ($userCategoryId === null && $systemCategoryId === null) {
+            return null;
+        }
+
+        return [
+            'source' => $resolved['source'],
+            'user_category_id' => $userCategoryId,
+            'system_category_id' => $systemCategoryId,
+            'raw_confidence' => $score,
+            'stability_score' => min(1.0, $score + 0.05),
+            'evidence_score' => $score,
+            'risk_adjustment' => 0.0,
+            'pattern_id' => null,
+            'pattern_model' => null,
+            'reason' => 'merchant_embedding',
         ];
     }
 

@@ -148,6 +148,10 @@ npm run build
 
 **Scheduler:** Nếu dùng cron cho job định kỳ (ví dụ behavior aggregate 02:30, policy sync 03:00): `* * * * * cd /path && php artisan schedule:run`.
 
+### 4.3 Push hot (đẩy bản cập nhật nhanh)
+
+Sau khi `git pull`, chạy nhanh: migrate → cache → build → restart queue. **Chi tiết đầy đủ và one-liner:** [DEPLOY_AND_PUSH_HOT.md](./DEPLOY_AND_PUSH_HOT.md).
+
 ## 5. Testing & CI
 
 ### 5.1 Chạy test
@@ -213,6 +217,7 @@ $canEdit = $user->id === $household->owner_user_id;  // 31 === "31" → false
 | 2026-02-24 | Tab Tài khoản: khi không được thêm TK (hết hạn gói / đạt max_accounts), nút "Kết nối" điều hướng đến /goi-hien-tai. Cập nhật mục route 2.1. |
 | 2026-02-28 | Mục 7: Quy ước so sánh ID — ép (int) khi so sánh user_id / owner_user_id để tránh lỗi trên production (DB trả string). |
 | 2026-03-02 | Mục 8: Quy ước tiền VND — luôn lưu số nguyên đồng, không lưu/parse dạng dấu chấm phân cách hàng nghìn; VndHelper, schema DECIMAL(15,0). |
+| 2026-03-07 | Mục 4.3: Thêm Push hot — tham chiếu DEPLOY_AND_PUSH_HOT.md. |
 
 ---
-*Cập nhật lần cuối: 2026-03-02.*
+*Cập nhật lần cuối: 2026-03-07.*

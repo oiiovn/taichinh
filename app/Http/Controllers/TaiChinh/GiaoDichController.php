@@ -176,7 +176,7 @@ class GiaoDichController extends Controller
                     $oldSystemCategoryId = $transaction->system_category_id;
 
                     $globalPatternId = null;
-                    if (in_array($oldSource, [TransactionClassifier::SOURCE_BEHAVIOR, TransactionClassifier::SOURCE_RECURRING, TransactionClassifier::SOURCE_GLOBAL, TransactionClassifier::SOURCE_AI], true)) {
+                    if (in_array($oldSource, [TransactionClassifier::SOURCE_BEHAVIOR, TransactionClassifier::SOURCE_RECURRING, TransactionClassifier::SOURCE_GLOBAL, TransactionClassifier::SOURCE_AI, TransactionClassifier::SOURCE_EMBEDDING_RULE, TransactionClassifier::SOURCE_EMBEDDING_GLOBAL], true)) {
                         if ($oldSource === TransactionClassifier::SOURCE_GLOBAL && $oldSystemCategoryId && $transaction->merchant_group) {
                             $bucket = $transaction->amount_bucket ?? '';
                             $pattern = GlobalMerchantPattern::where('merchant_group', $transaction->merchant_group)
@@ -290,6 +290,15 @@ class GiaoDichController extends Controller
             if ($systemCategoryId !== null) {
                 foreach ($merchantGroupsDone as $mg) {
                     UpdateGlobalMerchantPatternJob::dispatch($mg, (int) $systemCategoryId);
+                }
+            }
+
+            $embeddingService = app(\App\Services\MerchantEmbeddingService::class);
+            if ($embeddingService->isEnabled()) {
+                foreach ($merchantKeysDone as $mk) {
+                    if ($mk !== '' && $mk !== 'unknown') {
+                        $embeddingService->getOrCreateForMerchantKey($mk);
+                    }
                 }
             }
 

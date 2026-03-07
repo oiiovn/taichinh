@@ -498,7 +498,9 @@ class TaiChinhIndexViewDataBuilder
 
         $viewData['dashboardSyncStatus'] = $this->dashboardCardService->getSyncStatus($userBankAccounts, $accounts, $user->id);
         $adaptiveThresholds = $this->adaptiveThresholdService->getAdaptiveThresholds($user, $linkedAccountNumbers, $totalBalance > 0 ? $totalBalance : null);
-        $viewData['dashboardCardEvents'] = $this->dashboardCardService->buildCardEvents(
+        $giaoDichUrl = route('tai-chinh', ['tab' => 'giao-dich']);
+        $firstStk = $userBankAccounts->isNotEmpty() ? trim((string) ($userBankAccounts->first()->account_number ?? '')) : null;
+        $batchResult = $this->dashboardCardService->buildCardEventsBatch(
             $user->id,
             $linkedAccountNumbers,
             $balances,
@@ -506,18 +508,22 @@ class TaiChinhIndexViewDataBuilder
             $viewData['dashboardWeekSummary'],
             $viewData['dashboardSyncStatus'],
             $viewData['dashboardBalanceDeltas'],
-            route('tai-chinh', ['tab' => 'giao-dich']),
+            $todayBatch,
+            $weekBatch,
+            $deltaBatch,
+            $giaoDichUrl,
             $user->low_balance_threshold,
             $user->balance_change_amount_threshold ?? $adaptiveThresholds['balance_change_amount'],
             $user->spend_spike_ratio ?? $adaptiveThresholds['spike_ratio'],
-            $user->week_anomaly_pct ?? $adaptiveThresholds['week_anomaly_pct']
+            $user->week_anomaly_pct ?? $adaptiveThresholds['week_anomaly_pct'],
+            $firstStk
         );
+        $viewData['dashboardCardEvents'] = $batchResult['all'];
         foreach ($userBankAccounts as $acc) {
             $stk = trim((string) ($acc->account_number ?? ''));
             if ($stk === '') {
                 continue;
             }
-            $bal = $balances[$stk] ?? 0;
             $perAccToday = $todayBatch[$stk] ?? ['total_in' => 0.0, 'total_out' => 0.0, 'count' => 0];
             $perAccWeek = $weekBatch[$stk] ?? ['this_week' => ['in' => 0, 'out' => 0], 'last_week' => ['in' => 0, 'out' => 0], 'pct_in' => null, 'pct_out' => null, 'days_compared' => 0];
             $perAccBalanceDelta = $deltaBatch[$stk] ?? ['total' => ['change' => 0, 'percent' => null]];
@@ -525,20 +531,7 @@ class TaiChinhIndexViewDataBuilder
                 'today' => $perAccToday,
                 'week' => $perAccWeek,
                 'balance_delta' => $perAccBalanceDelta,
-                'events' => $this->dashboardCardService->buildCardEvents(
-                    $user->id,
-                    [$stk],
-                    [$stk => $bal],
-                    $perAccToday,
-                    $perAccWeek,
-                    $viewData['dashboardSyncStatus'],
-                    $perAccBalanceDelta,
-                    route('tai-chinh', ['tab' => 'giao-dich']),
-                    $user->low_balance_threshold,
-                    $user->balance_change_amount_threshold ?? $adaptiveThresholds['balance_change_amount'],
-                    $user->spend_spike_ratio ?? $adaptiveThresholds['spike_ratio'],
-                    $user->week_anomaly_pct ?? $adaptiveThresholds['week_anomaly_pct']
-                ),
+                'events' => $batchResult['by_account'][$stk] ?? [],
             ];
         }
     }
