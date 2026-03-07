@@ -154,6 +154,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/tai-chinh/nhom-gia-dinh/{id}', [\App\Http\Controllers\TaiChinh\HouseholdController::class, 'show'])->name('tai-chinh.nhom-gia-dinh.show');
         Route::post('/tai-chinh/nhom-gia-dinh/{id}/members', [\App\Http\Controllers\TaiChinh\HouseholdController::class, 'storeMember'])->name('tai-chinh.nhom-gia-dinh.members.store');
         Route::get('/tai-chinh/nhom-gia-dinh/{id}/giao-dich-table', [\App\Http\Controllers\TaiChinh\HouseholdController::class, 'giaoDichTable'])->name('tai-chinh.nhom-gia-dinh.giao-dich-table');
+        Route::post('/tai-chinh/nhom-gia-dinh/{household}/transactions/{transaction}/depositor', [\App\Http\Controllers\TaiChinh\HouseholdController::class, 'updateTransactionDepositor'])->name('tai-chinh.nhom-gia-dinh.transactions.depositor');
         Route::post('/tai-chinh/tongquan-statistic', [\App\Http\Controllers\TaiChinh\TongquanStatisticController::class, 'store'])->name('tai-chinh.tongquan-statistic.store');
         Route::put('/tai-chinh/tongquan-statistic/{tongquanStatistic}', [\App\Http\Controllers\TaiChinh\TongquanStatisticController::class, 'update'])->name('tai-chinh.tongquan-statistic.update');
         Route::delete('/tai-chinh/tongquan-statistic/{tongquanStatistic}', [\App\Http\Controllers\TaiChinh\TongquanStatisticController::class, 'destroy'])->name('tai-chinh.tongquan-statistic.destroy');

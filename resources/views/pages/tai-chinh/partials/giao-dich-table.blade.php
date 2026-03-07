@@ -7,11 +7,13 @@
     $showEditBar = $canEdit && $hasCategories;
     $showStkColumn = count($linkedAccountNumbers ?? []) > 1;
     $showNguoiNap = !empty($householdContext) && !empty($depositorNameMap) && is_array($depositorNameMap);
+    $canAssignDepositor = $canEdit && $showNguoiNap && !empty($depositorOptions) && !empty($updateDepositorUrlTemplate);
 @endphp
 @if(!empty($load_error))
     <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">{{ $load_error_message ?? 'Không tải được danh sách giao dịch.' }}</div>
 @endif
-<div id="giao-dich-table-wrapper" data-ajax-container>
+<div id="giao-dich-table-wrapper" data-ajax-container
+    @if($canAssignDepositor ?? false) data-update-depositor-url="{{ $updateDepositorUrlTemplate ?? '' }}" data-csrf-token="{{ csrf_token() }}" @endif>
     <div id="bar-luu-danh-muc" class="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-800/50" style="display: none;">
         @if($showEditBar)
             <form method="POST" action="{{ route('tai-chinh.confirm-classification') }}" id="form-luu-danh-muc-tat-ca" class="flex flex-wrap items-center gap-3">
@@ -132,7 +134,7 @@
                         <td class="px-4 py-2.5 text-right font-medium {{ $t->type === 'IN' ? 'text-success-600 dark:text-success-400' : 'text-gray-900 dark:text-white' }}">{{ $t->type === 'IN' ? '+' : '-' }}{{ number_format(abs($t->amount)) }} ₫</td>
                         <td class="px-4 py-2.5 max-w-xs truncate" title="{{ $t->description }}">{{ $t->description ?: '-' }}</td>
                         @if($showNguoiNap)
-                        <td class="px-4 py-2.5">
+                        <td class="px-4 py-2.5" data-tx-id="{{ $t->id }}">
                             @php
                                 $nguoiNap = $t->depositor?->name ?? null;
                                 if ($nguoiNap === null) {
@@ -149,7 +151,16 @@
                                     }
                                 }
                             @endphp
+                            @if($canAssignDepositor)
+                            <select class="depositor-select h-9 min-w-[140px] rounded-lg border border-gray-300 bg-white px-2 py-1.5 text-sm text-gray-800 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/20 dark:border-gray-600 dark:bg-gray-800 dark:text-white" data-tx-id="{{ $t->id }}" data-current="{{ $t->depositor_user_id ?? '' }}" title="Gán người nạp">
+                                <option value="" {{ ($t->depositor_user_id ?? '') === '' ? 'selected' : '' }}>—</option>
+                                @foreach($depositorOptions ?? [] as $opt)
+                                <option value="{{ $opt['id'] }}" {{ (string)($t->depositor_user_id ?? '') === (string)$opt['id'] ? 'selected' : '' }}>{{ $opt['name'] }}</option>
+                                @endforeach
+                            </select>
+                            @else
                             {{ $nguoiNap }}
+                            @endif
                         </td>
                         @endif
                         <td class="px-4 py-2.5">
@@ -175,3 +186,32 @@
         </div>
     @endif
 </div>
+@if($canAssignDepositor ?? false)
+<script>
+(function() {
+    var wrapper = document.getElementById('giao-dich-table-wrapper');
+    if (!wrapper) return;
+    var urlTpl = wrapper.getAttribute('data-update-depositor-url');
+    var csrf = wrapper.getAttribute('data-csrf-token');
+    if (!urlTpl || !csrf) return;
+    wrapper.addEventListener('change', function(e) {
+        var sel = e.target;
+        if (!sel.classList.contains('depositor-select')) return;
+        var txId = sel.getAttribute('data-tx-id');
+        if (!txId) return;
+        var url = urlTpl.replace('__TXID__', txId);
+        var val = sel.value;
+        var body = new FormData();
+        body.append('_token', csrf);
+        body.append('depositor_user_id', val);
+        sel.disabled = true;
+        fetch(url, { method: 'POST', body: body, headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+            .then(function(r) { return r.json().then(function(j) { return { ok: r.ok, j: j }; }); })
+            .then(function(_) {
+                sel.disabled = false;
+            })
+            .catch(function() { sel.disabled = false; });
+    });
+})();
+</script>
+@endif

@@ -5,9 +5,11 @@ namespace App\Http\Controllers\TaiChinh;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\GoiHienTaiController;
 use App\Models\Household;
+use App\Models\TransactionHistory;
 use App\Models\User;
 use App\Services\AnalyticsAggregateService;
 use App\Services\UserFinancialContextService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -97,7 +99,55 @@ class HouseholdController extends Controller
             'currentPlan' => $currentPlan,
             'planExpiringSoon' => $planExpiringSoon,
             'householdMonthlyAnalytics' => $householdMonthlyAnalytics,
+            'depositorOptions' => self::depositorOptionsForHousehold($household),
+            'updateDepositorUrlTemplate' => url()->route('tai-chinh.nhom-gia-dinh.transactions.depositor', ['household' => $household->id, 'transaction' => '__TXID__']),
         ]);
+    }
+
+    public function updateTransactionDepositor(Request $request, int $household, int $transaction): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['ok' => false, 'message' => 'Unauthorized'], 401);
+        }
+        $householdModel = Household::findOrFail($household);
+        if ((int) $householdModel->owner_user_id !== (int) $user->id) {
+            return response()->json(['ok' => false, 'message' => 'Chỉ chủ nhóm mới được gán người nạp.'], 403);
+        }
+        $tx = TransactionHistory::findOrFail($transaction);
+        if ((int) $tx->user_id !== (int) $householdModel->owner_user_id) {
+            return response()->json(['ok' => false, 'message' => 'Giao dịch không thuộc nhóm này.'], 403);
+        }
+        $depositorUserId = $request->input('depositor_user_id');
+        if ($depositorUserId !== null && $depositorUserId !== '') {
+            $depositorUserId = (int) $depositorUserId;
+            $options = self::depositorOptionsForHousehold($householdModel);
+            $allowedIds = collect($options)->pluck('id')->map(fn ($id) => (int) $id)->all();
+            if (! in_array($depositorUserId, $allowedIds, true)) {
+                return response()->json(['ok' => false, 'message' => 'Người nạp không hợp lệ.'], 422);
+            }
+        } else {
+            $depositorUserId = null;
+        }
+        $tx->update(['depositor_user_id' => $depositorUserId]);
+        $name = $depositorUserId ? (User::find($depositorUserId)?->name ?? '') : '';
+        return response()->json(['ok' => true, 'depositor_user_id' => $depositorUserId, 'depositor_name' => $name]);
+    }
+
+    /** @return array<int, array{id: int, name: string}> */
+    protected static function depositorOptionsForHousehold(Household $household): array
+    {
+        $owner = $household->owner;
+        $list = [['id' => (int) $owner->id, 'name' => $owner->name ?? '']];
+        $ids = [(int) $owner->id];
+        foreach ($household->members as $m) {
+            $u = $m->user;
+            if ($u && ! in_array((int) $u->id, $ids, true)) {
+                $ids[] = (int) $u->id;
+                $list[] = ['id' => (int) $u->id, 'name' => $u->name ?? ''];
+            }
+        }
+        return $list;
     }
 
     public function store(Request $request): RedirectResponse
@@ -158,7 +208,7 @@ class HouseholdController extends Controller
                 'canEdit' => false,
             ]);
         }
-        $household = Household::findOrFail($id);
+        $household = Household::with(['owner', 'members.user'])->findOrFail($id);
         if (! $household->isMember($user)) {
             return response()->view('pages.tai-chinh.partials.giao-dich-table', [
                 'transactionHistory' => \App\Models\TransactionHistory::whereRaw('1 = 0')->paginate(50)->withQueryString(),
@@ -183,6 +233,8 @@ class HouseholdController extends Controller
             'householdContext' => true,
             'depositorNameMap' => self::depositorNameMap(),
             'canEdit' => $canEdit,
+            'depositorOptions' => self::depositorOptionsForHousehold($household),
+            'updateDepositorUrlTemplate' => url()->route('tai-chinh.nhom-gia-dinh.transactions.depositor', ['household' => $household->id, 'transaction' => '__TXID__']),
         ]);
     }
 
