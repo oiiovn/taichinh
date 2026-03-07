@@ -7,6 +7,13 @@
 @extends('layouts.tai-chinh')
 
 @section('taiChinhContent')
+<style>#household-show-content .apexcharts-tooltip,
+#household-show-content .apexcharts-marker,
+#household-show-content .apexcharts-point,
+#household-show-content .apexcharts-active,
+#household-show-content .apexcharts-series-markers,
+#household-show-content [class*="apexcharts-marker"],
+#household-show-content [class*="apexcharts-tooltip"] { display: none !important; visibility: hidden !important; pointer-events: none !important; }</style>
 <div class="space-y-4" id="household-show-content">
     @if(session('success'))
         <div class="rounded-lg border border-green-200 bg-green-50 p-4 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">{{ session('success') }}</div>
@@ -124,13 +131,18 @@ document.addEventListener('DOMContentLoaded', function() {
             div.innerHTML = '';
             var chart = new window.ApexCharts(div, {
                 series: [{ name: '', data: arr }],
-                chart: { type: 'area', height: 32, sparkline: { enabled: true }, animations: { enabled: false } },
+                chart: { type: 'area', height: 32, sparkline: { enabled: true }, animations: { enabled: false }, toolbar: { show: false } },
                 stroke: { curve: 'smooth', width: 1.5 },
                 fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0 } },
                 colors: [color],
-                tooltip: { enabled: false }
+                tooltip: { enabled: false },
+                markers: { size: 0, hover: { size: 0 } },
+                xaxis: { crosshairs: { show: false } },
+                yaxis: { crosshairs: { show: false } },
+                states: { hover: { filter: { type: 'none' } }, active: { filter: { type: 'none' } } }
             });
             chart.render();
+            div.style.pointerEvents = 'none';
         } catch (e) {}
     });
 });
