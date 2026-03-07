@@ -6,6 +6,7 @@ use App\Models\BehaviorEvent;
 use App\Models\BehaviorProgram;
 use App\Models\CongViecTask;
 use App\Models\KanbanColumn;
+use App\Models\WorkTaskInstance;
 use App\Models\Label;
 use App\Models\Project;
 use App\Services\AdaptiveTrustGradientService;
@@ -52,6 +53,7 @@ class CongViecController extends Controller
             'task_due_time' => ['nullable', 'string', 'max:5', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/'],
             'task_repeat' => ['nullable', 'string', 'in:none,daily,weekly,monthly,custom'],
             'task_repeat_until' => ['nullable', 'date', Rule::when($request->filled('task_due_date'), ['after_or_equal:task_due_date'])],
+            'task_repeat_interval' => ['nullable', 'integer', 'min:1', 'max:99'],
             'remind_minutes_before' => ['nullable', 'integer', 'in:0,5,15,30,60,120,1440'],
             'location' => ['nullable', 'string', 'max:500'],
             'label_ids' => ['nullable', 'array'],
@@ -80,6 +82,7 @@ class CongViecController extends Controller
         $task->location = $validated['location'] ?? null;
         $task->repeat = $validated['task_repeat'] ?? 'none';
         $task->repeat_until = $validated['task_repeat_until'] ?? null;
+        $task->repeat_interval = isset($validated['task_repeat_interval']) && $validated['task_repeat_interval'] >= 1 ? (int) $validated['task_repeat_interval'] : 1;
         $task->kanban_status = $validated['kanban_status'] ?? 'backlog';
         $task->category = $validated['category'] ?? null;
         $task->estimated_duration = $validated['estimated_duration'] ?? null;
@@ -145,6 +148,7 @@ class CongViecController extends Controller
             'program_id' => $request->input('program_id') !== '' && $request->input('program_id') !== null ? (int) $request->input('program_id') : null,
             'task_due_date' => $request->filled('task_due_date') ? $request->input('task_due_date') : null,
             'task_due_time' => $request->filled('task_due_time') ? $dueTime : null,
+            'task_repeat_until' => $request->filled('task_repeat_until') ? $request->input('task_repeat_until') : null,
         ]);
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:500'],
@@ -153,6 +157,9 @@ class CongViecController extends Controller
             'remind_minutes_before' => ['nullable', 'integer', 'in:0,5,15,30,60,120,1440'],
             'task_due_date' => ['nullable', 'date'],
             'task_due_time' => ['nullable', 'string', 'max:8', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
+            'task_repeat' => ['nullable', 'string', 'in:none,daily,weekly,monthly,custom'],
+            'task_repeat_until' => ['nullable', 'date', Rule::when($request->filled('task_due_date'), ['after_or_equal:task_due_date'])],
+            'task_repeat_interval' => ['nullable', 'integer', 'min:1', 'max:99'],
             'location' => ['nullable', 'string', 'max:500'],
             'label_ids' => ['nullable', 'array'],
             'label_ids.*' => ['integer', Rule::exists('labels', 'id')->where('user_id', $userId)],
@@ -169,6 +176,9 @@ class CongViecController extends Controller
         $task->due_date = $validated['task_due_date'] ?? (($validated['program_id'] ?? null) ? Carbon::now('Asia/Ho_Chi_Minh')->format('Y-m-d') : $task->due_date);
         $task->due_time = ! empty($validated['task_due_time']) ? substr($validated['task_due_time'], 0, 5) : null;
         $task->location = $validated['location'] ?? null;
+        $task->repeat = $validated['task_repeat'] ?? 'none';
+        $task->repeat_until = $validated['task_repeat_until'] ?? null;
+        $task->repeat_interval = isset($validated['task_repeat_interval']) && $validated['task_repeat_interval'] >= 1 ? (int) $validated['task_repeat_interval'] : 1;
         $task->category = $validated['category'] ?? null;
         $task->estimated_duration = $validated['estimated_duration'] ?? null;
         $task->impact = $validated['impact'] ?? null;
@@ -243,6 +253,80 @@ class CongViecController extends Controller
         $task->completed = true;
         $task->save();
         $this->captureTickAndUpdateTrust($user->id, (int) $id, $payload, 1.0, $task->program_id);
+
+        $programProgress = CongViecPageDataService::buildProgramProgressPayload($user->id, $task);
+
+        return response()->json([
+            'completed' => true,
+            'program_progress' => $programProgress,
+        ]);
+    }
+
+    public function toggleInstanceComplete(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $instance = WorkTaskInstance::with('task')->whereHas('task', fn ($q) => $q->where('user_id', $user->id))->findOrFail($id);
+        $task = $instance->task;
+
+        $payload = [];
+        if ($request->has('latency_ms')) {
+            $payload['latency_ms'] = (int) $request->input('latency_ms');
+        }
+        if ($request->filled('deadline_at')) {
+            $payload['deadline_at'] = $request->input('deadline_at');
+        }
+
+        $tickingToComplete = $instance->status !== WorkTaskInstance::STATUS_COMPLETED;
+        if ($tickingToComplete && config('behavior_intelligence.enabled', true)) {
+            $truth = app(ProbabilisticTruthService::class)->estimate($user->id, $task->id, $payload ?: null);
+            if ($truth['require_confirmation']) {
+                return response()->json([
+                    'completed' => false,
+                    'require_confirmation' => true,
+                    'p' => $truth['p'],
+                ]);
+            }
+        }
+
+        if ($instance->status === WorkTaskInstance::STATUS_COMPLETED) {
+            $instance->status = WorkTaskInstance::STATUS_PENDING;
+            $instance->completed_at = null;
+        } else {
+            $instance->status = WorkTaskInstance::STATUS_COMPLETED;
+            $instance->completed_at = now();
+        }
+        $instance->save();
+
+        if ($tickingToComplete) {
+            $this->captureTickAndUpdateTrust($user->id, $task->id, $payload, null, $task->program_id);
+        }
+
+        $programProgress = CongViecPageDataService::buildProgramProgressPayload($user->id, $task);
+
+        return response()->json([
+            'completed' => $instance->status === WorkTaskInstance::STATUS_COMPLETED,
+            'program_progress' => $programProgress,
+        ]);
+    }
+
+    public function confirmInstanceComplete(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $instance = WorkTaskInstance::with('task')->whereHas('task', fn ($q) => $q->where('user_id', $user->id))->findOrFail($id);
+        $task = $instance->task;
+
+        $payload = [];
+        if ($request->has('latency_ms')) {
+            $payload['latency_ms'] = (int) $request->input('latency_ms');
+        }
+        if ($request->filled('deadline_at')) {
+            $payload['deadline_at'] = $request->input('deadline_at');
+        }
+
+        $instance->status = WorkTaskInstance::STATUS_COMPLETED;
+        $instance->completed_at = now();
+        $instance->save();
+        $this->captureTickAndUpdateTrust($user->id, $task->id, $payload, 1.0, $task->program_id);
 
         $programProgress = CongViecPageDataService::buildProgramProgressPayload($user->id, $task);
 

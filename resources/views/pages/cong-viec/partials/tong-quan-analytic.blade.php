@@ -36,8 +36,8 @@
             <h2 class="text-lg font-bold text-gray-900 dark:text-white mb-3">Thực thi hôm nay</h2>
             @if($tasksToday->isNotEmpty())
                 <ul class="space-y-1" id="today-task-list">
-                    @foreach($tasksToday as $task)
-                        @include('pages.cong-viec.partials.task-row', ['task' => $task, 'toggleCompleteUrl' => $toggleCompleteUrl, 'completed' => false, 'asTodayRow' => true])
+                    @foreach($tasksToday as $instance)
+                        @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => false, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null])
                     @endforeach
                 </ul>
             @else

@@ -40,13 +40,15 @@ document.addEventListener('alpine:init', () => {
         closeDeleteModal() { this.showDeleteModal = false; this.deleteTaskId = null; this.deleteTaskTitle = ''; },
         showConfirmCompleteModal: false,
         confirmTaskId: null,
+        confirmInstanceId: null,
+        confirmInstanceUrl: null,
         confirmPayload: null,
         confirmP: null,
-        openConfirmCompleteModal(taskId, payload, p) { this.confirmTaskId = taskId; this.confirmPayload = payload || {}; this.confirmP = p; this.showConfirmCompleteModal = true; },
-        closeConfirmCompleteModal() { this.showConfirmCompleteModal = false; this.confirmTaskId = null; this.confirmPayload = null; this.confirmP = null; },
+        openConfirmCompleteModal(taskId, payload, p, instanceId, confirmInstanceUrl) { this.confirmTaskId = taskId; this.confirmInstanceId = instanceId || null; this.confirmInstanceUrl = confirmInstanceUrl || null; this.confirmPayload = payload || {}; this.confirmP = p; this.showConfirmCompleteModal = true; },
+        closeConfirmCompleteModal() { this.showConfirmCompleteModal = false; this.confirmTaskId = null; this.confirmInstanceId = null; this.confirmInstanceUrl = null; this.confirmPayload = null; this.confirmP = null; },
         async confirmCompleteSubmit() {
-            if (!this.confirmTaskId) return;
-            var url = __congViecConfirmCompleteUrlTemplate.replace('__ID__', this.confirmTaskId);
+            var url = this.confirmInstanceId && this.confirmInstanceUrl ? this.confirmInstanceUrl : (this.confirmTaskId ? __congViecConfirmCompleteUrlTemplate.replace('__ID__', this.confirmTaskId) : null);
+            if (!url) return;
             var body = { _token: document.querySelector('meta[name=csrf-token]')?.content };
             if (this.confirmPayload.latency_ms != null) body.latency_ms = this.confirmPayload.latency_ms;
             if (this.confirmPayload.deadline_at) body.deadline_at = this.confirmPayload.deadline_at;
@@ -54,7 +56,7 @@ document.addEventListener('alpine:init', () => {
             if (res.ok) {
                 var data = await res.json().catch(function() { return {}; });
                 this.closeConfirmCompleteModal();
-                var row = document.querySelector('.task-row[data-task-id="' + this.confirmTaskId + '"]');
+                var row = this.confirmInstanceId ? document.querySelector('.task-row[data-instance-id="' + this.confirmInstanceId + '"]') : document.querySelector('.task-row[data-task-id="' + this.confirmTaskId + '"]');
                 if (row && data.completed) { row.style.transition = 'opacity 0.3s'; row.style.opacity = '0'; setTimeout(function() { row.remove(); }, 300); }
                 if (data.program_progress) {
                     var p = data.program_progress;
@@ -141,10 +143,12 @@ document.addEventListener('change', async function(e) {
         var data = res.ok ? await res.json().catch(function() { return {}; }) : {};
         if (data.require_confirmation) {
             cb.checked = false;
-            window.dispatchEvent(new CustomEvent('cong-viec-require-confirm', { detail: { taskId: cb.dataset.taskId ? parseInt(cb.dataset.taskId, 10) : null, payload: payload, p: data.p } }));
+            var instanceId = cb.dataset.instanceId ? parseInt(cb.dataset.instanceId, 10) : null;
+            var confirmInstanceUrl = cb.dataset.confirmUrl || null;
+            window.dispatchEvent(new CustomEvent('cong-viec-require-confirm', { detail: { taskId: cb.dataset.taskId ? parseInt(cb.dataset.taskId, 10) : null, payload: payload, p: data.p, instanceId: instanceId, confirmInstanceUrl: confirmInstanceUrl } }));
         } else if (data.completed !== undefined) {
             if (data.completed) {
-                var row = document.querySelector('.task-row[data-task-id="' + cb.dataset.taskId + '"]');
+                var row = cb.dataset.instanceId ? document.querySelector('.task-row[data-instance-id="' + cb.dataset.instanceId + '"]') : document.querySelector('.task-row[data-task-id="' + cb.dataset.taskId + '"]');
                 if (row) {
                     row.style.transition = 'opacity 0.3s';
                     row.style.opacity = '0';

@@ -55,6 +55,7 @@
     selectedTime: '',
     timeInput: '',
     selectedRepeat: 'none',
+    selectedRepeatInterval: 1,
     timeOptions() { const o = []; for (let h = 0; h < 24; h++) for (let m = 0; m < 60; m += 15) o.push(String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')); return o; },
     repeatOptions: [{ value: 'none', label: 'Không lặp' }, { value: 'daily', label: 'Hàng ngày' }, { value: 'weekly', label: 'Hàng tuần' }, { value: 'monthly', label: 'Hàng tháng' }, { value: 'custom', label: 'Tùy chỉnh' }],
     hcmTimeNow() { const p = new Intl.DateTimeFormat('en-CA', { timeZone: this.TZ, hour: '2-digit', hour12: false, minute: '2-digit' }).formatToParts(new Date()); const g = (t) => (p.find(x => x.type === t) || {}).value || '0'; return g('hour') + ':' + g('minute'); },
@@ -66,14 +67,16 @@
     applyTimeInput() { const t = this.parseTimeInput(this.timeInput); if (t !== null && !this.isPastTime(t)) { this.selectedTime = t; if (this.$refs.taskDueTime) this.$refs.taskDueTime.value = t; this.timeInput = t; } else { if (t !== null && this.isPastTime(t)) this.timeInput = this.selectedTime || ''; else this.timeInput = this.selectedTime || ''; } },
     setTime(t) { if (t && this.isPastTime(t)) return; this.selectedTime = t || ''; this.timeInput = this.selectedTime || ''; if (this.$refs.taskDueTime) this.$refs.taskDueTime.value = this.selectedTime || ''; this.showTimePanel = false; this.showDatePicker = false; },
     setRepeat(r) { this.selectedRepeat = r; if (this.$refs.taskRepeat) this.$refs.taskRepeat.value = r; this.showRepeatPanel = false; this.showDatePicker = false; },
+    setRepeatInterval(n) { this.selectedRepeatInterval = Math.max(1, Math.min(99, parseInt(n, 10) || 1)); if (this.$refs.taskRepeatInterval) this.$refs.taskRepeatInterval.value = this.selectedRepeatInterval; },
     timeLabel() { return this.selectedTime || 'Chọn giờ'; },
-    repeatLabel() { const o = this.repeatOptions.find(x => x.value === this.selectedRepeat); return o ? o.label : 'Lặp lại'; },
+    repeatLabel() { const o = this.repeatOptions.find(x => x.value === this.selectedRepeat); const base = o ? o.label : 'Lặp lại'; if (this.selectedRepeat !== 'none' && this.selectedRepeat !== 'custom' && this.selectedRepeatInterval > 1) { const u = { daily: 'ngày', weekly: 'tuần', monthly: 'tháng' }[this.selectedRepeat] || ''; return 'Mỗi ' + this.selectedRepeatInterval + ' ' + u; } return base; },
     badgeLabel() { if (!this.selectedDate) return 'Chọn ngày'; const h = this.hcmNow(); const isToday = this.selectedDate.d === h.day && this.selectedDate.m === h.month && this.selectedDate.y === h.year; const s = isToday && !this.selectedTime ? 'Hôm nay' : this.selectedLabel(); return this.selectedTime ? s + ', ' + this.selectedTime : s; }
-}" x-init="const id = $el.dataset.initialDate; const it = $el.dataset.initialTime; if (id) { const parts = id.split('-'); const y = parseInt(parts[0],10), m = parseInt(parts[1],10)-1, d = parseInt(parts[2],10); selectedDate = { d: d, m: m, y: y }; calendarYear = y; calendarMonth = m; updateGrid(); if ($refs.taskDueDate) $refs.taskDueDate.value = id; } if (it) { selectedTime = it; if ($refs.taskDueTime) $refs.taskDueTime.value = it; } if (!id) pickToday();" @open-date-picker.window="showDatePicker = true; $dispatch('form-dropdown-close-others', 'date'); if (!selectedDate) { const h = hcmNow(); calendarYear = h.year; calendarMonth = h.month; updateGrid(); }" @form-dropdown-close-others.window="if ($event.detail !== 'date') showDatePicker = false; showTimePanel = false; showRepeatPanel = false" data-initial-date="{{ $initialDueDate ?? '' }}" data-initial-time="{{ $initialDueTime ?? '' }}">
+}" x-init="const id = $el.dataset.initialDate; const it = $el.dataset.initialTime; const ir = $el.dataset.initialRepeat; const iu = $el.dataset.initialRepeatUntil; const ii = $el.dataset.initialRepeatInterval; if (id) { const parts = id.split('-'); const y = parseInt(parts[0],10), m = parseInt(parts[1],10)-1, d = parseInt(parts[2],10); selectedDate = { d: d, m: m, y: y }; calendarYear = y; calendarMonth = m; updateGrid(); if ($refs.taskDueDate) $refs.taskDueDate.value = id; } if (it) { selectedTime = it; if ($refs.taskDueTime) $refs.taskDueTime.value = it; } if (ir && ['none','daily','weekly','monthly','custom'].includes(ir)) { selectedRepeat = ir; if ($refs.taskRepeat) $refs.taskRepeat.value = ir; } if (iu && $refs.taskRepeatUntil) $refs.taskRepeatUntil.value = iu; if (ii) { const n = parseInt(ii, 10); if (n >= 1 && n <= 99) { selectedRepeatInterval = n; if ($refs.taskRepeatInterval) $refs.taskRepeatInterval.value = n; } } if (!id) pickToday();" @open-date-picker.window="showDatePicker = true; $dispatch('form-dropdown-close-others', 'date'); if (!selectedDate) { const h = hcmNow(); calendarYear = h.year; calendarMonth = h.month; updateGrid(); }" @form-dropdown-close-others.window="if ($event.detail !== 'date') showDatePicker = false; showTimePanel = false; showRepeatPanel = false" data-initial-date="{{ $initialDueDate ?? '' }}" data-initial-time="{{ $initialDueTime ?? '' }}" data-initial-repeat="{{ $initialRepeat ?? 'none' }}" data-initial-repeat-until="{{ $initialRepeatUntil ?? '' }}" data-initial-repeat-interval="{{ $initialRepeatInterval ?? 1 }}">
     <input type="hidden" name="task_due_date" x-ref="taskDueDate" value="{{ $initialDueDate ?? '' }}">
     <input type="hidden" name="task_due_time" x-ref="taskDueTime" value="{{ $initialDueTime ?? '' }}">
-    <input type="hidden" name="task_repeat" x-ref="taskRepeat" value="none">
-    <input type="hidden" name="task_repeat_until" x-ref="taskRepeatUntil" value="">
+    <input type="hidden" name="task_repeat" x-ref="taskRepeat" value="{{ $initialRepeat ?? 'none' }}">
+    <input type="hidden" name="task_repeat_until" x-ref="taskRepeatUntil" value="{{ $initialRepeatUntil ?? '' }}">
+    <input type="hidden" name="task_repeat_interval" x-ref="taskRepeatInterval" :value="selectedRepeatInterval" value="{{ $initialRepeatInterval ?? 1 }}">
     <button type="button" @click="if (!showDatePicker) $dispatch('form-dropdown-close-others', 'date'); if (!showDatePicker) { if (selectedDate) { calendarYear = selectedDate.y; calendarMonth = selectedDate.m; } else { const h = hcmNow(); calendarYear = h.year; calendarMonth = h.month; } updateGrid(); } showDatePicker = !showDatePicker" class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm font-medium transition-colors" :class="selectedDate ? 'text-brand-600 dark:text-brand-400' : 'text-gray-500 dark:text-gray-400'">
         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/></svg>
         <span x-text="badgeLabel()"></span>
@@ -175,6 +178,17 @@
                             <span x-show="selectedRepeat === opt.value" class="text-brand-600 dark:text-brand-400">✓</span>
                         </button>
                     </template>
+                    <div x-show="['daily','weekly','monthly'].includes(selectedRepeat)" class="border-t border-gray-200 px-3 py-2 dark:border-gray-600">
+                        <p class="mb-1.5 text-xs text-gray-500 dark:text-gray-400">Mỗi</p>
+                        <div class="flex items-center gap-2">
+                            <select x-model.number="selectedRepeatInterval" @change="$refs.taskRepeatInterval && ($refs.taskRepeatInterval.value = selectedRepeatInterval)" class="rounded border border-gray-300 bg-white px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                                <template x-for="i in Array.from({length: 12}, (_, i) => i + 1)" :key="i">
+                                    <option :value="i" x-text="i"></option>
+                                </template>
+                            </select>
+                            <span class="text-sm text-gray-600 dark:text-gray-300" x-text="{ daily: 'ngày', weekly: 'tuần', monthly: 'tháng' }[selectedRepeat] || ''"></span>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

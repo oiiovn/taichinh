@@ -1,9 +1,12 @@
 @php
     $completed = $completed ?? false;
     $asTodayRow = $asTodayRow ?? true;
+    $instance = $instance ?? null;
+    $toggleUrl = $instance ? $toggleCompleteUrl : str_replace('__ID__', $task->id, $toggleCompleteUrl);
+    $streak = $streak ?? null;
 @endphp
-<li class="group/task {{ $asTodayRow ? 'task-row' : '' }} flex items-start gap-3 rounded-lg border border-transparent py-2.5 px-2 transition-colors hover:bg-gray-50 hover:border-gray-200 dark:hover:bg-gray-800/50 dark:hover:border-gray-700" @if($asTodayRow) data-task-id="{{ $task->id }}" @endif>
-    <input type="checkbox" class="task-checkbox mt-1.5 h-6 w-6 shrink-0 appearance-none rounded-full border-2 border-gray-300 bg-transparent text-red-500 focus:ring-2 focus:ring-red-500 focus:ring-offset-0 dark:border-gray-600 checked:border-red-500 checked:bg-red-500" data-task-id="{{ $task->id }}" data-url="{{ str_replace('__ID__', $task->id, $toggleCompleteUrl) }}" data-due-date="{{ $task->due_date?->format('Y-m-d') }}" data-due-time="{{ $task->due_time ?? '' }}" data-program-id="{{ $task->program_id ?? '' }}" @checked($completed)>
+<li class="group/task {{ $asTodayRow ? 'task-row' : '' }} flex items-start gap-3 rounded-lg border border-transparent py-2.5 px-2 transition-colors hover:bg-gray-50 hover:border-gray-200 dark:hover:bg-gray-800/50 dark:hover:border-gray-700" @if($asTodayRow) data-task-id="{{ $task->id }}" @if($instance) data-instance-id="{{ $instance->id }}" @endif @endif>
+    <input type="checkbox" class="task-checkbox mt-1.5 h-6 w-6 shrink-0 appearance-none rounded-full border-2 border-gray-300 bg-transparent text-red-500 focus:ring-2 focus:ring-red-500 focus:ring-offset-0 dark:border-gray-600 checked:border-red-500 checked:bg-red-500" data-task-id="{{ $task->id }}" data-url="{{ $toggleUrl }}" data-due-date="{{ $task->due_date?->format('Y-m-d') }}" data-due-time="{{ $task->due_time ?? '' }}" data-program-id="{{ $task->program_id ?? '' }}" @if($instance) data-instance-id="{{ $instance->id }}" data-confirm-url="{{ $confirmCompleteUrl ?? '' }}" @endif @checked($completed)>
     <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2">
             <p class="font-semibold {{ $completed ? 'text-gray-500 line-through dark:text-gray-400' : 'text-gray-900 dark:text-white' }}">{{ $task->title }}</p>
@@ -19,6 +22,7 @@
                     @endif">{{ $task->priority_label }}</span>
             @endif
             @if(!$completed && $task->internalized_at)<span class="text-xs text-gray-500 dark:text-gray-400" title="Đã nội tâm hoá">✓</span>@endif
+            @if($streak && $streak >= 1)<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" title="Chuỗi hoàn thành">🔥 {{ $streak }} ngày</span>@endif
         </div>
         @if($task->description_html && trim(strip_tags(html_entity_decode($task->description_html, ENT_QUOTES, 'UTF-8'))) !== '')
             <p class="mt-0.5 line-clamp-2 text-sm {{ $completed ? 'text-gray-400 dark:text-gray-500' : 'text-gray-500 dark:text-gray-400' }}">{{ \Illuminate\Support\Str::limit(strip_tags(html_entity_decode($task->description_html, ENT_QUOTES, 'UTF-8')), 120) }}</p>

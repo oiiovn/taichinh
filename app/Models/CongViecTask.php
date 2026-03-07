@@ -31,7 +31,13 @@ class CongViecTask extends Model
         'impact',
         'internalized_at',
         'program_id',
+        'repeat_interval',
     ];
+
+    public function instances(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(WorkTaskInstance::class, 'work_task_id');
+    }
 
     public const KANBAN_STATUSES = [
         'backlog' => 'Backlog',
@@ -141,6 +147,7 @@ class CongViecTask extends Model
 
     /**
      * Kiểm tra công việc có rơi vào ngày $date (theo múi giờ HCM) hay không.
+     * repeat_interval: mỗi N ngày/tuần/tháng (ví dụ 2 = mỗi 2 ngày, mỗi 2 tuần).
      */
     public function occursOn($date): bool
     {
@@ -155,15 +162,25 @@ class CongViecTask extends Model
         if ($this->repeat_until && $date->gt(Carbon::parse($this->repeat_until)->startOfDay())) {
             return false;
         }
+        $interval = max(1, (int) ($this->repeat_interval ?? 1));
         switch ($this->repeat ?? 'none') {
             case 'none':
                 return $date->isSameDay($due);
             case 'daily':
-                return true;
+                $daysBetween = $due->diffInDays($date, false);
+                return $daysBetween >= 0 && $daysBetween % $interval === 0;
             case 'weekly':
-                return $date->dayOfWeek === $due->dayOfWeek;
+                if ($date->dayOfWeek !== $due->dayOfWeek) {
+                    return false;
+                }
+                $weeksBetween = (int) floor($due->diffInDays($date, false) / 7);
+                return $weeksBetween >= 0 && $weeksBetween % $interval === 0;
             case 'monthly':
-                return $date->day === $due->day;
+                if ($date->day !== $due->day) {
+                    return false;
+                }
+                $monthsBetween = $due->diffInMonths($date, false);
+                return $monthsBetween >= 0 && $monthsBetween % $interval === 0;
             case 'custom':
             default:
                 return $date->isSameDay($due);

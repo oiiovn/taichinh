@@ -168,6 +168,8 @@ Route::middleware('auth')->group(function () {
         Route::post('/cong-viec/labels', [\App\Http\Controllers\CongViecController::class, 'storeLabel'])->name('cong-viec.labels.store');
         Route::post('/cong-viec/projects', [\App\Http\Controllers\CongViecController::class, 'storeProject'])->name('cong-viec.projects.store');
         Route::patch('/cong-viec/tasks/{id}/toggle-complete', [\App\Http\Controllers\CongViecController::class, 'toggleComplete'])->name('cong-viec.tasks.toggle-complete');
+        Route::patch('/cong-viec/instances/{id}/toggle-complete', [\App\Http\Controllers\CongViecController::class, 'toggleInstanceComplete'])->name('cong-viec.instances.toggle-complete');
+        Route::post('/cong-viec/instances/{id}/confirm-complete', [\App\Http\Controllers\CongViecController::class, 'confirmInstanceComplete'])->name('cong-viec.instances.confirm-complete');
         Route::post('/cong-viec/tasks/{id}/confirm-complete', [\App\Http\Controllers\CongViecController::class, 'confirmComplete'])->name('cong-viec.tasks.confirm-complete');
         Route::patch('/cong-viec/tasks/{id}/kanban-status', [\App\Http\Controllers\CongViecController::class, 'updateKanbanStatus'])->name('cong-viec.tasks.kanban-status');
         Route::post('/cong-viec/kanban-columns', [\App\Http\Controllers\CongViecController::class, 'storeKanbanColumn'])->name('cong-viec.kanban-columns.store');

@@ -7,6 +7,7 @@ use App\Models\CongViecTask;
 use App\Models\KanbanColumn;
 use App\Models\Label;
 use App\Models\Project;
+use App\Models\WorkTaskInstance;
 use App\Services\LongTermProjectionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -20,29 +21,30 @@ class CongViecPageDataService
         $todayHcm = Carbon::now('Asia/Ho_Chi_Minh')->format('Y-m-d');
         $userId = $request->user()?->id;
 
+        if ($userId) {
+            app(EnsureTaskInstancesService::class)->ensureForUserAndDate($userId, $todayHcm);
+        }
         $tasksToday = $this->getTasksToday($userId, $todayHcm);
+        $taskStreaks = $this->getTaskStreaksForInstances($userId, $tasksToday);
         $tasksUpcoming = $this->getTasksUpcoming($userId, $todayHcm);
         $tasksInbox = $this->getTasksInbox($userId);
-        $tasksCompleted = $this->getTasksCompleted($userId);
+        $completedInstancesGrouped = $this->getCompletedInstancesGrouped($userId);
         [$kanbanColumns, $kanbanTasks] = $this->getKanbanData($userId);
 
         $userLabels = $request->user() ? Label::where('user_id', $request->user()->id)->orderBy('name')->get() : collect();
         $userProjects = $request->user() ? Project::where('user_id', $request->user()->id)->orderBy('name')->get() : collect();
         $userPrograms = $request->user() ? BehaviorProgram::where('user_id', $request->user()->id)->where('status', BehaviorProgram::STATUS_ACTIVE)->orderBy('title')->get() : collect();
-
         $activeProgram = $userId && $userPrograms->isNotEmpty() ? $userPrograms->first() : null;
         $activeProgramProgress = null;
         $todayProgramTaskTotal = 0;
         $todayProgramTaskDone = 0;
         if ($activeProgram && $userId) {
             $activeProgramProgress = app(BehaviorProgramProgressService::class)->getProgressForUi($userId, $activeProgram->id);
-            $todayProgramTasks = CongViecTask::where('user_id', $userId)->where('program_id', $activeProgram->id)
-                ->where(function ($q) use ($todayHcm) {
-                    $q->where('due_date', $todayHcm)->orWhereNull('due_date');
-                })
+            $todayInstancesForProgram = WorkTaskInstance::where('instance_date', $todayHcm)
+                ->whereHas('task', fn ($q) => $q->where('user_id', $userId)->where('program_id', $activeProgram->id))
                 ->get();
-            $todayProgramTaskTotal = $todayProgramTasks->count();
-            $todayProgramTaskDone = $todayProgramTasks->where('completed', true)->count();
+            $todayProgramTaskTotal = $todayInstancesForProgram->count();
+            $todayProgramTaskDone = $todayInstancesForProgram->where('status', WorkTaskInstance::STATUS_COMPLETED)->count();
         }
 
         $behaviorRadar = $this->getBehaviorRadar($userId);
@@ -82,9 +84,10 @@ class CongViecPageDataService
 
         return [
             'tasksToday' => $tasksToday,
+            'taskStreaks' => $taskStreaks,
             'tasksUpcoming' => $tasksUpcoming,
             'tasksInbox' => $tasksInbox,
-            'tasksCompleted' => $tasksCompleted,
+            'completedInstancesGrouped' => $completedInstancesGrouped,
             'kanbanColumns' => $kanbanColumns,
             'kanbanTasks' => $kanbanTasks,
             'todayHcm' => $todayHcm,
@@ -137,25 +140,41 @@ class CongViecPageDataService
         }
     }
 
+    /**
+     * Hôm nay: instance theo ngày (đã ensure), chỉ lấy pending/skipped.
+     */
     protected function getTasksToday(?int $userId, string $todayHcm): Collection
     {
         if (! $userId) {
             return collect();
         }
-        // Task theo ngày (occurringOnDate cần due_date not null)
-        $tasks = CongViecTask::occurringOnDate($todayHcm)->filter(fn ($t) => ! $t->completed);
-        // Task thuộc chương trình: mọi task chưa xong có program_id — để list luôn thấy giống Kanban
-        $programTasks = CongViecTask::where('user_id', $userId)
-            ->where('completed', false)
-            ->whereNotNull('program_id')
-            ->with(['project', 'labels', 'program'])
+        return WorkTaskInstance::where('instance_date', $todayHcm)
+            ->whereHas('task', fn ($q) => $q->where('user_id', $userId))
+            ->whereIn('status', [WorkTaskInstance::STATUS_PENDING, WorkTaskInstance::STATUS_SKIPPED])
+            ->with(['task.project', 'task.labels', 'task.program'])
+            ->orderBy('work_task_id')
             ->get();
-        $tasks = $tasks->concat($programTasks)->unique('id')->values();
-        if ($tasks->isNotEmpty()) {
-            $tasks->load(['project', 'labels', 'program']);
-        }
+    }
 
-        return $tasks;
+    /**
+     * Map work_task_id => streak cho các task trong danh sách instances (vd. Hôm nay).
+     */
+    protected function getTaskStreaksForInstances(?int $userId, Collection $instances): array
+    {
+        if (! $userId || $instances->isEmpty()) {
+            return [];
+        }
+        $taskIds = $instances->pluck('work_task_id')->unique()->values()->all();
+        $streakService = app(TaskStreakService::class);
+        $todayHcm = Carbon::now('Asia/Ho_Chi_Minh')->format('Y-m-d');
+        $map = [];
+        foreach ($taskIds as $taskId) {
+            $result = $streakService->getStreakForTask($userId, (int) $taskId, $todayHcm);
+            if ($result['streak'] > 0) {
+                $map[(int) $taskId] = $result['streak'];
+            }
+        }
+        return $map;
     }
 
     /**
@@ -190,16 +209,50 @@ class CongViecPageDataService
             ->get();
     }
 
-    protected function getTasksCompleted(?int $userId): Collection
+    /**
+     * Tab Hoàn thành: instance-based, group theo Hôm nay / Hôm qua / Tuần này / Trước đó.
+     *
+     * @return array{today: \Illuminate\Support\Collection, yesterday: \Illuminate\Support\Collection, this_week: \Illuminate\Support\Collection, older: \Illuminate\Support\Collection}
+     */
+    protected function getCompletedInstancesGrouped(?int $userId): array
     {
         if (! $userId) {
-            return collect();
+            return ['today' => collect(), 'yesterday' => collect(), 'this_week' => collect(), 'older' => collect()];
         }
 
-        return CongViecTask::where('user_id', $userId)->where('completed', true)
-            ->with(['project', 'labels', 'program'])
-            ->orderByDesc('updated_at')
+        $today = Carbon::now('Asia/Ho_Chi_Minh')->startOfDay();
+        $todayStr = $today->format('Y-m-d');
+        $yesterdayStr = $today->copy()->subDay()->format('Y-m-d');
+        $startOfWeek = $today->copy()->startOfWeek(Carbon::MONDAY);
+        $twoDaysAgo = $today->copy()->subDays(2);
+
+        $instances = WorkTaskInstance::where('status', WorkTaskInstance::STATUS_COMPLETED)
+            ->whereHas('task', fn ($q) => $q->where('user_id', $userId))
+            ->with(['task.project', 'task.labels', 'task.program'])
+            ->orderByDesc('completed_at')
             ->get();
+
+        $todayList = $instances->filter(fn ($i) => $i->instance_date?->format('Y-m-d') === $todayStr)->values();
+        $yesterdayList = $instances->filter(fn ($i) => $i->instance_date?->format('Y-m-d') === $yesterdayStr)->values();
+        $thisWeekList = $instances->filter(function ($i) use ($twoDaysAgo, $yesterdayStr, $todayStr, $startOfWeek) {
+            $d = $i->instance_date?->format('Y-m-d');
+            if (! $d || $d === $todayStr || $d === $yesterdayStr) {
+                return false;
+            }
+            $dt = Carbon::parse($d)->startOfDay();
+            return $dt->gte($startOfWeek) && $dt->lte($twoDaysAgo);
+        })->values();
+        $olderList = $instances->filter(function ($i) use ($startOfWeek) {
+            $d = $i->instance_date?->format('Y-m-d');
+            return $d && Carbon::parse($d)->startOfDay()->lt($startOfWeek);
+        })->values();
+
+        return [
+            'today' => $todayList,
+            'yesterday' => $yesterdayList,
+            'this_week' => $thisWeekList,
+            'older' => $olderList,
+        ];
     }
 
     protected function getKanbanData(?int $userId): array
@@ -266,8 +319,8 @@ class CongViecPageDataService
             'days_elapsed' => $progress['days_elapsed'],
             'days_total' => $progress['days_total'],
             'days_with_completion' => $progress['days_with_completion'],
-            'today_done' => CongViecTask::where('user_id', $userId)->where('program_id', $task->program_id)->where('completed', true)->where('due_date', $todayHcm)->count(),
-            'today_total' => CongViecTask::where('user_id', $userId)->where('program_id', $task->program_id)->where('due_date', $todayHcm)->count(),
+            'today_done' => WorkTaskInstance::where('instance_date', $todayHcm)->whereHas('task', fn ($q) => $q->where('user_id', $userId)->where('program_id', $task->program_id))->where('status', WorkTaskInstance::STATUS_COMPLETED)->count(),
+            'today_total' => WorkTaskInstance::where('instance_date', $todayHcm)->whereHas('task', fn ($q) => $q->where('user_id', $userId)->where('program_id', $task->program_id))->count(),
         ];
     }
 }
