@@ -4,9 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class TransactionHistory extends Model
 {
+    use SoftDeletes;
     protected $table = 'transaction_history';
 
     protected $fillable = [
@@ -37,6 +39,7 @@ class TransactionHistory extends Model
     protected $casts = [
         'amount' => 'decimal:2',
         'transaction_date' => 'datetime',
+        'deleted_at' => 'datetime',
         'raw_json' => 'array',
         'merchant_vector' => 'array',
         'classification_meta' => 'array',

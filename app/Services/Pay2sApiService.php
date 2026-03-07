@@ -484,7 +484,7 @@ class Pay2sApiService
         $matchService = app(\App\Services\PackagePaymentMatchService::class);
         foreach ($transactions as $t) {
             $n = $this->normalizeTransaction($t);
-            $exists = TransactionHistory::where('external_id', $n['external_id'])->exists();
+            $exists = TransactionHistory::withTrashed()->where('external_id', $n['external_id'])->exists();
             if ($exists) {
                 continue;
             }
