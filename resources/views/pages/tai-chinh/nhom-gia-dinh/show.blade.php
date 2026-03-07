@@ -128,7 +128,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 stroke: { curve: 'smooth', width: 1.5 },
                 fill: { type: 'gradient', gradient: { opacityFrom: 0.4, opacityTo: 0 } },
                 colors: [color],
-                tooltip: { fixed: { enabled: false }, y: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' ₫'; } } }
+                tooltip: { enabled: false }
             });
             chart.render();
         } catch (e) {}
