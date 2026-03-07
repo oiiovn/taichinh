@@ -72,8 +72,9 @@ class TaiChinhController extends Controller
         $userId = $user?->id;
         $tabGiaoDich = $request->get('tab') === 'giao-dich';
         $tabDashboard = $request->get('tab', 'dashboard') === 'dashboard';
+        $tabLichThanhToan = $request->get('tab') === 'lich-thanh-toan';
 
-        $useCache = ! $tabGiaoDich && ! $tabDashboard && $userId && ! $request->boolean('refresh');
+        $useCache = ! $tabGiaoDich && ! $tabDashboard && ! $tabLichThanhToan && $userId && ! $request->boolean('refresh');
         if ($useCache) {
             $cached = TaiChinhViewCache::getSafe(TaiChinhViewCache::key($userId));
             if ($cached !== null && is_array($cached)) {
