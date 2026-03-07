@@ -164,7 +164,8 @@ class IncomeGoalService
         if (! empty($linkedAccountNumbers)) {
             $query->where(function ($q) use ($linkedAccountNumbers) {
                 $q->whereIn('account_number', $linkedAccountNumbers)
-                    ->orWhereHas('bankAccount', fn ($q2) => $q2->whereIn('account_number', $linkedAccountNumbers));
+                    ->orWhereHas('bankAccount', fn ($q2) => $q2->whereIn('account_number', $linkedAccountNumbers))
+                    ->orWhere('account_number', TransactionHistory::ACCOUNT_TIEN_MAT);
             });
         }
 
@@ -210,7 +211,8 @@ class IncomeGoalService
         if (! empty($linkedAccountNumbers)) {
             $query->where(function ($q) use ($linkedAccountNumbers) {
                 $q->whereIn('account_number', $linkedAccountNumbers)
-                    ->orWhereHas('bankAccount', fn ($q2) => $q2->whereIn('account_number', $linkedAccountNumbers));
+                    ->orWhereHas('bankAccount', fn ($q2) => $q2->whereIn('account_number', $linkedAccountNumbers))
+                    ->orWhere('account_number', TransactionHistory::ACCOUNT_TIEN_MAT);
             });
         }
 
