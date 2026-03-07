@@ -64,6 +64,7 @@
                     <th class="px-4 py-3 text-right font-medium text-gray-700 dark:text-gray-300">Số tiền</th>
                     <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Mô tả</th>
                     <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">ID</th>
+                    <th class="px-4 py-3 text-left font-medium text-gray-700 dark:text-gray-300">Thao tác</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
@@ -77,10 +78,17 @@
                         <td class="px-4 py-2.5 text-right font-medium {{ $t->type === 'IN' ? 'text-success-600 dark:text-success-400' : 'text-gray-900 dark:text-white' }}">{{ $t->type === 'IN' ? '+' : '-' }}{{ number_format(abs($t->amount)) }} ₫</td>
                         <td class="px-4 py-2.5 max-w-xs truncate" title="{{ $t->description }}">{{ $t->description ?: '-' }}</td>
                         <td class="px-4 py-2.5 text-gray-500">{{ Str::limit($t->external_id ?? '-', 16) }}</td>
+                        <td class="px-4 py-2.5">
+                            <form action="{{ route('admin.lich-su-giao-dich.destroy', $t) }}" method="POST" class="inline" onsubmit="return confirm('Xóa giao dịch này?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20">Xóa</button>
+                            </form>
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
+                        <td colspan="7" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">
                             @if (isset($pay2sConfigured) && $pay2sConfigured)
                                 Chưa có giao dịch. Bấm "Lấy toàn bộ giao dịch" để đồng bộ từ Pay2S (tất cả ngân hàng, tất cả ngày).
                             @else

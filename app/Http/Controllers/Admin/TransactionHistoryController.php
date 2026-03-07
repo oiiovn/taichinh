@@ -56,4 +56,10 @@ class TransactionHistoryController extends Controller
         }
         return back()->with('success', $msg);
     }
+
+    public function destroy(TransactionHistory $transaction): RedirectResponse
+    {
+        $transaction->delete();
+        return back()->with('success', 'Đã xóa giao dịch.');
+    }
 }

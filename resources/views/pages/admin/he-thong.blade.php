@@ -229,13 +229,13 @@
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Từ ngày (dd/mm/yyyy)</label>
-                        <input type="text" name="fetch_begin" value="{{ old('fetch_begin', $pay2sApiConfig?->fetch_begin ?? '01/01/2020') }}" placeholder="01/01/2020"
-                            class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                        <input type="text" id="pay2s-fetch-begin" name="fetch_begin" value="{{ old('fetch_begin', $pay2sApiConfig?->fetch_begin ?? '01/01/2020') }}" placeholder="dd/mm/yyyy" readonly
+                            class="w-full cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white" autocomplete="off">
                     </div>
                     <div>
                         <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Đến ngày (dd/mm/yyyy)</label>
-                        <input type="text" name="fetch_end" value="{{ old('fetch_end', $pay2sApiConfig?->fetch_end ?? '31/12/2029') }}" placeholder="31/12/2029"
-                            class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                        <input type="text" id="pay2s-fetch-end" name="fetch_end" value="{{ old('fetch_end', $pay2sApiConfig?->fetch_end ?? '31/12/2029') }}" placeholder="dd/mm/yyyy" readonly
+                            class="w-full cursor-pointer rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white" autocomplete="off">
                     </div>
                 </div>
                 <input type="hidden" name="path_transactions" value="userapi/transactions">
@@ -251,4 +251,23 @@
             </form>
         </div>
     </div>
+
+    @push('scripts')
+    <script>
+    (function initPay2sDatePickers() {
+        function run() {
+            if (typeof window.flatpickr === 'undefined') return;
+            var fromEl = document.getElementById('pay2s-fetch-begin');
+            var toEl = document.getElementById('pay2s-fetch-end');
+            if (!fromEl || !toEl) return;
+            var opts = { dateFormat: 'd/m/Y', allowInput: false, appendTo: document.body };
+            if (window.flatpickr.l10ns && window.flatpickr.l10ns.vn) opts.locale = 'vn';
+            window.flatpickr(fromEl, opts);
+            window.flatpickr(toEl, opts);
+        }
+        if (document.readyState === 'complete') run();
+        else window.addEventListener('load', run);
+    })();
+    </script>
+    @endpush
 @endsection

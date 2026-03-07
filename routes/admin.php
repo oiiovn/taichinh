@@ -37,6 +37,7 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
 
     Route::get('/lich-su-giao-dich', [\App\Http\Controllers\Admin\TransactionHistoryController::class, 'index'])->name('lich-su-giao-dich.index');
     Route::post('/lich-su-giao-dich/sync', [\App\Http\Controllers\Admin\TransactionHistoryController::class, 'sync'])->name('lich-su-giao-dich.sync');
+    Route::delete('/lich-su-giao-dich/{transaction}', [\App\Http\Controllers\Admin\TransactionHistoryController::class, 'destroy'])->name('lich-su-giao-dich.destroy');
 
     Route::resource('users', \App\Http\Controllers\Admin\UserController::class)->names('users');
 
