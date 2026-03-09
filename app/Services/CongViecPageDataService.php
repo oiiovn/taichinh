@@ -35,6 +35,17 @@ class CongViecPageDataService
         $userProjects = $request->user() ? Project::where('user_id', $request->user()->id)->orderBy('name')->get() : collect();
         $userPrograms = $request->user() ? BehaviorProgram::where('user_id', $request->user()->id)->where('status', BehaviorProgram::STATUS_ACTIVE)->orderBy('title')->get() : collect();
         $activeProgram = $userId && $userPrograms->isNotEmpty() ? $userPrograms->first() : null;
+
+        $execution = $userId
+            ? app(ExecutionEngineService::class)->run($userId, $todayHcm, $tasksToday, $taskStreaks, $activeProgram?->id ?? null)
+            : null;
+
+        $behaviorProfile = $execution['behavior_profile'] ?? null;
+        $failureDetection = $execution['failure_detection'] ?? null;
+        $todayPriority = $execution['today_priority'] ?? ['sorted' => $tasksToday, 'tiers' => ['high' => collect(), 'medium' => collect(), 'low' => collect()], 'scores' => []];
+        $focusPlan = $execution['focus_plan'] ?? ['focus' => collect(), 'secondary' => collect(), 'backlog' => collect(), 'total_planned_minutes' => 0, 'available_minutes' => 120];
+        $executionMetrics = $execution['execution_metrics'] ?? null;
+
         $activeProgramProgress = null;
         $todayProgramTaskTotal = 0;
         $todayProgramTaskDone = 0;
@@ -62,16 +73,23 @@ class CongViecPageDataService
             $userPrograms->count()
         );
 
-        $coachingNarrative = app(CoachingNarrativeService::class)->getTodayNarrative(
+        $insightPayload = app(ExecutionInsightPayloadService::class)->build(
+            $behaviorProfile,
+            $failureDetection,
+            $todayPriority['sorted']->count(),
+            $todayProgramTaskTotal,
+            $todayProgramTaskDone,
             $activeProgram,
             $activeProgramProgress,
             $behaviorRadar ?? [],
             $behaviorProjection,
-            $interfaceAdaptation,
-            $todayProgramTaskTotal,
-            $todayProgramTaskDone,
-            $tasksToday->count(),
-            $userId
+            $interfaceAdaptation
+        );
+        $coachingNarrative = app(CoachingNarrativeService::class)->generateFromPayload(
+            $insightPayload,
+            $userId,
+            $activeProgram,
+            $behaviorProjection
         );
 
         $this->logCoachingInterventions(
@@ -82,8 +100,21 @@ class CongViecPageDataService
             $behaviorProjection
         );
 
+        $taskCreationContext = $userId
+            ? app(TaskCreationContextService::class)->build(
+                $focusPlan,
+                $executionMetrics,
+                $behaviorProfile,
+                $failureDetection,
+                $insightPayload
+            )
+            : ['focus_window' => '—', 'workload_pct' => 0, 'suggested_priority' => null, 'suggested_priority_value' => null, 'best_time' => null, 'execution_stage' => 'planning', 'risk_tier' => 'normal', 'overload_hint' => null, 'capacity_remaining_minutes' => 120, 'task_fit_score' => 50];
+
         return [
-            'tasksToday' => $tasksToday,
+            'tasksToday' => $todayPriority['sorted'],
+            'tasksTodayTiers' => $todayPriority['tiers'],
+            'todayPriorityScores' => $todayPriority['scores'],
+            'focusPlan' => $focusPlan,
             'taskStreaks' => $taskStreaks,
             'tasksUpcoming' => $tasksUpcoming,
             'tasksInbox' => $tasksInbox,
@@ -104,6 +135,11 @@ class CongViecPageDataService
             'behaviorProjection' => $behaviorProjection,
             'interfaceAdaptation' => $interfaceAdaptation,
             'coachingNarrative' => $coachingNarrative,
+            'behaviorProfile' => $behaviorProfile,
+            'failureDetection' => $failureDetection,
+            'insightPayload' => $insightPayload,
+            'executionMetrics' => $executionMetrics,
+            'taskCreationContext' => $taskCreationContext,
         ];
     }
 

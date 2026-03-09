@@ -18,7 +18,7 @@
 @if($tab === 'tong-quan' && isset($behaviorPolicy) && $behaviorPolicy && in_array($behaviorPolicy->mode, ['micro_goal', 'reduced_reminder']))
     <div id="policy-feedback-banner" class="mb-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 border-l-4 border-l-brand-500 pl-4 py-3 text-sm text-gray-900 dark:text-white" data-policy-mode="{{ $behaviorPolicy->mode }}">
         @if($behaviorPolicy->mode === 'micro_goal')
-            <p class="mb-2">Đề xuất: Chế độ mục tiêu nhỏ — tập trung ít task hơn để ổn định nhịp.</p>
+            <p class="mb-2">Đề xuất: Chế độ mục tiêu nhỏ — tập trung ít việc hơn để ổn định nhịp.</p>
         @else
             <p class="mb-2">Một số thói quen đã ổn định; hệ thống giảm nhắc nhở cho bạn.</p>
         @endif
@@ -30,13 +30,41 @@
         </div>
     </div>
 @endif
+@if(isset($failureDetection) && $failureDetection['risk_tier'] !== 'normal')
+    @php
+        $riskTier = $failureDetection['risk_tier'] ?? 'warning';
+        $riskIcon = $riskTier === 'collapse' ? '🔴' : '🟠';
+    @endphp
+    <div class="mb-4 rounded-xl border-2 {{ $riskTier === 'collapse' ? 'border-red-300 border-l-4 border-l-red-500 bg-red-50 dark:border-red-800 dark:bg-red-900/25' : 'border-amber-300 border-l-4 border-l-amber-500 bg-amber-50 dark:border-amber-800 dark:bg-amber-900/25' }} px-4 py-4 text-sm">
+        <p class="text-base font-bold text-gray-900 dark:text-white">{{ $riskIcon }} {{ $riskTier === 'collapse' ? 'Nguy cơ sụt' : 'Cảnh báo' }} — Phát hiện rủi ro thực thi</p>
+        <p class="mt-1 text-gray-700 dark:text-gray-300">
+            @if(!empty($failureDetection['skip_streak_days']) && $failureDetection['skip_streak_days'] >= 1)
+                Bạn đã {{ $failureDetection['skip_streak_days'] }} ngày liên tiếp không hoàn thành cam kết.
+            @endif
+            @if(!empty($failureDetection['delay_count_30d']))
+                Trong 30 ngày có {{ $failureDetection['delay_count_30d'] }} lần hoàn thành trễ hạn.
+            @endif
+            @if(empty($failureDetection['skip_streak_days']) && empty($failureDetection['delay_count_30d']))
+                {{ $failureDetection['collapse_risk_message'] ?? 'Nguy cơ trượt cam kết.' }}
+            @endif
+        </p>
+        @if(!empty($failureDetection['suggestions']))
+            <p class="mt-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Đề xuất:</p>
+            <ul class="mt-1 space-y-0.5 text-gray-700 dark:text-gray-300">
+                @foreach($failureDetection['suggestions'] as $sug)
+                    <li class="flex items-start gap-2"><span class="text-amber-600 dark:text-amber-400">•</span><span>{{ $sug }}</span></li>
+                @endforeach
+            </ul>
+        @endif
+    </div>
+@endif
 @php
     $insightMessage = (isset($behaviorProjection['suggestion']) && (string) ($behaviorProjection['suggestion'] ?? '') !== '') ? $behaviorProjection['suggestion'] : null;
 @endphp
 <div x-show="layout === 'list'" x-cloak class="space-y-6">
     @if($insightMessage && $tab === 'tong-quan')
         <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-4 py-3 text-sm">
-            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Insight</p>
+            <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Gợi ý</p>
             <p class="mt-1 text-gray-900 dark:text-white">{{ $insightMessage }}</p>
         </div>
     @endif
@@ -47,9 +75,13 @@
         </div>
     @endif
     @if($tab === 'tong-quan')
-        @include('pages.cong-viec.partials.tong-quan')
+        <div id="tong-quan-panel" data-partial-url="{{ route('cong-viec', ['tab' => 'tong-quan', 'partial' => 1]) }}">
+            @include('pages.cong-viec.partials.tong-quan')
+        </div>
     @elseif($tab === 'hom-nay')
-        @include('pages.cong-viec.partials.hom-nay')
+        <div id="today-panel" data-partial-url="{{ route('cong-viec', ['tab' => 'hom-nay', 'partial' => 1]) }}">
+            @include('pages.cong-viec.partials.hom-nay')
+        </div>
     @elseif($tab === 'du-kien')
         @include('pages.cong-viec.partials.du-kien')
     @elseif($tab === 'hoan-thanh')
@@ -58,7 +90,7 @@
 </div>
 <div x-show="layout === 'board'" x-cloak class="space-y-4">
     <div class="flex flex-wrap items-center justify-between gap-3">
-        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Kanban</h2>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Bảng Kanban</h2>
         <button type="button" x-show="!showAddTask" @click="addTaskKanbanStatus = 'backlog'; showAddTask = true" class="flex items-center gap-2 rounded-lg py-1.5 pl-1.5 pr-2 text-sm text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300">
             <span class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-red-500">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
@@ -69,13 +101,71 @@
     @include('pages.cong-viec.partials.kanban-board')
 </div>
 <div x-show="layout === 'calendar'" x-cloak class="mx-auto max-w-[600px] space-y-6 py-8">
-    <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Calendar</h2>
+    <h2 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Lịch</h2>
     <p class="text-sm text-gray-500 dark:text-gray-400">Chế độ lịch sẽ hiển thị công việc theo ngày. Tính năng đang được phát triển.</p>
+</div>
+<div x-show="layout === 'focus'" x-cloak class="space-y-6">
+    @if($tab === 'hom-nay' && isset($tasksToday) && $tasksToday->isNotEmpty())
+        @php
+            $focusList = (isset($focusPlan) && $focusPlan['focus']->isNotEmpty()) ? $focusPlan['focus'] : $tasksToday;
+            $firstFocusInstance = $focusList->first();
+            $secondFocusInstance = $focusList->get(1);
+            $firstEstMin = app(\App\Services\TaskDurationLearningService::class)->getPredictedMinutes($firstFocusInstance->task->id) ?? $firstFocusInstance->task->estimated_duration ?? null;
+        @endphp
+        <p class="text-xs font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">Tập trung — 1 việc mỗi lần</p>
+        <ul class="space-y-1">
+            @include('pages.cong-viec.partials.task-row', [
+                'instance' => $firstFocusInstance,
+                'task' => $firstFocusInstance->task,
+                'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $firstFocusInstance->id),
+                'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $firstFocusInstance->id),
+                'completed' => false,
+                'asTodayRow' => true,
+                'streak' => isset($taskStreaks) ? ($taskStreaks[$firstFocusInstance->work_task_id] ?? null) : null,
+                'priorityScore' => isset($todayPriorityScores[$firstFocusInstance->id]) ? $todayPriorityScores[$firstFocusInstance->id]['score'] : null,
+                'showIntelligence' => true,
+                'estimatedMinutes' => $firstEstMin,
+            ])
+        </ul>
+        @if($secondFocusInstance)
+            <p class="mt-3 text-sm text-gray-500 dark:text-gray-400"><span class="font-medium text-gray-700 dark:text-gray-300">Tiếp theo:</span> {{ $secondFocusInstance->task->title }}</p>
+        @endif
+    @else
+        <p class="text-sm text-gray-500 dark:text-gray-400">Chế độ Focus chỉ áp dụng cho tab Hôm nay. Chuyển sang tab Hôm nay để tập trung 1 việc tại một thời điểm.</p>
+    @endif
 </div>
 @include('pages.cong-viec.partials.modals')
 </div>
 @endsection
 
 @section('congViecRightColumn')
+@if(request('tab') === 'hom-nay' && isset($behaviorProfile) && $behaviorProfile)
+    @php
+        $sidebarFocusWindow = '—';
+        if (!empty($behaviorProfile['completion_by_hour']) && is_array($behaviorProfile['completion_by_hour'])) {
+            $byHour = $behaviorProfile['completion_by_hour'];
+            $max = 0; $peakStart = null; $peakEnd = null;
+            foreach ($byHour as $h => $cnt) { if ($cnt > $max) { $max = $cnt; $peakStart = $h; $peakEnd = $h; } }
+            if ($max > 0 && $peakStart !== null) {
+                for ($h = $peakStart - 1; $h >= 0 && ($byHour[$h] ?? 0) >= $max * 0.5; $h--) { $peakStart = $h; }
+                for ($h = $peakEnd + 1; $h < 24 && ($byHour[$h] ?? 0) >= $max * 0.5; $h++) { $peakEnd = $h; }
+                $sidebarFocusWindow = sprintf('%02d:00–%02d:00', $peakStart, min(23, $peakEnd + 1));
+            }
+        }
+    @endphp
+    <div class="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 px-4 py-3">
+        <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Gợi ý hành vi</p>
+        <p class="mt-1 text-sm font-semibold text-gray-900 dark:text-white">Hồ sơ: {{ $behaviorProfile['profile_label'] ?? '—' }}</p>
+        <p class="mt-1 text-sm text-gray-700 dark:text-gray-300">Giờ làm tốt nhất: <span class="font-medium">{{ $sidebarFocusWindow }}</span></p>
+        @if(!empty($behaviorProfile['hints']))
+            <p class="mt-2 text-xs font-medium text-gray-600 dark:text-gray-300">Gợi ý:</p>
+            <ul class="mt-0.5 space-y-0.5 text-sm text-gray-700 dark:text-gray-300">
+                @foreach($behaviorProfile['hints'] as $hint)
+                    <li class="flex items-start gap-1.5"><span class="text-brand-500">•</span><span>{{ $hint }}</span></li>
+                @endforeach
+            </ul>
+        @endif
+    </div>
+@endif
 @include('pages.cong-viec.partials.program-context-panel')
 @endsection

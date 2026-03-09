@@ -11,6 +11,7 @@ use App\Models\Label;
 use App\Models\Project;
 use App\Services\AdaptiveTrustGradientService;
 use App\Services\CongViecPageDataService;
+use App\Services\EnsureTaskInstancesService;
 use App\Services\MicroEventCaptureService;
 use App\Services\ProbabilisticTruthService;
 use Carbon\Carbon;
@@ -18,22 +19,39 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class CongViecController extends Controller
 {
-    public function index(Request $request): View
+    /**
+     * @return View|Response
+     */
+    public function index(Request $request)
     {
         $data = app(CongViecPageDataService::class)->getIndexData($request);
+
+        if ($request->boolean('partial')) {
+            $tab = $request->get('tab');
+            if ($tab === 'hom-nay') {
+                return response()->view('pages.cong-viec.partials.hom-nay', $data)->header('Content-Type', 'text/html; charset=UTF-8');
+            }
+            if ($tab === 'tong-quan') {
+                return response()->view('pages.cong-viec.partials.tong-quan', $data)->header('Content-Type', 'text/html; charset=UTF-8');
+            }
+        }
 
         return view('pages.cong-viec', $data);
     }
 
-    public function store(Request $request): RedirectResponse
+    public function store(Request $request): RedirectResponse|JsonResponse
     {
         $userId = $request->user()->id;
         $allowedSlugs = KanbanColumn::where('user_id', $userId)->pluck('slug')->all();
+        if ($allowedSlugs === []) {
+            $allowedSlugs = array_keys(CongViecTask::KANBAN_STATUSES);
+        }
         $request->merge([
             'priority' => $request->input('priority') !== '' && $request->input('priority') !== null ? (int) $request->input('priority') : null,
             'remind_minutes_before' => $request->input('remind_minutes_before') !== '' && $request->input('remind_minutes_before') !== null ? (int) $request->input('remind_minutes_before') : null,
@@ -73,7 +91,7 @@ class CongViecController extends Controller
         $task->description_html = $validated['description_html'] ?? null;
         $task->priority = $validated['priority'] ?? null;
         $dueDate = $validated['task_due_date'] ?? null;
-        if (($validated['program_id'] ?? null) && (empty($dueDate) || $dueDate === '')) {
+        if (empty($dueDate) || $dueDate === '') {
             $dueDate = Carbon::now('Asia/Ho_Chi_Minh')->format('Y-m-d');
         }
         $task->due_date = $dueDate;
@@ -94,6 +112,15 @@ class CongViecController extends Controller
             $task->labels()->sync(array_map('intval', $labelIds));
         } else {
             $task->labels()->detach();
+        }
+
+        app(EnsureTaskInstancesService::class)->ensureForUserAndDate(
+            $request->user()->id,
+            Carbon::now('Asia/Ho_Chi_Minh')->format('Y-m-d')
+        );
+
+        if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json(['success' => true, 'message' => 'Đã thêm công việc.']);
         }
 
         return redirect()->route('cong-viec')->with('success', 'Đã thêm công việc.');
@@ -190,11 +217,16 @@ class CongViecController extends Controller
         return redirect()->route('cong-viec')->with('success', 'Đã cập nhật công việc.');
     }
 
-    public function destroy(Request $request, int $id): RedirectResponse
+    public function destroy(Request $request, int $id): RedirectResponse|JsonResponse
     {
         $task = CongViecTask::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
         $task->labels()->detach();
         $task->delete();
+
+        if ($request->expectsJson() || $request->header('X-Requested-With') === 'XMLHttpRequest') {
+            return response()->json(['success' => true, 'message' => 'Đã xoá công việc.']);
+        }
+
         return redirect()->route('cong-viec')->with('success', 'Đã xoá công việc.');
     }
 

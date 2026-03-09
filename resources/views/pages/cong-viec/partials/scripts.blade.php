@@ -29,6 +29,66 @@ if (typeof window !== 'undefined') {
 document.addEventListener('DOMContentLoaded', function() {
     __congViecSendBehaviorEvents([{ event_type: 'page_view', payload: { path: 'cong-viec' } }]);
 });
+/**
+ * Smart parsing: "mai 9h họp team 30p" → { title, dueDate, dueTime, duration }.
+ * Chạy client-side, ~1ms, regex + JS.
+ */
+function __taskParse(raw) {
+    if (!raw || typeof raw !== 'string') return { title: '', dueDate: null, dueTime: null, duration: null, hasParsed: false };
+    let s = raw.trim();
+    let dueDate = null;
+    let dueTime = null;
+    let duration = null;
+    const tz = 'Asia/Ho_Chi_Minh';
+    const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
+    const parts = fmt.formatToParts(new Date());
+    const g = function(t) { return (parts.find(function(p) { return p.type === t; }) || {}).value || '0'; };
+    const y = parseInt(g('year'), 10);
+    const m = parseInt(g('month'), 10);
+    const d = parseInt(g('day'), 10);
+    function toYmdUtc(yr, mo, day) {
+        var u = new Date(Date.UTC(yr, mo - 1, day));
+        return u.getUTCFullYear() + '-' + String(u.getUTCMonth() + 1).padStart(2, '0') + '-' + String(u.getUTCDate()).padStart(2, '0');
+    }
+
+    if (/(?:ngày\s+)?mốt\b|(?:ngày\s+)?mot\b/i.test(s)) {
+        dueDate = toYmdUtc(y, m, d + 2);
+        s = s.replace(/(?:ngày\s+)?mốt\b|(?:ngày\s+)?mot\b/gi, '').trim();
+    } else if (/(?:ngày\s+)?mai\b/i.test(s)) {
+        dueDate = toYmdUtc(y, m, d + 1);
+        s = s.replace(/(?:ngày\s+)?mai\b/gi, '').trim();
+    } else if (/(?:hôm\s+)?nay\b|hn\b/i.test(s)) {
+        dueDate = y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+        s = s.replace(/(?:hôm\s+)?nay\b|hn\b/gi, '').trim();
+    }
+
+    var timeMatch = s.match(/(\d{1,2})(?::(\d{2}))?\s*(?:h|g|giờ)?(?:\s*(\d{2}))?\b/i);
+    if (timeMatch) {
+        var hour = parseInt(timeMatch[1], 10);
+        var min = parseInt(timeMatch[2] || timeMatch[3] || '0', 10);
+        if (hour >= 0 && hour <= 23 && min >= 0 && min <= 59) {
+            dueTime = String(hour).padStart(2, '0') + ':' + String(min).padStart(2, '0');
+        }
+        s = s.replace(/(\d{1,2})(?::(\d{2}))?\s*(?:h|g|giờ)?(?:\s*(\d{2}))?\b/gi, '').trim();
+    }
+
+    var durPhut = s.match(/(\d+)\s*(?:p|phút|m)\b/i);
+    var durGio = s.match(/(\d+)\s*(?:h|g|giờ)(?:\s*(\d+)\s*(?:p|phút|m))?\b/i);
+    if (durPhut) {
+        duration = parseInt(durPhut[1], 10);
+        s = s.replace(/(\d+)\s*(?:p|phút|m)\b/gi, '').trim();
+    } else if (durGio) {
+        var h = parseInt(durGio[1], 10);
+        var p = parseInt(durGio[2] || '0', 10);
+        duration = h * 60 + p;
+        s = s.replace(/(\d+)\s*(?:h|g|giờ)(?:\s*(\d+)\s*(?:p|phút|m))?\b/gi, '').trim();
+    }
+
+    var title = s.replace(/\s+/g, ' ').trim();
+    return { title: title, dueDate: dueDate, dueTime: dueTime, duration: duration, hasParsed: !!(dueDate || dueTime || duration) };
+}
+if (typeof window !== 'undefined') { window.taskParse = __taskParse; }
+
 document.addEventListener('alpine:init', () => {
     Alpine.data('congViecPage', () => ({
         layout: (() => { try { return localStorage.getItem('congViecLayout') || 'list'; } catch(e) { return 'list'; } })(),
@@ -38,6 +98,31 @@ document.addEventListener('alpine:init', () => {
         get deleteFormAction() { return this.deleteTaskId ? __congViecDestroyUrlTemplate.replace('__ID__', this.deleteTaskId) : '#'; },
         openDeleteModal(id, title) { this.deleteTaskId = id; this.deleteTaskTitle = title || ''; this.showDeleteModal = true; },
         closeDeleteModal() { this.showDeleteModal = false; this.deleteTaskId = null; this.deleteTaskTitle = ''; },
+        deleteTaskSubmit() {
+            var id = this.deleteTaskId;
+            var url = this.deleteFormAction;
+            var token = document.querySelector('meta[name=csrf-token]')?.content;
+            // #region agent log
+            fetch('http://127.0.0.1:7242/ingest/c4e6556a-4f65-43a2-a0c6-442b6960c7db',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b25103'},body:JSON.stringify({sessionId:'b25103',location:'scripts:deleteTaskSubmit:entry',message:'delete handler entry',data:{id:id,url:url,hasToken:!!token},timestamp:Date.now(),hypothesisId:'A'})}).catch(function(){});
+            // #endregion
+            if (!id || url === '#') return;
+            if (!token) { alert('Phiên đăng nhập hết hạn. Vui lòng tải lại trang.'); return; }
+            this.closeDeleteModal();
+            fetch(url, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) {
+                // #region agent log
+                fetch('http://127.0.0.1:7242/ingest/c4e6556a-4f65-43a2-a0c6-442b6960c7db',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b25103'},body:JSON.stringify({sessionId:'b25103',location:'scripts:deleteTaskSubmit:response',message:'delete response',data:{status:r.status,ok:r.ok},timestamp:Date.now(),hypothesisId:'B'})}).catch(function(){});
+                // #endregion
+                if (r.ok) {
+                    var rows = document.querySelectorAll('.task-row[data-task-id="' + id + '"]');
+                    rows.forEach(function(el) { el.style.transition = 'opacity 0.3s'; el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 300); });
+                    var cards = document.querySelectorAll('.kanban-card[data-task-id="' + id + '"]');
+                    cards.forEach(function(el) { el.style.transition = 'opacity 0.3s'; el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 300); });
+                    return;
+                }
+                if (r.status === 419) { alert('Phiên hết hạn. Vui lòng tải lại trang.'); return; }
+                alert('Không thể xoá. Vui lòng thử lại.');
+            }).catch(function() { alert('Lỗi kết nối. Vui lòng thử lại.'); });
+        },
         showConfirmCompleteModal: false,
         confirmTaskId: null,
         confirmInstanceId: null,
@@ -149,13 +234,30 @@ document.addEventListener('change', async function(e) {
         } else if (data.completed !== undefined) {
             if (data.completed) {
                 var row = cb.dataset.instanceId ? document.querySelector('.task-row[data-instance-id="' + cb.dataset.instanceId + '"]') : document.querySelector('.task-row[data-task-id="' + cb.dataset.taskId + '"]');
+                var panel = row ? row.closest('[data-partial-url]') : null;
+                var partialUrl = panel ? panel.getAttribute('data-partial-url') : null;
                 if (row) {
                     row.style.transition = 'opacity 0.3s';
                     row.style.opacity = '0';
-                    setTimeout(function() { row.remove(); }, 300);
+                    setTimeout(function() {
+                        row.remove();
+                        if (partialUrl && panel && panel.parentNode) {
+                            fetch(partialUrl, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) { return r.ok ? r.text() : null; }).then(function(html) {
+                                if (panel && html) panel.innerHTML = html;
+                            }).catch(function() {});
+                        }
+                    }, 300);
                 }
             } else {
-                window.location.reload();
+                var panel = document.getElementById('today-panel');
+                var url = panel && panel.getAttribute && panel.getAttribute('data-partial-url');
+                if (url) {
+                    fetch(url, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) { return r.text(); }).then(function(html) {
+                        if (panel && html) panel.innerHTML = html;
+                    }).catch(function() { window.location.reload(); });
+                } else {
+                    window.location.reload();
+                }
             }
             if (data.completed && data.program_progress) {
                 var p = data.program_progress;

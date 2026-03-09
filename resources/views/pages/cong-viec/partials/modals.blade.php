@@ -11,7 +11,7 @@
     @click.self="showAddTask = false; if (window.location.search.includes('edit=')) window.location = '{{ route('cong-viec') }}';">
     <div class="modal-add-task-content relative z-0 mt-0 mb-8 w-full max-w-[600px] shrink-0 overflow-visible rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-600 dark:bg-gray-800" @click.stop>
         <div class="px-4 py-3.5">
-            @include('pages.cong-viec.partials.form-them-cong-viec', ['task' => $editTask ?? null])
+            @include('pages.cong-viec.partials.form-them-cong-viec', ['task' => $editTask ?? null, 'focusPlan' => $focusPlan ?? null, 'taskCreationContext' => $taskCreationContext ?? null])
         </div>
     </div>
 </div>
@@ -35,7 +35,7 @@
         <p class="text-sm text-gray-600 dark:text-gray-300 mb-5">
             Bạn có chắc muốn xoá công việc <span x-text="deleteTaskTitle" class="font-medium text-gray-900 dark:text-white"></span>? Hành động này không thể hoàn tác.
         </p>
-        <form :action="deleteFormAction" method="POST" class="flex flex-wrap items-center justify-end gap-2">
+        <form @submit.prevent="deleteTaskSubmit()" class="flex flex-wrap items-center justify-end gap-2">
             @csrf
             @method('DELETE')
             <button type="button" @click="closeDeleteModal()" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">

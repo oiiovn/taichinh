@@ -14,6 +14,7 @@ class WorkTaskInstance extends Model
         'instance_date',
         'status',
         'completed_at',
+        'actual_duration',
         'skipped',
         'notes',
     ];

@@ -1,9 +1,90 @@
-<form action="{{ isset($task) ? route('cong-viec.tasks.update', $task->id) : route('cong-viec.tasks.store') }}" method="POST" @submit.prevent="(function(f){ var ed = f.querySelector('[contenteditable=true]'); var h = f.querySelector('input[name=description_html]'); if (ed && h) h.value = ed.innerHTML; var meta = document.querySelector('meta[name=csrf-token]'); var token = meta ? meta.content : (f.querySelector('input[name=_token]') && f.querySelector('input[name=_token]').value); if (!token) { alert('Phiên đăng nhập hết hạn. Vui lòng tải lại trang.'); return; } showAddTask = false; var fd = new FormData(f); fetch(f.action, { method: 'POST', headers: { 'X-CSRF-TOKEN': token, 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' }, body: fd }).then(function(r){ if (r.redirected) { window.location.href = r.url; return; } if (r.ok) { window.location.href = '{{ route('cong-viec') }}'; return; } if (r.status === 419) { alert('Phiên hết hạn. Vui lòng tải lại trang rồi thử lại.'); return; } return r.text().then(function(t){ alert('Có lỗi xảy ra. Vui lòng thử lại.'); }); }).catch(function(){ alert('Lỗi kết nối. Vui lòng thử lại.'); }); })($el)"
+@php
+    $focusPlan = $focusPlan ?? ['total_planned_minutes' => 0, 'available_minutes' => 120];
+    $durationSuggestion = isset($task) && $task->id ? (app(\App\Services\TaskDurationLearningService::class)->getPredictedMinutes($task->id) ?? 30) : 30;
+    $ctx = $taskCreationContext ?? null;
+    $showExecutionInsight = !isset($task) && $ctx && ($ctx['focus_window'] !== '—' || $ctx['workload_pct'] > 0 || ($ctx['capacity_remaining_minutes'] ?? 0) > 0 || $ctx['suggested_priority'] || $ctx['best_time'] || $ctx['overload_hint'] || isset($ctx['task_fit_score']));
+@endphp
+<form action="{{ isset($task) ? route('cong-viec.tasks.update', $task->id) : route('cong-viec.tasks.store') }}" method="POST" @submit.prevent="(function(f){ var ed = f.querySelector('[contenteditable=true]'); var h = f.querySelector('input[name=description_html]'); if (ed && h) h.value = ed.innerHTML; var meta = document.querySelector('meta[name=csrf-token]'); var token = meta ? meta.content : (f.querySelector('input[name=_token]') && f.querySelector('input[name=_token]').value); if (!token) { alert('Phiên đăng nhập hết hạn. Vui lòng tải lại trang.'); return; } var fd = new FormData(f); var isCreate = !f.action.match(/\/update\/?$/); fetch(f.action, { method: 'POST', headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: fd }).then(function(r){ if (r.status === 419) { alert('Phiên hết hạn. Vui lòng tải lại trang rồi thử lại.'); return; } if (r.ok) { return r.json().catch(function(){ return {}; }).then(function(data){ showAddTask = false; var panel = document.getElementById('today-panel') || document.getElementById('tong-quan-panel'); if (isCreate && panel && panel.dataset.partialUrl) { fetch(panel.dataset.partialUrl, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(pr){ if (pr.ok) return pr.text(); }).then(function(html){ if (html && panel.parentNode) panel.innerHTML = html; }); } }); } if (r.redirected) { window.location.href = r.url; return; } return r.json().catch(function(){ return null; }).then(function(data){ var msg = 'Có lỗi xảy ra. Vui lòng thử lại.'; if (data && data.errors) { var arr = []; for (var k in data.errors) { if (data.errors[k] && data.errors[k].length) arr.push(data.errors[k].join(' ')); } if (arr.length) msg = arr.join('\n'); } else if (data && data.message) msg = data.message; alert(msg); }); }).catch(function(){ alert('Lỗi kết nối. Vui lòng thử lại.'); }); })($el)"
         @csrf
         @if(isset($task)) @method('PUT') @endif
-    <div>
-        <input type="text" name="title" value="{{ isset($task) ? e($task->title) : '' }}" placeholder="Nhập tên của công việc"
+    <div x-data="{ plannedMinutes: {{ (int)($focusPlan['total_planned_minutes'] ?? 0) }}, availableMinutes: {{ (int)($focusPlan['available_minutes'] ?? 120) }}, workloadWarning: false, init() { const form = this.$el.closest('form'); if (!form) return; const check = () => { const due = form.querySelector('input[name=task_due_date]')?.value; const dur = parseInt(form.querySelector('input[name=estimated_duration]')?.value, 10) || 30; const today = new Date().toISOString().slice(0,10); this.workloadWarning = due === today && (this.plannedMinutes + dur) > this.availableMinutes; }; setInterval(check, 600); check(); } }" x-show="workloadWarning" x-cloak class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/25 dark:text-amber-200">⚠ Hôm nay đã đầy workload</div>
+    @if($showExecutionInsight)
+    <div class="mb-3 rounded-xl border border-brand-200 bg-brand-50/60 dark:border-brand-800 dark:bg-brand-900/20 px-3.5 py-2.5 text-sm" data-execution-insight>
+        <p class="font-semibold text-brand-800 dark:text-brand-200 mb-2">🧠 Execution Insight</p>
+        @if(isset($ctx['task_fit_score']))
+        <p class="mb-2 text-gray-700 dark:text-gray-300">Task phù hợp với hôm nay: <span class="font-semibold text-brand-700 dark:text-brand-300">{{ $ctx['task_fit_score'] }}%</span></p>
+        @endif
+        @if(isset($ctx['capacity_remaining_minutes']) && $ctx['capacity_remaining_minutes'] > 0)
+        <p class="mb-2 text-gray-700 dark:text-gray-300">⚡ Bạn còn <span class="font-semibold">{{ $ctx['capacity_remaining_minutes'] }}</span> phút trống hôm nay.</p>
+        @endif
+        <ul class="space-y-1 text-gray-700 dark:text-gray-300">
+            <li>⏰ Cửa sổ tập trung: <span class="font-medium">{{ $ctx['focus_window'] }}</span></li>
+            <li>📊 Workload hôm nay: <span class="font-medium">{{ $ctx['workload_pct'] }}%</span></li>
+            @if($ctx['suggested_priority'])
+            <li>⚡ Priority đề xuất: <span class="font-medium">{{ $ctx['suggested_priority'] }}</span>
+                <button type="button" @click="$dispatch('apply-suggested-priority', { value: {{ (int)($ctx['suggested_priority_value']) }} })" class="ml-1 text-brand-600 dark:text-brand-400 hover:underline">Áp dụng</button>
+            </li>
+            @endif
+            @if($ctx['best_time'])
+            <li>📅 Đề xuất làm lúc: <span class="font-medium">{{ $ctx['best_time'] }}</span>
+                <button type="button" @click="var i = document.querySelector('input[name=task_due_time]'); if (i) i.value = '{{ $ctx['best_time'] }}';" class="ml-1 text-brand-600 dark:text-brand-400 hover:underline">Áp dụng</button>
+            </li>
+            @endif
+            @if($ctx['overload_hint'])
+            <li class="text-amber-700 dark:text-amber-300">⚠ {{ $ctx['overload_hint'] }}</li>
+            @endif
+        </ul>
+        @if(($ctx['best_time'] ?? null) && ($ctx['suggested_priority'] ?? null))
+        <p class="mt-2 pt-2 border-t border-brand-200 dark:border-brand-700 text-gray-700 dark:text-gray-300">
+            <span class="font-medium">⚡ Đề xuất:</span> đặt task vào {{ $ctx['best_time'] }} · priority {{ $ctx['suggested_priority'] }}
+            <button type="button" @click="(function(){ var t = '{{ $ctx['best_time'] }}'; var v = {{ (int)($ctx['suggested_priority_value']) }}; var i = document.querySelector('input[name=task_due_time]'); if (i) i.value = t; window.dispatchEvent(new CustomEvent('smart-parse-apply', { detail: { dueTime: t }, bubbles: true })); window.dispatchEvent(new CustomEvent('apply-suggested-priority', { detail: { value: v }, bubbles: true })); })()" class="ml-1.5 rounded bg-brand-600 px-2 py-0.5 text-xs font-medium text-white hover:bg-brand-700 dark:bg-brand-500 dark:hover:bg-brand-600">Áp dụng tất cả</button>
+        </p>
+        @endif
+    </div>
+    @endif
+    <div x-data="{
+        parsed: null,
+        parseTitle(v) { this.parsed = (typeof window.taskParse === 'function' ? window.taskParse(v) : null) || null; },
+        dueDateLabel() {
+            if (!this.parsed || !this.parsed.dueDate) return '';
+            var fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' });
+            var g = function(t) { return (fmt.formatToParts(new Date()).find(function(p) { return p.type === t; }) || {}).value || '0'; };
+            var today = g('year') + '-' + g('month') + '-' + g('day');
+            var tomorrowParts = fmt.formatToParts(new Date(Date.now() + 86400000));
+            var g2 = function(t) { return (tomorrowParts.find(function(p) { return p.type === t; }) || {}).value || '0'; };
+            var tomorrow = g2('year') + '-' + g2('month') + '-' + g2('day');
+            if (this.parsed.dueDate === today) return 'Hôm nay';
+            if (this.parsed.dueDate === tomorrow) return 'Ngày mai';
+            return this.parsed.dueDate;
+        },
+        parsedSummary() {
+            if (!this.parsed || !this.parsed.hasParsed) return '';
+            var parts = [];
+            if (this.parsed.dueDate) parts.push(this.dueDateLabel());
+            if (this.parsed.dueTime) parts.push(this.parsed.dueTime);
+            if (this.parsed.duration != null) parts.push(this.parsed.duration + ' phút');
+            return parts.join(', ');
+        },
+        applyParsed() {
+            if (!this.parsed || !this.parsed.hasParsed) return;
+            var form = this.$el.closest('form');
+            var titleInp = form && form.querySelector('input[name=title]');
+            if (titleInp && this.parsed.title !== undefined) titleInp.value = this.parsed.title;
+            if (this.parsed.dueDate) { var d = form.querySelector('input[name=task_due_date]'); if (d) d.value = this.parsed.dueDate; }
+            if (this.parsed.dueTime) { var t = form.querySelector('input[name=task_due_time]'); if (t) t.value = this.parsed.dueTime; }
+            if (this.parsed.duration != null) { var e = form.querySelector('input[name=estimated_duration]'); if (e) e.value = String(this.parsed.duration); }
+            window.dispatchEvent(new CustomEvent('smart-parse-apply', { detail: { dueDate: this.parsed.dueDate || null, dueTime: this.parsed.dueTime || null } }));
+            this.parsed = null;
+        }
+    }">
+        <input type="text" name="title" value="{{ isset($task) ? e($task->title) : '' }}" placeholder="Nhập tên công việc (vd: mai 9h họp team 30p)"
+            @input.debounce.300ms="parseTitle($event.target.value)"
             class="block w-full border-0 bg-transparent py-1.5 text-base font-semibold text-gray-900 placeholder-gray-400 focus:ring-0 focus:outline-none dark:bg-transparent dark:text-white dark:placeholder-gray-500">
+        <div x-show="parsed && parsed.hasParsed" x-cloak class="mt-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-brand-200 bg-brand-50/80 dark:border-brand-800 dark:bg-brand-900/20 px-2.5 py-1.5 text-xs text-gray-700 dark:text-gray-300">
+            <span>Đã nhận:</span>
+            <span x-text="parsedSummary()"></span>
+            <button type="button" @click="applyParsed()" class="rounded bg-brand-600 px-2 py-0.5 font-medium text-white hover:bg-brand-700 dark:bg-brand-500 dark:hover:bg-brand-600">Áp dụng</button>
+        </div>
         <div x-data="{
             showToolbar: false,
             toolbarTop: 0,
@@ -71,17 +152,41 @@
         @if(!isset($task))<input type="hidden" name="kanban_status" :value="typeof addTaskKanbanStatus !== 'undefined' ? (addTaskKanbanStatus || 'backlog') : 'backlog'">@endif
         <input type="hidden" name="category" value="{{ isset($task) ? e($task->category ?? '') : '' }}">
         <input type="hidden" name="impact" value="{{ isset($task) ? e($task->impact ?? '') : '' }}">
+        <div x-data="{
+            clarityPct: 0,
+            tips: [],
+            update() {
+                var form = this.$el.closest('form');
+                if (!form) return;
+                var title = (form.querySelector('input[name=title]')?.value || '').trim();
+                var duration = (form.querySelector('input[name=estimated_duration]')?.value || '').trim();
+                var due = (form.querySelector('input[name=task_due_date]')?.value || '').trim();
+                var priority = (form.querySelector('input[name=priority]')?.value || '').trim();
+                var n = (title ? 25 : 0) + (duration ? 25 : 0) + (due ? 25 : 0) + (priority ? 25 : 0);
+                this.clarityPct = n;
+                this.tips = [];
+                if (!due) this.tips.push('thêm deadline');
+                if (!duration) this.tips.push('thêm duration');
+                if (!priority) this.tips.push('thêm priority');
+            }
+        }" x-init="update(); setInterval(() => update(), 500)" class="mt-2 rounded-lg border border-gray-200 bg-gray-50/80 dark:border-gray-700 dark:bg-gray-800/50 px-2.5 py-1.5 text-xs text-gray-600 dark:text-gray-400">
+            <span class="font-medium">Task clarity:</span> <span x-text="clarityPct + '%'"></span>
+            <template x-if="tips.length">
+                <span class="ml-1"> · Gợi ý: <span x-text="tips.join(' · ')"></span></span>
+            </template>
+        </div>
     </div>
     <div class="flex flex-wrap items-center gap-2 py-1.5">
         @include('pages.cong-viec.partials.date-picker-dropdown', ['initialDueDate' => isset($task) ? $task->due_date?->format('Y-m-d') : null, 'initialDueTime' => isset($task) && $task->due_time ? substr($task->due_time, 0, 5) : null, 'initialRepeat' => isset($task) ? ($task->repeat ?? 'none') : 'none', 'initialRepeatUntil' => isset($task) && $task->repeat_until ? $task->repeat_until->format('Y-m-d') : '', 'initialRepeatInterval' => isset($task) && $task->repeat_interval ? (int) $task->repeat_interval : 1])
-        <div class="relative" x-data="{ showPriority: false, selectedPriority: {{ isset($task) && $task->priority !== null ? (int)$task->priority : 'null' }}, priorityLabels: { 1: 'Khẩn cấp', 2: 'Cao', 3: 'Trung bình', 4: 'Thấp' }, priorityLabel() { return this.selectedPriority ? this.priorityLabels[this.selectedPriority] : null }, priorityColorClass() { if (!this.selectedPriority) return 'text-gray-600 dark:text-gray-400'; return { 1: 'text-red-500 dark:text-red-400', 2: 'text-orange-500 dark:text-orange-400', 3: 'text-blue-500 dark:text-blue-400', 4: 'text-gray-500 dark:text-gray-400' }[this.selectedPriority] || 'text-gray-600'; } }" @form-dropdown-close-others.window="if ($event.detail !== 'priority') showPriority = false">
+        <div class="relative" x-data="{ showPriority: false, selectedPriority: {{ isset($task) && $task->priority !== null ? (int)$task->priority : 'null' }}, suggestedLabel: null, suggestedPriority: null, priorityLabels: { 1: 'Khẩn cấp', 2: 'Cao', 3: 'Trung bình', 4: 'Thấp' }, priorityLabel() { return this.selectedPriority ? this.priorityLabels[this.selectedPriority] : null }, priorityColorClass() { if (!this.selectedPriority) return 'text-gray-600 dark:text-gray-400'; return { 1: 'text-red-500 dark:text-red-400', 2: 'text-orange-500 dark:text-orange-400', 3: 'text-blue-500 dark:text-blue-400', 4: 'text-gray-500 dark:text-gray-400' }[this.selectedPriority] || 'text-gray-600'; }, updateSuggestion() { const form = this.$el.closest('form'); const due = form?.querySelector('input[name=task_due_date]')?.value; const impact = form?.querySelector('input[name=impact]')?.value; const today = new Date().toISOString().slice(0,10); if (due === today && impact === 'high') { this.suggestedLabel = 'Khẩn cấp'; this.suggestedPriority = 1; } else if (due === today || impact === 'high') { this.suggestedLabel = 'Cao'; this.suggestedPriority = 2; } else if (impact === 'medium') { this.suggestedLabel = 'Trung bình'; this.suggestedPriority = 3; } else if (impact === 'low') { this.suggestedLabel = 'Thấp'; this.suggestedPriority = 4; } else { this.suggestedLabel = null; this.suggestedPriority = null; } } }" @form-dropdown-close-others.window="if ($event.detail !== 'priority') showPriority = false" @apply-suggested-priority.window="if ($event.detail && $event.detail.value) { selectedPriority = $event.detail.value; showPriority = false; }">
             <input type="hidden" name="priority" :value="selectedPriority || ''">
-            <button type="button" @click="if (!showPriority) $dispatch('form-dropdown-close-others', 'priority'); showPriority = !showPriority" class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors hover:opacity-80" :class="priorityColorClass()">
+            <button type="button" @click="if (!showPriority) { updateSuggestion(); $dispatch('form-dropdown-close-others', 'priority'); } showPriority = !showPriority" class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm transition-colors hover:opacity-80" :class="priorityColorClass()">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" y1="22" x2="4" y2="15"/></svg>
                 <span x-text="priorityLabel() || 'Độ ưu tiên'"></span>
             </button>
             <div x-show="showPriority" x-cloak @click.outside="showPriority = false"
                 class="absolute left-0 top-full z-[60] mt-1 min-w-[260px] max-w-[calc(100vw-2rem)] overflow-x-hidden rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                <p x-show="suggestedLabel" class="px-2.5 py-1.5 text-xs text-gray-500 dark:text-gray-400 border-b border-gray-100 dark:border-gray-600">Gợi ý: <span x-text="suggestedLabel" class="font-medium text-gray-700 dark:text-gray-300"></span> <button type="button" @click="selectedPriority = suggestedPriority; showPriority = false" class="ml-1 text-brand-600 dark:text-brand-400 hover:underline">Áp dụng</button></p>
                 <button type="button" @click="selectedPriority = 1; showPriority = false" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700">
                     <svg class="shrink-0 text-red-500" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M14.4 6L14 4H5v17h2v-7h5.6l.4 2h7V6z"/></svg>
                     <span>Khẩn cấp</span>
@@ -148,6 +253,7 @@
                 <div class="border-t border-gray-100 dark:border-gray-600 px-2.5 py-1.5">
                     <p class="px-2.5 py-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">Ước lượng (phút)</p>
                     <input type="number" name="estimated_duration" min="0" placeholder="Phút" value="{{ isset($task) ? (int)($task->estimated_duration ?? 0) : '' }}" class="w-full rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+                    <p class="mt-1 px-2.5 text-xs text-gray-500 dark:text-gray-400">Đề xuất: {{ $durationSuggestion }} phút</p>
                 </div>
                 <div class="border-t border-gray-100 dark:border-gray-600 px-2.5 py-1">
                     <p class="px-2.5 py-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">Impact</p>

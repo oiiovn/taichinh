@@ -53,7 +53,7 @@
                 <div class="relative" x-data="{ layoutOpen: false, currentLayout: (() => { try { return localStorage.getItem('congViecLayout') || 'list'; } catch(e) { return 'list'; } })() }" @cong-viec-layout.window="currentLayout = $event.detail.layout">
                     <button type="button" @click="layoutOpen = !layoutOpen; currentLayout = (localStorage.getItem('congViecLayout') || 'list')" @click.outside="layoutOpen = false"
                         class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white">
-                        <span>Layout</span>
+                        <span>Bố cục</span>
                         <svg class="h-4 w-4 transition-transform" :class="layoutOpen && 'rotate-180'" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
                     </button>
                     <div x-show="layoutOpen" x-cloak x-transition
@@ -64,7 +64,7 @@
                             <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="currentLayout === 'list' ? 'bg-white dark:bg-gray-600' : 'bg-gray-100 dark:bg-gray-700'">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" x2="21" y1="6" y2="6"/><line x1="8" x2="21" y1="12" y2="12"/><line x1="8" x2="21" y1="18" y2="18"/><line x1="3" x2="3.01" y1="6" y2="6"/><line x1="3" x2="3.01" y1="12" y2="12"/><line x1="3" x2="3.01" y1="18" y2="18"/></svg>
                             </span>
-                            <span>List</span>
+                            <span>Danh sách</span>
                         </button>
                         <button type="button" @click="layoutOpen = false; $dispatch('cong-viec-layout', { layout: 'board' })"
                             class="layout-option flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
@@ -72,7 +72,7 @@
                             <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="currentLayout === 'board' ? 'bg-white dark:bg-gray-600' : 'bg-gray-100 dark:bg-gray-700'">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/></svg>
                             </span>
-                            <span>Board</span>
+                            <span>Bảng</span>
                         </button>
                         <button type="button" @click="layoutOpen = false; $dispatch('cong-viec-layout', { layout: 'calendar' })"
                             class="layout-option flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
@@ -80,7 +80,15 @@
                             <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="currentLayout === 'calendar' ? 'bg-white dark:bg-gray-600' : 'bg-gray-100 dark:bg-gray-700'">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
                             </span>
-                            <span>Calendar</span>
+                            <span>Lịch</span>
+                        </button>
+                        <button type="button" @click="layoutOpen = false; $dispatch('cong-viec-layout', { layout: 'focus' })"
+                            class="layout-option flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                            :class="currentLayout === 'focus' ? 'bg-gray-100 text-gray-900 dark:bg-gray-700 dark:text-white' : 'text-gray-700 dark:text-gray-300'" data-layout="focus">
+                            <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="currentLayout === 'focus' ? 'bg-white dark:bg-gray-600' : 'bg-gray-100 dark:bg-gray-700'">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                            </span>
+                            <span>Tập trung</span>
                         </button>
                     </div>
                 </div>

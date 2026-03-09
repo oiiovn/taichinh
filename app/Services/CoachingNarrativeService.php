@@ -2,20 +2,77 @@
 
 namespace App\Services;
 
+use App\Services\BehaviorProfileService;
 use App\Services\BehaviorStageClassifier;
 
 /**
  * "Hệ thống hôm nay muốn nói điều gì quan trọng nhất."
- * Chuyển số liệu thành nhận định + ngôn ngữ huấn luyện.
+ * Kiến trúc: Behavior Intelligence → ExecutionInsightPayload → Narrative Generator.
+ * generateFromPayload() nhận payload để dễ thay bằng LLM, testable, analytics.
  */
 class CoachingNarrativeService
 {
     /**
-     * Trả về narrative cho trang Tổng quan: nhận định, copy huấn luyện, một điều quan trọng (cột phải).
-     * Khi $userId được truyền và bật coaching_effectiveness, tích hợp hiệu quả can thiệp (meta-learning).
+     * Generate narrative từ Execution Insight Payload (payload → narrative layer).
+     */
+    public function generateFromPayload(
+        array $insightPayload,
+        ?int $userId = null,
+        ?object $activeProgram = null,
+        ?array $behaviorProjection = null
+    ): array {
+        $behaviorProfile = $insightPayload['behavior_profile'] ?? null;
+        $failureDetection = $insightPayload['failure_detection'] ?? null;
+        $stage = $insightPayload['stage'] ?? BehaviorStageClassifier::STAGE_STABILIZING;
+        $integrityPct = $insightPayload['integrity_pct'] ?? null;
+        $trustPct = $insightPayload['trust_pct'] ?? null;
+        $suggestion = $insightPayload['suggestion'] ?? null;
+        $tasksTodayCount = $insightPayload['tasks_today_count'] ?? 0;
+        $todayProgramTaskTotal = $insightPayload['today_program_task_total'] ?? 0;
+        $todayProgramTaskDone = $insightPayload['today_program_task_done'] ?? 0;
+        $interfaceAdaptation = $insightPayload['interface_adaptation'] ?? [];
+
+        $proj60 = isset($behaviorProjection['probability_maintain_60d']) ? (int) round($behaviorProjection['probability_maintain_60d'] * 100) : null;
+        $integrityInterpretation = $this->interpretIntegrity($integrityPct, $stage);
+        $todayMessage = $this->getTodayMessage($stage, $tasksTodayCount, $todayProgramTaskTotal, $todayProgramTaskDone, $integrityInterpretation, $suggestion, $failureDetection, $behaviorProfile);
+        $emptyTodayCopy = $this->getEmptyTodayCopy($activeProgram, $todayProgramTaskTotal, $behaviorProfile);
+
+        $leastEffectiveType = null;
+        $coachingEffectivenessScores = [];
+        if ($userId && config('behavior_intelligence.coaching_effectiveness.enabled', true)) {
+            $effectiveness = app(CoachingEffectivenessService::class)->getEffectivenessByUser($userId);
+            $coachingEffectivenessScores = $effectiveness;
+            $leastEffectiveType = app(CoachingEffectivenessService::class)->getLeastEffectiveType($userId);
+        }
+        $sidebarNarrative = $this->getSidebarNarrative($stage, $integrityInterpretation, $suggestion, $activeProgram, $leastEffectiveType, $failureDetection, $behaviorProfile);
+        $trustInterpretation = $this->interpretTrust($trustPct);
+
+        return [
+            'today_message' => $todayMessage,
+            'integrity_interpretation' => $integrityInterpretation,
+            'integrity_pct' => $integrityPct,
+            'trust_interpretation' => $trustInterpretation,
+            'trust_pct' => $trustPct,
+            'phase_label' => $this->getPhaseLabel($stage),
+            'empty_today_copy' => $emptyTodayCopy,
+            'sidebar_narrative' => $sidebarNarrative,
+            'projection_interpretation' => $proj60 !== null ? $this->interpretProjection($proj60) : null,
+            'projection_60d' => $proj60,
+            'coaching_effectiveness_scores' => $coachingEffectivenessScores,
+            'collapse_risk_message' => $failureDetection['collapse_risk_message'] ?? null,
+            'failure_suggestions' => $failureDetection['suggestions'] ?? [],
+            'behavior_profile_label' => $behaviorProfile['profile_label'] ?? null,
+        ];
+    }
+
+    /**
+     * Trả về narrative cho trang Tổng quan (legacy: nhận từng tham số).
+     * Nếu có ExecutionInsightPayload thì nên gọi generateFromPayload().
      *
      * @param  array{stage: string, layout: string}|null  $interfaceAdaptation
-     * @param  array{integrity_score: float, days_elapsed: int, days_total: int}|null  $activeProgramProgress
+     * @param  array{integrity_score: float}|null  $activeProgramProgress
+     * @param  array{profile: string, profile_label: string, hints: array}|null  $behaviorProfile
+     * @param  array{at_risk: bool, collapse_risk_message: string|null, suggestions: array}|null  $failureDetection
      */
     public function getTodayNarrative(
         ?object $activeProgram,
@@ -26,7 +83,9 @@ class CoachingNarrativeService
         int $todayProgramTaskTotal,
         int $todayProgramTaskDone,
         int $tasksTodayCount,
-        ?int $userId = null
+        ?int $userId = null,
+        ?array $behaviorProfile = null,
+        ?array $failureDetection = null
     ): array {
         $stage = $interfaceAdaptation['stage'] ?? BehaviorStageClassifier::STAGE_STABILIZING;
         $integrity = $activeProgramProgress['integrity_score'] ?? null;
@@ -37,8 +96,8 @@ class CoachingNarrativeService
         $suggestion = (is_array($behaviorProjection) && ! empty($behaviorProjection['suggestion'])) ? $behaviorProjection['suggestion'] : null;
 
         $integrityInterpretation = $this->interpretIntegrity($integrityPct, $stage);
-        $todayMessage = $this->getTodayMessage($stage, $tasksTodayCount, $todayProgramTaskTotal, $todayProgramTaskDone, $integrityInterpretation, $suggestion);
-        $emptyTodayCopy = $this->getEmptyTodayCopy($activeProgram, $todayProgramTaskTotal);
+        $todayMessage = $this->getTodayMessage($stage, $tasksTodayCount, $todayProgramTaskTotal, $todayProgramTaskDone, $integrityInterpretation, $suggestion, $failureDetection, $behaviorProfile);
+        $emptyTodayCopy = $this->getEmptyTodayCopy($activeProgram, $todayProgramTaskTotal, $behaviorProfile);
 
         $leastEffectiveType = null;
         $coachingEffectivenessScores = [];
@@ -47,7 +106,7 @@ class CoachingNarrativeService
             $coachingEffectivenessScores = $effectiveness;
             $leastEffectiveType = app(CoachingEffectivenessService::class)->getLeastEffectiveType($userId);
         }
-        $sidebarNarrative = $this->getSidebarNarrative($stage, $integrityInterpretation, $suggestion, $activeProgram, $leastEffectiveType);
+        $sidebarNarrative = $this->getSidebarNarrative($stage, $integrityInterpretation, $suggestion, $activeProgram, $leastEffectiveType, $failureDetection, $behaviorProfile);
 
         $trustInterpretation = $this->interpretTrust($trustPct);
         $phaseLabel = $this->getPhaseLabel($stage);
@@ -64,6 +123,9 @@ class CoachingNarrativeService
             'projection_interpretation' => $proj60 !== null ? $this->interpretProjection($proj60) : null,
             'projection_60d' => $proj60,
             'coaching_effectiveness_scores' => $coachingEffectivenessScores,
+            'collapse_risk_message' => $failureDetection['collapse_risk_message'] ?? null,
+            'failure_suggestions' => $failureDetection['suggestions'] ?? [],
+            'behavior_profile_label' => $behaviorProfile['profile_label'] ?? null,
         ];
     }
 
@@ -126,8 +188,13 @@ class CoachingNarrativeService
         int $todayProgramTaskTotal,
         int $todayProgramTaskDone,
         array $integrityInterpretation,
-        ?string $suggestion
+        ?string $suggestion,
+        ?array $failureDetection = null,
+        ?array $behaviorProfile = null
     ): string {
+        if ($failureDetection && ! empty($failureDetection['at_risk']) && ! empty($failureDetection['collapse_risk_message'])) {
+            return $failureDetection['collapse_risk_message'];
+        }
         if ($tasksTodayCount === 0 && $todayProgramTaskTotal === 0) {
             return 'Hôm nay bạn chưa có cam kết nào trong chương trình. Hãy thêm một việc để bắt đầu nhịp.';
         }
@@ -140,14 +207,20 @@ class CoachingNarrativeService
         if ($todayProgramTaskDone >= $todayProgramTaskTotal && $todayProgramTaskTotal > 0) {
             return 'Bạn đã hoàn thành mục tiêu chương trình hôm nay. Rất tốt.';
         }
+        if ($behaviorProfile && ! empty($behaviorProfile['hints'])) {
+            return $behaviorProfile['hints'][0];
+        }
         if ($suggestion) {
             return $suggestion;
         }
         return 'Tập trung vào cam kết hôm nay. Hệ thống đang theo dõi và phản ánh tiến độ của bạn.';
     }
 
-    protected function getEmptyTodayCopy(?object $activeProgram, int $todayProgramTaskTotal): string
+    protected function getEmptyTodayCopy(?object $activeProgram, int $todayProgramTaskTotal, ?array $behaviorProfile = null): string
     {
+        if ($behaviorProfile && in_array($behaviorProfile['profile'] ?? '', [BehaviorProfileService::PROFILE_PROCRASTINATOR, BehaviorProfileService::PROFILE_BURNOUT_RISK], true) && ! empty($behaviorProfile['hints'])) {
+            return $behaviorProfile['hints'][0];
+        }
         if ($activeProgram && $todayProgramTaskTotal > 0) {
             return 'Hôm nay bạn chưa hoàn thành cam kết nào trong chương trình. Chọn một việc và làm xong.';
         }
@@ -160,8 +233,9 @@ class CoachingNarrativeService
     /**
      * Một điều quan trọng cho cột phải — không lặp 1/31, Integrity số.
      * Khi $leastEffectiveType = insight_block: ưu tiên hint ngắn thay vì suggestion dài (meta-learning).
+     * Failure Detection: ưu tiên gợi ý khi at_risk.
      */
-    protected function getSidebarNarrative(string $stage, array $integrityInterpretation, ?string $suggestion, ?object $activeProgram, ?string $leastEffectiveType = null): array
+    protected function getSidebarNarrative(string $stage, array $integrityInterpretation, ?string $suggestion, ?object $activeProgram, ?string $leastEffectiveType = null, ?array $failureDetection = null, ?array $behaviorProfile = null): array
     {
         $headline = 'Điều quan trọng hôm nay';
         $body = $integrityInterpretation['hint'];
@@ -169,10 +243,11 @@ class CoachingNarrativeService
         if ($leastEffectiveType === CoachingInterventionLogger::TYPE_INSIGHT_BLOCK) {
             $useSuggestion = false;
         }
-        if ($useSuggestion) {
+        if ($failureDetection && ! empty($failureDetection['at_risk']) && ! empty($failureDetection['suggestions'])) {
+            $body = implode(' ', array_slice($failureDetection['suggestions'], 0, 2));
+        } elseif ($useSuggestion) {
             $body = $suggestion;
-        }
-        if ($integrityInterpretation['risk'] === 'cao') {
+        } elseif ($integrityInterpretation['risk'] === 'cao') {
             $body = 'Hệ thống nhận thấy Integrity đang thấp. ' . $integrityInterpretation['hint'];
         }
         $cta = $activeProgram ? 'Xem hành trình' : 'Tạo chương trình';

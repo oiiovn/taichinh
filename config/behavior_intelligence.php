@@ -61,4 +61,24 @@ return [
         'enabled' => env('BEHAVIOR_COACHING_EFFECTIVENESS_ENABLED', true),
         'min_samples_per_type' => (int) env('BEHAVIOR_COACHING_EFFECTIVENESS_MIN_SAMPLES', 3),
     ],
+
+    'execution_intelligence' => [
+        'priority_engine' => [
+            'weight_urgency' => (float) env('EXECUTION_PRIORITY_WEIGHT_URGENCY', 0.35),
+            'weight_impact' => (float) env('EXECUTION_PRIORITY_WEIGHT_IMPACT', 0.30),
+            'weight_streak_risk' => (float) env('EXECUTION_PRIORITY_WEIGHT_STREAK_RISK', 0.15),
+            'weight_program' => (float) env('EXECUTION_PRIORITY_WEIGHT_PROGRAM', 0.10),
+            'weight_overdue' => (float) env('EXECUTION_PRIORITY_WEIGHT_OVERDUE', 0.10),
+            'threshold_high' => (float) env('EXECUTION_PRIORITY_THRESHOLD_HIGH', 0.65),
+            'threshold_medium' => (float) env('EXECUTION_PRIORITY_THRESHOLD_MEDIUM', 0.40),
+        ],
+        'failure_detection' => [
+            'skip_streak_threshold' => (int) env('EXECUTION_FAILURE_SKIP_STREAK', 3),
+            'delay_count_threshold' => (int) env('EXECUTION_FAILURE_DELAY_COUNT', 5),
+        ],
+        'focus_planning' => [
+            'default_available_minutes' => (int) env('EXECUTION_FOCUS_AVAILABLE_MINUTES', 120),
+            'default_task_minutes' => (int) env('EXECUTION_FOCUS_DEFAULT_TASK_MINUTES', 30),
+        ],
+    ],
 ];
