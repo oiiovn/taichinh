@@ -64,11 +64,13 @@ return [
 
     'execution_intelligence' => [
         'priority_engine' => [
-            'weight_urgency' => (float) env('EXECUTION_PRIORITY_WEIGHT_URGENCY', 0.35),
-            'weight_impact' => (float) env('EXECUTION_PRIORITY_WEIGHT_IMPACT', 0.30),
+            'weight_urgency' => (float) env('EXECUTION_PRIORITY_WEIGHT_URGENCY', 0.30),
+            'weight_impact' => (float) env('EXECUTION_PRIORITY_WEIGHT_IMPACT', 0.25),
             'weight_streak_risk' => (float) env('EXECUTION_PRIORITY_WEIGHT_STREAK_RISK', 0.15),
             'weight_program' => (float) env('EXECUTION_PRIORITY_WEIGHT_PROGRAM', 0.10),
             'weight_overdue' => (float) env('EXECUTION_PRIORITY_WEIGHT_OVERDUE', 0.10),
+            'weight_deadline_pressure' => (float) env('EXECUTION_PRIORITY_WEIGHT_DEADLINE_PRESSURE', 0.10),
+            'deadline_boost_hours' => (float) env('EXECUTION_PRIORITY_DEADLINE_BOOST_HOURS', 4),
             'threshold_high' => (float) env('EXECUTION_PRIORITY_THRESHOLD_HIGH', 0.65),
             'threshold_medium' => (float) env('EXECUTION_PRIORITY_THRESHOLD_MEDIUM', 0.40),
         ],

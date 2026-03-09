@@ -162,6 +162,7 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware(['feature:cong_viec'])->group(function () {
         Route::get('/cong-viec', [\App\Http\Controllers\CongViecController::class, 'index'])->name('cong-viec');
+        Route::get('/cong-viec/tasks/similar', [\App\Http\Controllers\CongViecController::class, 'similarTasks'])->name('cong-viec.tasks.similar');
         Route::get('/cong-viec/tasks/{id}/edit', [\App\Http\Controllers\CongViecController::class, 'edit'])->name('cong-viec.tasks.edit');
         Route::post('/cong-viec/tasks', [\App\Http\Controllers\CongViecController::class, 'store'])->name('cong-viec.tasks.store');
         Route::put('/cong-viec/tasks/{id}', [\App\Http\Controllers\CongViecController::class, 'update'])->name('cong-viec.tasks.update');

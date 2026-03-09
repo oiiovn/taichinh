@@ -9,6 +9,21 @@
     $focusOrder = $focusOrder ?? null;
     $scorePct = $priorityScore !== null ? (int) round($priorityScore * 100) : null;
     $estimatedMinutes = $estimatedMinutes ?? (app(\App\Services\TaskDurationLearningService::class)->getPredictedMinutes($task->id) ?? $task->estimated_duration ?? null);
+    $deadlineSoon = false;
+    $deadlineSoonTime = null;
+    if (!$completed && $asTodayRow && $task->due_date && $task->due_time) {
+        $todayStart = \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->startOfDay();
+        $dueDate = \Carbon\Carbon::parse($task->due_date)->startOfDay();
+        if ($dueDate->isSameDay($todayStart)) {
+            $dueAt = \Carbon\Carbon::parse($todayStart->format('Y-m-d') . ' ' . substr($task->due_time, 0, 5), 'Asia/Ho_Chi_Minh');
+            $now = \Carbon\Carbon::now('Asia/Ho_Chi_Minh');
+            $hoursRemaining = $dueAt->diffInMinutes($now, false) / 60.0;
+            if ($hoursRemaining > 0 && $hoursRemaining < 4) {
+                $deadlineSoon = true;
+                $deadlineSoonTime = substr($task->due_time, 0, 5);
+            }
+        }
+    }
 @endphp
 <li class="group/task {{ $asTodayRow ? 'task-row' : '' }} flex items-start gap-3 rounded-lg border border-transparent py-2.5 px-2 transition-colors hover:bg-gray-50 hover:border-gray-200 dark:hover:bg-gray-800/50 dark:hover:border-gray-700" @if($asTodayRow) data-task-id="{{ $task->id }}" @if($instance) data-instance-id="{{ $instance->id }}" @endif @endif>
     @if($focusOrder)<span class="mt-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{{ $focusOrder }}</span>@endif
@@ -16,6 +31,7 @@
     <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2">
             <p class="font-semibold {{ $completed ? 'text-gray-500 line-through dark:text-gray-400' : 'text-gray-900 dark:text-white' }}">{{ $task->title }}</p>
+            @if($deadlineSoon && $deadlineSoonTime)<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" title="Hạn gần">⏳ hạn {{ $deadlineSoonTime }}</span>@endif
             @if($task->program_id && $task->relationLoaded('program') && $task->program)
                 <a href="{{ route('cong-viec.programs.show', $task->program->id) }}" class="rounded px-1.5 py-0.5 text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300" title="Chương trình">📋 {{ $task->program->title }}</a>
             @endif

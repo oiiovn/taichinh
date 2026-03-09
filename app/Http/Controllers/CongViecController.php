@@ -45,6 +45,34 @@ class CongViecController extends Controller
         return view('pages.cong-viec', $data);
     }
 
+    public function similarTasks(Request $request): JsonResponse
+    {
+        $request->validate(['title' => ['nullable', 'string', 'max:500']]);
+        $title = trim((string) $request->input('title', ''));
+        if (strlen($title) < 2) {
+            return response()->json(['suggestions' => []]);
+        }
+        $userId = $request->user()->id;
+        $tasks = CongViecTask::where('user_id', $userId)
+            ->where('title', 'like', '%' . $title . '%')
+            ->orderByDesc('updated_at')
+            ->limit(3)
+            ->get(['id', 'title', 'due_time', 'repeat', 'estimated_duration']);
+        $suggestions = $tasks->map(function ($t) {
+            $dueTime = $t->due_time;
+            if ($dueTime && strlen($dueTime) >= 5) {
+                $dueTime = substr($dueTime, 0, 5);
+            }
+            return [
+                'title' => $t->title,
+                'due_time' => $dueTime,
+                'repeat' => in_array($t->repeat ?? 'none', ['none', 'daily', 'weekly', 'monthly', 'custom']) ? ($t->repeat ?? 'none') : 'none',
+                'estimated_duration' => $t->estimated_duration ? (int) $t->estimated_duration : null,
+            ];
+        })->values()->all();
+        return response()->json(['suggestions' => $suggestions]);
+    }
+
     public function store(Request $request): RedirectResponse|JsonResponse
     {
         $userId = $request->user()->id;

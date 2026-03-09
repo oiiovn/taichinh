@@ -22,11 +22,12 @@ class TaskPriorityEngineService
     {
         $c = config('behavior_intelligence.execution_intelligence.priority_engine', []);
         $w = [
-            'urgency' => $c['weight_urgency'] ?? 0.35,
-            'impact' => $c['weight_impact'] ?? 0.30,
+            'urgency' => $c['weight_urgency'] ?? 0.30,
+            'impact' => $c['weight_impact'] ?? 0.25,
             'streak_risk' => $c['weight_streak_risk'] ?? 0.15,
             'program' => $c['weight_program'] ?? 0.10,
             'overdue' => $c['weight_overdue'] ?? 0.10,
+            'deadline_pressure' => $c['weight_deadline_pressure'] ?? 0.10,
         ];
         if ($behaviorProfile && isset($behaviorProfile['profile'])) {
             $profile = $behaviorProfile['profile'];
@@ -68,6 +69,9 @@ class TaskPriorityEngineService
         $scores = [];
         $w = $this->weights($behaviorProfile);
 
+        $now = Carbon::now('Asia/Ho_Chi_Minh');
+        $boostHours = (float) (config('behavior_intelligence.execution_intelligence.priority_engine.deadline_boost_hours', 4));
+
         foreach ($instances as $instance) {
             $task = $instance->task;
             $urgency = $this->urgencyComponent($task, $today);
@@ -75,12 +79,14 @@ class TaskPriorityEngineService
             $streakRisk = $this->streakRiskComponent($taskStreaks[$task->id] ?? 0);
             $programImportance = $this->programImportanceComponent($task, $activeProgramId);
             $overduePenalty = $this->overduePenaltyComponent($task, $today);
+            $deadlinePressure = $this->deadlinePressureComponent($task, $today, $now, $boostHours);
             $agePenalty = $this->agePenaltyComponent($task, $today);
             $score = $urgency * $w['urgency']
                 + $impact * $w['impact']
                 + $streakRisk * $w['streak_risk']
                 + $programImportance * $w['program']
                 + $overduePenalty * $w['overdue']
+                + $deadlinePressure * $w['deadline_pressure']
                 + $agePenalty;
 
             $scores[$instance->id] = [
@@ -90,6 +96,7 @@ class TaskPriorityEngineService
                 'streak_risk' => $streakRisk,
                 'program_importance' => $programImportance,
                 'overdue_penalty' => $overduePenalty,
+                'deadline_pressure' => $deadlinePressure,
                 'age_penalty' => $agePenalty,
             ];
         }
@@ -171,6 +178,32 @@ class TaskPriorityEngineService
         }
         $due = Carbon::parse($task->due_date)->startOfDay();
         return $due->lt($today) ? 1.0 : 0.0;
+    }
+
+    /**
+     * Deadline pressure 0–1: hạn trong ngày càng gần càng tăng điểm.
+     * Rule: deadline < 4h → auto boost (pressure = 1).
+     * Công thức: min(1, 1 / hours_remaining).
+     */
+    protected function deadlinePressureComponent($task, Carbon $today, Carbon $now, float $boostHours): float
+    {
+        if (! $task->due_date || ! $task->due_time) {
+            return 0.0;
+        }
+        $dueDate = Carbon::parse($task->due_date)->startOfDay();
+        if (! $dueDate->isSameDay($today)) {
+            return 0.0;
+        }
+        $dueMinutes = $this->timeToMinutes($task->due_time);
+        $nowMinutes = $now->hour * 60 + $now->minute;
+        $hoursRemaining = ($dueMinutes - $nowMinutes) / 60.0;
+        if ($hoursRemaining <= 0) {
+            return 1.0;
+        }
+        if ($hoursRemaining < $boostHours) {
+            return 1.0;
+        }
+        return (float) min(1.0, 1.0 / $hoursRemaining);
     }
 
     /** Priority aging: task càng cũ (max created_at, updated_at) càng tăng nhẹ score. Chỉnh sửa task reset “tuổi” để tránh penalty sau khi user đã cập nhật. age_penalty = min(age_days * 0.02, 0.1). */

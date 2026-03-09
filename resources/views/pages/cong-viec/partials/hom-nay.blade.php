@@ -141,7 +141,7 @@
                         </div>
                     @else
                         <p class="text-sm font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">🎯 Focus hôm nay ({{ $focusPlan['focus']->count() }} việc)</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">{{ $focusPlan['total_planned_minutes'] }} phút / {{ $focusPlan['available_minutes'] }} phút @if($estimatedFinish)<span class="font-medium text-amber-600 dark:text-amber-400">· Dự kiến xong lúc: {{ $estimatedFinish }}</span>@endif</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">⚡ Focus order · {{ $focusPlan['total_planned_minutes'] }} phút / {{ $focusPlan['available_minutes'] }} phút @if($estimatedFinish)<span class="font-medium text-amber-600 dark:text-amber-400">· Dự kiến xong lúc: {{ $estimatedFinish }}</span>@endif</p>
                         @php
                             $focusStart = now()->copy();
                             $focusTimeline = [];
@@ -155,7 +155,7 @@
                         @endphp
                         @if(count($focusTimeline) > 0)
                             <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30 px-3 py-2 text-xs">
-                                <p class="font-semibold text-gray-500 dark:text-gray-400 mb-1">⏰ Dòng thời gian focus (giờ bắt đầu đề xuất)</p>
+                                <p class="font-semibold text-gray-500 dark:text-gray-400 mb-1">⚡ Focus order · Dòng thời gian (giờ bắt đầu đề xuất)</p>
                                 @foreach($focusTimeline as $t)
                                     <p class="text-gray-700 dark:text-gray-300"><span class="font-mono text-gray-500 dark:text-gray-400">{{ $t['time'] }}</span> {{ $t['title'] }}@if(!empty($t['due_time'])) <span class="text-gray-500 dark:text-gray-400">— Hạn: {{ $t['due_time'] }}</span>@endif</p>
                                 @endforeach

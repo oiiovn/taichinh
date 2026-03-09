@@ -34,11 +34,14 @@ document.addEventListener('DOMContentLoaded', function() {
  * Chạy client-side, ~1ms, regex + JS.
  */
 function __taskParse(raw) {
-    if (!raw || typeof raw !== 'string') return { title: '', dueDate: null, dueTime: null, duration: null, hasParsed: false };
+    if (!raw || typeof raw !== 'string') return { title: '', dueDate: null, dueTime: null, duration: null, repeat: null, priority: null, remindMinutesBefore: null, hasParsed: false };
     let s = raw.trim();
     let dueDate = null;
     let dueTime = null;
     let duration = null;
+    let repeat = null;
+    let priority = null;
+    let remindMinutesBefore = null;
     const tz = 'Asia/Ho_Chi_Minh';
     const fmt = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' });
     const parts = fmt.formatToParts(new Date());
@@ -60,6 +63,23 @@ function __taskParse(raw) {
     } else if (/(?:hôm\s+)?nay\b|hn\b/i.test(s)) {
         dueDate = y + '-' + String(m).padStart(2, '0') + '-' + String(d).padStart(2, '0');
         s = s.replace(/(?:hôm\s+)?nay\b|hn\b/gi, '').trim();
+    } else {
+        var ngayThangSau = s.match(/\bngày\s+(\d{1,2})\s+tháng\s+sau\b/i);
+        var ngayThangNay = s.match(/\bngày\s+(\d{1,2})\s+tháng\s+này\b/i);
+        var ngayX = s.match(/\bngày\s+(\d{1,2})\b(?!\s+tháng)/i);
+        if (ngayThangSau) {
+            var dayNum = Math.max(1, Math.min(31, parseInt(ngayThangSau[1], 10)));
+            dueDate = toYmdUtc(y, m + 1, dayNum);
+            s = s.replace(/\bngày\s+\d{1,2}\s+tháng\s+sau\b/gi, '').trim();
+        } else if (ngayThangNay) {
+            var dayNum = Math.max(1, Math.min(31, parseInt(ngayThangNay[1], 10)));
+            dueDate = toYmdUtc(y, m, dayNum);
+            s = s.replace(/\bngày\s+\d{1,2}\s+tháng\s+này\b/gi, '').trim();
+        } else if (ngayX) {
+            var dayNum = Math.max(1, Math.min(31, parseInt(ngayX[1], 10)));
+            dueDate = toYmdUtc(y, m, dayNum);
+            s = s.replace(/\bngày\s+\d{1,2}\b(?!\s+tháng)/gi, '').trim();
+        }
     }
 
     var timeMatch = s.match(/(\d{1,2})(?::(\d{2}))?\s*(?:h|g|giờ)?(?:\s*(\d{2}))?\b/i);
@@ -84,8 +104,53 @@ function __taskParse(raw) {
         s = s.replace(/(\d+)\s*(?:h|g|giờ)(?:\s*(\d+)\s*(?:p|phút|m))?\b/gi, '').trim();
     }
 
+    if (/(?:lặp\s+lại\s+)?hàng\s+tuần|mỗi\s+tuần|weekly\b/i.test(s)) {
+        repeat = 'weekly';
+        s = s.replace(/(?:lặp\s+lại\s+)?hàng\s+tuần|mỗi\s+tuần|weekly\b/gi, '').trim();
+    } else if (/(?:lặp\s+lại\s+)?hàng\s+ngày|mỗi\s+ngày|daily\b/i.test(s)) {
+        repeat = 'daily';
+        s = s.replace(/(?:lặp\s+lại\s+)?hàng\s+ngày|mỗi\s+ngày|daily\b/gi, '').trim();
+    } else if (/(?:lặp\s+lại\s+)?hàng\s+tháng|mỗi\s+tháng|monthly\b/i.test(s)) {
+        repeat = 'monthly';
+        s = s.replace(/(?:lặp\s+lại\s+)?hàng\s+tháng|mỗi\s+tháng|monthly\b/gi, '').trim();
+    }
+
+    if (/\bkhẩn\s+cấp\b/i.test(s)) {
+        priority = 1;
+        s = s.replace(/\bkhẩn\s+cấp\b/gi, '').trim();
+    } else if (/\b(?:ưu\s+tiên|mức\s+độ|độ\s+ưu\s+tiên)\s+cao\b|priority\s+high\b/i.test(s)) {
+        priority = 2;
+        s = s.replace(/\b(?:ưu\s+tiên|mức\s+độ|độ\s+ưu\s+tiên)\s+cao\b|priority\s+high\b/gi, '').trim();
+    } else if (/\b(?:ưu\s+tiên|mức\s+độ)\s+trung\s+bình\b|\btrung\s+bình\b|priority\s+medium\b/i.test(s)) {
+        priority = 3;
+        s = s.replace(/\b(?:ưu\s+tiên|mức\s+độ)\s+trung\s+bình\b|\btrung\s+bình\b|priority\s+medium\b/gi, '').trim();
+    } else if (/\b(?:ưu\s+tiên|mức\s+độ)\s+thấp\b|priority\s+low\b/i.test(s)) {
+        priority = 4;
+        s = s.replace(/\b(?:ưu\s+tiên|mức\s+độ)\s+thấp\b|priority\s+low\b/gi, '').trim();
+    }
+
+    var remindPhut = s.match(/\bbáo\s+trước\s+(\d+)\s*(?:phút|p|m)\b/i);
+    var remindGio = s.match(/\bbáo\s+trước\s+(\d+)\s*(?:giờ|h|g)\b/i);
+    var remindNgay = s.match(/\bbáo\s+trước\s+(\d+)\s*ngày\b/i);
+    var remindDungGio = s.match(/\bbáo\s+đúng\s+giờ\b|nhắc\s+đúng\s+giờ\b/i);
+    if (remindDungGio) {
+        remindMinutesBefore = 0;
+        s = s.replace(/\bbáo\s+đúng\s+giờ\b|nhắc\s+đúng\s+giờ\b/gi, '').trim();
+    } else if (remindPhut) {
+        var p = parseInt(remindPhut[1], 10);
+        remindMinutesBefore = [5, 15, 30, 60].reduce(function(a, b) { return Math.abs(a - p) <= Math.abs(b - p) ? a : b; });
+        s = s.replace(/\bbáo\s+trước\s+\d+\s*(?:phút|p|m)\b/gi, '').trim();
+    } else if (remindGio) {
+        var h = parseInt(remindGio[1], 10);
+        remindMinutesBefore = h <= 1 ? 60 : (h <= 2 ? 120 : 1440);
+        s = s.replace(/\bbáo\s+trước\s+\d+\s*(?:giờ|h|g)\b/gi, '').trim();
+    } else if (remindNgay) {
+        remindMinutesBefore = 1440;
+        s = s.replace(/\bbáo\s+trước\s+\d+\s*ngày\b/gi, '').trim();
+    }
+
     var title = s.replace(/\s+/g, ' ').trim();
-    return { title: title, dueDate: dueDate, dueTime: dueTime, duration: duration, hasParsed: !!(dueDate || dueTime || duration) };
+    return { title: title, dueDate: dueDate, dueTime: dueTime, duration: duration, repeat: repeat, priority: priority, remindMinutesBefore: remindMinutesBefore, hasParsed: !!(dueDate || dueTime || duration || repeat || priority || remindMinutesBefore !== null) };
 }
 if (typeof window !== 'undefined') { window.taskParse = __taskParse; }
 

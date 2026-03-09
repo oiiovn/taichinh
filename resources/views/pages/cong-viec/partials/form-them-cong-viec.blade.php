@@ -4,7 +4,7 @@
     $ctx = $taskCreationContext ?? null;
     $showExecutionInsight = !isset($task) && $ctx && ($ctx['focus_window'] !== '—' || $ctx['workload_pct'] > 0 || ($ctx['capacity_remaining_minutes'] ?? 0) > 0 || $ctx['suggested_priority'] || $ctx['best_time'] || $ctx['overload_hint'] || isset($ctx['task_fit_score']));
 @endphp
-<form action="{{ isset($task) ? route('cong-viec.tasks.update', $task->id) : route('cong-viec.tasks.store') }}" method="POST" @submit.prevent="(function(f){ var ed = f.querySelector('[contenteditable=true]'); var h = f.querySelector('input[name=description_html]'); if (ed && h) h.value = ed.innerHTML; var meta = document.querySelector('meta[name=csrf-token]'); var token = meta ? meta.content : (f.querySelector('input[name=_token]') && f.querySelector('input[name=_token]').value); if (!token) { alert('Phiên đăng nhập hết hạn. Vui lòng tải lại trang.'); return; } var fd = new FormData(f); var isCreate = !f.action.match(/\/update\/?$/); fetch(f.action, { method: 'POST', headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: fd }).then(function(r){ if (r.status === 419) { alert('Phiên hết hạn. Vui lòng tải lại trang rồi thử lại.'); return; } if (r.ok) { return r.json().catch(function(){ return {}; }).then(function(data){ showAddTask = false; var panel = document.getElementById('today-panel') || document.getElementById('tong-quan-panel'); if (isCreate && panel && panel.dataset.partialUrl) { fetch(panel.dataset.partialUrl, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(pr){ if (pr.ok) return pr.text(); }).then(function(html){ if (html && panel.parentNode) panel.innerHTML = html; }); } }); } if (r.redirected) { window.location.href = r.url; return; } return r.json().catch(function(){ return null; }).then(function(data){ var msg = 'Có lỗi xảy ra. Vui lòng thử lại.'; if (data && data.errors) { var arr = []; for (var k in data.errors) { if (data.errors[k] && data.errors[k].length) arr.push(data.errors[k].join(' ')); } if (arr.length) msg = arr.join('\n'); } else if (data && data.message) msg = data.message; alert(msg); }); }).catch(function(){ alert('Lỗi kết nối. Vui lòng thử lại.'); }); })($el)"
+<form action="{{ isset($task) ? route('cong-viec.tasks.update', $task->id) : route('cong-viec.tasks.store') }}" method="POST" data-similar-url="{{ route('cong-viec.tasks.similar') }}" @submit.prevent="(function(f){ var ed = f.querySelector('[contenteditable=true]'); var h = f.querySelector('input[name=description_html]'); if (ed && h) h.value = ed.innerHTML; var meta = document.querySelector('meta[name=csrf-token]'); var token = meta ? meta.content : (f.querySelector('input[name=_token]') && f.querySelector('input[name=_token]').value); if (!token) { alert('Phiên đăng nhập hết hạn. Vui lòng tải lại trang.'); return; } var fd = new FormData(f); var isCreate = !f.action.match(/\/update\/?$/); fetch(f.action, { method: 'POST', headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, body: fd }).then(function(r){ if (r.status === 419) { alert('Phiên hết hạn. Vui lòng tải lại trang rồi thử lại.'); return; } if (r.ok) { return r.json().catch(function(){ return {}; }).then(function(data){ showAddTask = false; var panel = document.getElementById('today-panel') || document.getElementById('tong-quan-panel'); if (isCreate && panel && panel.dataset.partialUrl) { fetch(panel.dataset.partialUrl, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(pr){ if (pr.ok) return pr.text(); }).then(function(html){ if (html && panel.parentNode) panel.innerHTML = html; }); } }); } if (r.redirected) { window.location.href = r.url; return; } return r.json().catch(function(){ return null; }).then(function(data){ var msg = 'Có lỗi xảy ra. Vui lòng thử lại.'; if (data && data.errors) { var arr = []; for (var k in data.errors) { if (data.errors[k] && data.errors[k].length) arr.push(data.errors[k].join(' ')); } if (arr.length) msg = arr.join('\n'); } else if (data && data.message) msg = data.message; alert(msg); }); }).catch(function(){ alert('Lỗi kết nối. Vui lòng thử lại.'); }); })($el)"
         @csrf
         @if(isset($task)) @method('PUT') @endif
     <div x-data="{ plannedMinutes: {{ (int)($focusPlan['total_planned_minutes'] ?? 0) }}, availableMinutes: {{ (int)($focusPlan['available_minutes'] ?? 120) }}, workloadWarning: false, init() { const form = this.$el.closest('form'); if (!form) return; const check = () => { const due = form.querySelector('input[name=task_due_date]')?.value; const dur = parseInt(form.querySelector('input[name=estimated_duration]')?.value, 10) || 30; const today = new Date().toISOString().slice(0,10); this.workloadWarning = due === today && (this.plannedMinutes + dur) > this.availableMinutes; }; setInterval(check, 600); check(); } }" x-show="workloadWarning" x-cloak class="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-900/25 dark:text-amber-200">⚠ Hôm nay đã đầy workload</div>
@@ -44,7 +44,50 @@
     @endif
     <div x-data="{
         parsed: null,
-        parseTitle(v) { this.parsed = (typeof window.taskParse === 'function' ? window.taskParse(v) : null) || null; },
+        similarSuggestion: null,
+        _similarT: null,
+        parseFromForm() {
+            var form = this.$el.closest('form');
+            if (!form) return;
+            var title = (form.querySelector('input[name=title]') && form.querySelector('input[name=title]').value) || '';
+            var ed = form.querySelector('[contenteditable=true]');
+            var desc = (ed && (ed.innerText || ed.textContent || '').trim()) || '';
+            var combined = (title + ' ' + desc).trim();
+            this.parsed = (typeof window.taskParse === 'function' ? window.taskParse(combined) : null) || null;
+            var self = this;
+            this.similarSuggestion = null;
+            clearTimeout(this._similarT);
+            if (title.trim().length >= 2) {
+                this._similarT = setTimeout(function() { self.doFetchSimilar(title.trim()); }, 400);
+            }
+        },
+        parseTitle(v) {
+            this.parseFromForm();
+        },
+        doFetchSimilar(title) {
+            var form = this.$el.closest('form');
+            var url = form && form.dataset && form.dataset.similarUrl;
+            if (!url) return;
+            var self = this;
+            fetch(url + '?title=' + encodeURIComponent(title), { headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' } })
+                .then(function(r) { return r.json(); })
+                .then(function(data) { if (data.suggestions && data.suggestions[0]) self.similarSuggestion = data.suggestions[0]; })
+                .catch(function() {});
+        },
+        applySimilar() {
+            var s = this.similarSuggestion;
+            if (!s) return;
+            var form = this.$el.closest('form');
+            if (!form) return;
+            if (s.estimated_duration != null) { var e = form.querySelector('input[name=estimated_duration]'); if (e) e.value = String(s.estimated_duration); }
+            var detail = {};
+            if (s.due_time) detail.dueTime = s.due_time;
+            if (s.repeat && s.repeat !== 'none') detail.repeat = s.repeat;
+            if (Object.keys(detail).length) window.dispatchEvent(new CustomEvent('smart-parse-apply', { detail: detail }));
+            if (s.repeat && s.repeat !== 'none') { var r = form.querySelector('input[name=task_repeat]'); if (r) r.value = s.repeat; }
+            if (s.due_time) { var t = form.querySelector('input[name=task_due_time]'); if (t) t.value = s.due_time; }
+            this.similarSuggestion = null;
+        },
         dueDateLabel() {
             if (!this.parsed || !this.parsed.dueDate) return '';
             var fmt = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -57,13 +100,28 @@
             if (this.parsed.dueDate === tomorrow) return 'Ngày mai';
             return this.parsed.dueDate;
         },
+        repeatLabel() {
+            if (!this.parsed || !this.parsed.repeat) return '';
+            return { weekly: 'Hàng tuần', daily: 'Hàng ngày', monthly: 'Hàng tháng' }[this.parsed.repeat] || this.parsed.repeat;
+        },
+        priorityLabel() {
+            if (!this.parsed || this.parsed.priority == null) return '';
+            return { 1: 'Khẩn cấp', 2: 'Cao', 3: 'Trung bình', 4: 'Thấp' }[this.parsed.priority] || '';
+        },
+        remindLabel() {
+            if (!this.parsed || this.parsed.remindMinutesBefore == null) return '';
+            return { 0: 'Đúng giờ', 5: '5 phút trước', 15: '15 phút trước', 30: '30 phút trước', 60: '1 giờ trước', 120: '2 giờ trước', 1440: '1 ngày trước' }[this.parsed.remindMinutesBefore] || (this.parsed.remindMinutesBefore + ' phút trước');
+        },
         parsedSummary() {
             if (!this.parsed || !this.parsed.hasParsed) return '';
             var parts = [];
             if (this.parsed.dueDate) parts.push(this.dueDateLabel());
             if (this.parsed.dueTime) parts.push(this.parsed.dueTime);
             if (this.parsed.duration != null) parts.push(this.parsed.duration + ' phút');
-            return parts.join(', ');
+            if (this.parsed.repeat) parts.push(this.repeatLabel());
+            if (this.parsed.priority != null) parts.push(this.priorityLabel());
+            if (this.parsed.remindMinutesBefore != null) parts.push('Nhắc: ' + this.remindLabel());
+            return parts.join(' · ');
         },
         applyParsed() {
             if (!this.parsed || !this.parsed.hasParsed) return;
@@ -73,18 +131,34 @@
             if (this.parsed.dueDate) { var d = form.querySelector('input[name=task_due_date]'); if (d) d.value = this.parsed.dueDate; }
             if (this.parsed.dueTime) { var t = form.querySelector('input[name=task_due_time]'); if (t) t.value = this.parsed.dueTime; }
             if (this.parsed.duration != null) { var e = form.querySelector('input[name=estimated_duration]'); if (e) e.value = String(this.parsed.duration); }
-            window.dispatchEvent(new CustomEvent('smart-parse-apply', { detail: { dueDate: this.parsed.dueDate || null, dueTime: this.parsed.dueTime || null } }));
+            if (this.parsed.repeat) { var r = form.querySelector('input[name=task_repeat]'); if (r) r.value = this.parsed.repeat; }
+            if (this.parsed.priority != null) { window.dispatchEvent(new CustomEvent('apply-suggested-priority', { detail: { value: this.parsed.priority }, bubbles: true })); var p = form.querySelector('input[name=priority]'); if (p) p.value = String(this.parsed.priority); }
+            if (this.parsed.remindMinutesBefore !== null) { window.dispatchEvent(new CustomEvent('apply-remind', { detail: { value: String(this.parsed.remindMinutesBefore) }, bubbles: true })); var rm = form.querySelector('input[name=remind_minutes_before]'); if (rm) rm.value = String(this.parsed.remindMinutesBefore); }
+            window.dispatchEvent(new CustomEvent('smart-parse-apply', { detail: { dueDate: this.parsed.dueDate || null, dueTime: this.parsed.dueTime || null, repeat: this.parsed.repeat || null } }));
             this.parsed = null;
         }
-    }">
-        <input type="text" name="title" value="{{ isset($task) ? e($task->title) : '' }}" placeholder="Nhập tên công việc (vd: mai 9h họp team 30p)"
-            @input.debounce.300ms="parseTitle($event.target.value)"
+    }" @parse-form.window="parseFromForm()">
+        <input type="text" name="title" value="{{ isset($task) ? e($task->title) : '' }}" placeholder="Nhập tên công việc (vd: mai 9h họp team 30p hàng tuần)"
+            @input.debounce.300ms="parseFromForm()"
             class="block w-full border-0 bg-transparent py-1.5 text-base font-semibold text-gray-900 placeholder-gray-400 focus:ring-0 focus:outline-none dark:bg-transparent dark:text-white dark:placeholder-gray-500">
         <div x-show="parsed && parsed.hasParsed" x-cloak class="mt-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-brand-200 bg-brand-50/80 dark:border-brand-800 dark:bg-brand-900/20 px-2.5 py-1.5 text-xs text-gray-700 dark:text-gray-300">
-            <span>Đã nhận:</span>
-            <span x-text="parsedSummary()"></span>
+            <span class="font-medium">⚡ Đề xuất từ tiêu đề + mô tả</span>
+            <span x-text="(parsed && parsed.title ? parsed.title + ' · ' : '') + parsedSummary()"></span>
             <button type="button" @click="applyParsed()" class="rounded bg-brand-600 px-2 py-0.5 font-medium text-white hover:bg-brand-700 dark:bg-brand-500 dark:hover:bg-brand-600">Áp dụng</button>
         </div>
+        @if(!isset($task))
+        <div x-show="similarSuggestion && (similarSuggestion.estimated_duration || similarSuggestion.repeat !== 'none' || similarSuggestion.due_time)" x-cloak class="mt-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/80 dark:border-blue-800 dark:bg-blue-900/20 px-2.5 py-1.5 text-xs text-gray-700 dark:text-gray-300">
+            <span class="font-medium">⚡ Giống task trước</span>
+            <template x-if="similarSuggestion">
+                <span class="flex flex-wrap items-center gap-x-2 gap-y-0">
+                    <span x-show="similarSuggestion.estimated_duration" x-text="'Duration: ' + similarSuggestion.estimated_duration + ' phút'"></span>
+                    <span x-show="similarSuggestion.repeat && similarSuggestion.repeat !== 'none'" x-text="'Repeat: ' + ({ daily: 'Hàng ngày', weekly: 'Hàng tuần', monthly: 'Hàng tháng' }[similarSuggestion.repeat] || similarSuggestion.repeat)"></span>
+                    <span x-show="similarSuggestion.due_time" x-text="'Time: ' + similarSuggestion.due_time"></span>
+                </span>
+            </template>
+            <button type="button" @click="applySimilar()" class="rounded bg-blue-600 px-2 py-0.5 font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">Áp dụng</button>
+        </div>
+        @endif
         <div x-data="{
             showToolbar: false,
             toolbarTop: 0,
@@ -140,7 +214,8 @@
                 x-init="(function(){ var b = $el.getAttribute('data-initial-html-base64'); if (b) try { var bin = atob(b); var bytes = new Uint8Array(bin.length); for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i); var s = new TextDecoder('utf-8').decode(bytes); var ta = document.createElement('textarea'); ta.innerHTML = s; s = ta.value; $el.innerHTML = s || ''; } catch(e) {} })()"
                 class="min-h-[72px] resize-none border-0 bg-transparent py-1.5 pt-0 text-base text-gray-900 focus:ring-0 focus:outline-none dark:bg-transparent dark:text-white empty:before:content-[attr(data-placeholder)] empty:before:text-gray-400 dark:empty:before:text-gray-500"
                 @mouseup="checkSelection()"
-                @input="$el.closest('form').querySelector('input[name=description_html]').value = $el.innerHTML"></div>
+                @input="$el.closest('form').querySelector('input[name=description_html]').value = $el.innerHTML"
+                @input.debounce.300ms="window.dispatchEvent(new CustomEvent('parse-form'))"></div>
         </div>
         <input type="hidden" name="description_html" value="{{ isset($task) ? e($task->description_html) : '' }}">
         <input type="hidden" name="location" :value="locationText">
@@ -209,7 +284,7 @@
                 </button>
             </div>
         </div>
-        <div class="relative" x-data="{ showRemind: false, selectedRemind: '{{ isset($task) && $task->remind_minutes_before !== null ? (string)$task->remind_minutes_before : '' }}', remindOptions: [ { v: '', l: 'Không nhắc' }, { v: '0', l: 'Đúng giờ' }, { v: '5', l: '5 phút trước' }, { v: '15', l: '15 phút trước' }, { v: '30', l: '30 phút trước' }, { v: '60', l: '1 giờ trước' }, { v: '120', l: '2 giờ trước' }, { v: '1440', l: '1 ngày trước' } ], remindLabel() { const o = this.remindOptions.find(x => x.v === this.selectedRemind); return o ? o.l : 'Nhắc nhở'; } }" @form-dropdown-close-others.window="if ($event.detail !== 'remind') showRemind = false">
+        <div class="relative" x-data="{ showRemind: false, selectedRemind: '{{ isset($task) && $task->remind_minutes_before !== null ? (string)$task->remind_minutes_before : '' }}', remindOptions: [ { v: '', l: 'Không nhắc' }, { v: '0', l: 'Đúng giờ' }, { v: '5', l: '5 phút trước' }, { v: '15', l: '15 phút trước' }, { v: '30', l: '30 phút trước' }, { v: '60', l: '1 giờ trước' }, { v: '120', l: '2 giờ trước' }, { v: '1440', l: '1 ngày trước' } ], remindLabel() { const o = this.remindOptions.find(x => x.v === this.selectedRemind); return o ? o.l : 'Nhắc nhở'; } }" @form-dropdown-close-others.window="if ($event.detail !== 'remind') showRemind = false" @apply-remind.window="if ($event.detail && $event.detail.value !== undefined) { selectedRemind = $event.detail.value; }">
             <input type="hidden" name="remind_minutes_before" :value="selectedRemind === null || selectedRemind === '' ? '' : selectedRemind">
             <button type="button" @click="if (!showRemind) $dispatch('form-dropdown-close-others', 'remind'); showRemind = !showRemind" class="inline-flex items-center gap-1.5 rounded-md px-2 py-1 text-sm text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
