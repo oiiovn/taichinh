@@ -303,15 +303,102 @@ function __congViecShowMissedWindowPrompt(p) {
         var token = document.querySelector('meta[name=csrf-token]');
         if (!token) { hide(); return; }
         fetch(p.toggle_url, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token.content }, body: JSON.stringify({ _token: token.content }) })
-            .then(function(r) { if (r.ok) { hide(); var panel = document.getElementById('today-panel'); if (panel && panel.getAttribute('data-partial-url')) fetch(panel.getAttribute('data-partial-url'), { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(re) { return re.text(); }).then(function(html) { if (panel && html) panel.innerHTML = html; }).catch(function() {}); } })
+            .then(function(r) { if (r.ok) { hide(); var panel = document.getElementById('today-panel'); if (panel && panel.getAttribute('data-partial-url')) fetch(panel.getAttribute('data-partial-url'), { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(re) { return re.text(); }).then(function(html) { if (panel && html) { panel.innerHTML = html; if (window.__congViecInitTodaySortable) window.__congViecInitTodaySortable(); } }).catch(function() {}); } })
             .catch(function() { hide(); });
     };
     setTimeout(function() { if (wrap.style.display !== 'none') hide(); }, 30000);
 }
+function __congViecInitTodaySortable() {
+    var todayEl = document.querySelector('[data-today]');
+    var date = todayEl ? todayEl.getAttribute('data-today') : '';
+    if (!date) return;
+    var lists = document.querySelectorAll('.today-sortable-list');
+    lists.forEach(function(list) {
+        if (list._sortableInit) return;
+        list._sortableInit = true;
+        var section = list.getAttribute('data-today-sortable') || 'list';
+        var storageKey = 'congViecTodayOrder_' + date + '_' + section;
+        function getOrder() {
+            try {
+                var raw = localStorage.getItem(storageKey);
+                return raw ? JSON.parse(raw) : [];
+            } catch (e) { return []; }
+        }
+        function saveOrder(instanceIds) {
+            try { localStorage.setItem(storageKey, JSON.stringify(instanceIds)); } catch (e) {}
+        }
+        function getRowNode(innerLi) {
+            return innerLi && innerLi.parentNode !== list && innerLi.parentNode.tagName === 'LI' ? innerLi.parentNode : innerLi;
+        }
+        function applySavedOrder() {
+            var order = getOrder();
+            if (order.length === 0) return;
+            var items = Array.from(list.querySelectorAll('li[data-instance-id]'));
+            var byId = {};
+            items.forEach(function(li) { byId[li.getAttribute('data-instance-id')] = li; });
+            order.forEach(function(id) {
+                if (byId[id]) { list.appendChild(getRowNode(byId[id])); }
+            });
+        }
+        applySavedOrder();
+        list.addEventListener('dragstart', function(e) {
+            var handle = e.target.closest('.today-drag-handle');
+            if (!handle) return;
+            var li = handle.closest('li');
+            if (!li) return;
+            var id = li.getAttribute('data-instance-id');
+            if (!id) return;
+            e.dataTransfer.setData('text/plain', id);
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('application/x-instance-id', id);
+            try { e.dataTransfer.setDragImage(li, 20, 20); } catch (err) {}
+            li.classList.add('opacity-50');
+        });
+        list.addEventListener('dragend', function(e) {
+            var li = e.target.closest('li');
+            if (li) li.classList.remove('opacity-50');
+        });
+        list.addEventListener('dragover', function(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            var li = e.target.closest('li[data-instance-id]');
+            if (li) li.classList.add('ring-2', 'ring-brand-500', 'ring-inset');
+        });
+        list.addEventListener('dragleave', function(e) {
+            var li = e.target.closest('li[data-instance-id]');
+            if (li) li.classList.remove('ring-2', 'ring-brand-500', 'ring-inset');
+        });
+        list.addEventListener('drop', function(e) {
+            e.preventDefault();
+            list.querySelectorAll('li[data-instance-id]').forEach(function(el) { el.classList.remove('ring-2', 'ring-brand-500', 'ring-inset'); });
+            var id = e.dataTransfer.getData('application/x-instance-id') || e.dataTransfer.getData('text/plain');
+            if (!id) return;
+            var dragged = list.querySelector('li[data-instance-id="' + id + '"]');
+            var target = e.target.closest('li[data-instance-id]');
+            if (!dragged || dragged === target) return;
+            var draggedRow = getRowNode(dragged);
+            var targetRow = target ? getRowNode(target) : null;
+            if (targetRow) {
+                list.insertBefore(draggedRow, targetRow);
+            } else {
+                list.appendChild(draggedRow);
+            }
+            var order = Array.from(list.children).map(function(outer) {
+                var inner = outer.querySelector && outer.querySelector('li[data-instance-id]');
+                return inner ? inner.getAttribute('data-instance-id') : null;
+            }).filter(Boolean);
+            saveOrder(order);
+        });
+    });
+}
 document.addEventListener('DOMContentLoaded', function() {
     __congViecSendBehaviorEvents([{ event_type: 'page_view', payload: { path: 'cong-viec' } }]);
     if (__congViecMissedWindowPrompt && __congViecMissedWindowPrompt.instance_id) __congViecShowMissedWindowPrompt(__congViecMissedWindowPrompt);
+    __congViecInitTodaySortable();
 });
+if (typeof window !== 'undefined') {
+    window.__congViecInitTodaySortable = __congViecInitTodaySortable;
+}
 /**
  * Smart parsing: "mai 9h họp team 30p" → { title, dueDate, dueTime, duration }.
  * Chạy client-side, ~1ms, regex + JS.
@@ -623,7 +710,7 @@ document.addEventListener('change', async function(e) {
                                 row.remove();
                                 if (partialUrl && panel && panel.parentNode) {
                                     fetch(partialUrl, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) { return r.ok ? r.text() : null; }).then(function(html) {
-                                        if (panel && html) panel.innerHTML = html;
+                                        if (panel && html) { panel.innerHTML = html; if (window.__congViecInitTodaySortable) window.__congViecInitTodaySortable(); }
                                     }).catch(function() {});
                                 }
                             }, 300);
@@ -636,7 +723,7 @@ document.addEventListener('change', async function(e) {
                         row.remove();
                         if (partialUrl && panel && panel.parentNode) {
                             fetch(partialUrl, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) { return r.ok ? r.text() : null; }).then(function(html) {
-                                if (panel && html) panel.innerHTML = html;
+                                if (panel && html) { panel.innerHTML = html; if (window.__congViecInitTodaySortable) window.__congViecInitTodaySortable(); }
                             }).catch(function() {});
                         }
                     }, 300);
@@ -646,7 +733,7 @@ document.addEventListener('change', async function(e) {
                 var url = panel && panel.getAttribute && panel.getAttribute('data-partial-url');
                 if (url) {
                     fetch(url, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) { return r.text(); }).then(function(html) {
-                        if (panel && html) panel.innerHTML = html;
+                        if (panel && html) { panel.innerHTML = html; if (window.__congViecInitTodaySortable) window.__congViecInitTodaySortable(); }
                     }).catch(function() { window.location.reload(); });
                 } else {
                     window.location.reload();

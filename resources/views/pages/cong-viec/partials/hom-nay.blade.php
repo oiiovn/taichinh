@@ -81,13 +81,13 @@
         }
     }
 @endphp
-<div class="w-full max-w-[880px] space-y-5">
+<div class="w-full max-w-[880px] space-y-5" data-today="{{ $todayHcm ?? now()->format('Y-m-d') }}">
     {{-- Execution Header --}}
     <div class="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50/80 dark:bg-gray-800/50 px-4 py-3">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h2 class="text-lg font-bold text-gray-900 dark:text-white">Hôm nay — {{ $weekday }}</h2>
-                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ $totalToday }} việc · {{ $focusPlan['available_minutes'] }} phút tập trung</p>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ $totalToday }} việc · Focus plan: {{ $focusPlan['available_minutes'] }} phút</p>
             </div>
             <div class="flex flex-wrap items-center gap-4 text-sm">
                 <span class="flex items-center gap-1.5" title="Trạng thái thực thi">
@@ -246,7 +246,7 @@
                             @endif
                         @endif
                         @php $taskIdx = 0; @endphp
-                        <ol class="space-y-1 list-none pl-0">
+                        <ol class="today-sortable-list space-y-1 list-none pl-0" data-today-sortable="focus">
                             @foreach($focusPlan['focus'] as $idx => $instance)
                                 <li>
                                     @if(is_array($instance) && !empty($instance['is_break']))
@@ -281,7 +281,7 @@
                 @if($focusPlan['secondary']->isNotEmpty())
                     <div class="space-y-1">
                         <p class="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">⚡ Nên làm tiếp (nếu còn thời gian)</p>
-                        <ul class="space-y-1">
+                        <ul class="today-sortable-list space-y-1" data-today-sortable="secondary">
                                 @foreach($focusPlan['secondary'] as $instance)
                                 @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'energyAffinity' => $todayPriorityScores[$instance->id]['energy_affinity'] ?? null, 'showIntelligence' => true, 'userDoingOtherTask' => $focusSession && (int)($focusSession['instance_id'] ?? 0) !== (int)$instance->id])
                             @endforeach
@@ -291,7 +291,7 @@
                 @if(($focusPlan['missed_window'] ?? collect())->isNotEmpty())
                     <div class="space-y-1 mt-3">
                         <p class="text-xs font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400">⚠ Trễ cửa sổ thực thi</p>
-                        <ul class="space-y-1">
+                        <ul class="today-sortable-list space-y-1" data-today-sortable="missed">
                             @foreach($focusPlan['missed_window'] as $instance)
 @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'energyAffinity' => $todayPriorityScores[$instance->id]['energy_affinity'] ?? null, 'showIntelligence' => true, 'userDoingOtherTask' => $focusSession && (int)($focusSession['instance_id'] ?? 0) !== (int)$instance->id])
                                             @endforeach
@@ -303,7 +303,7 @@
                         @if(($slotBlock['instances'] ?? collect())->isNotEmpty())
                             <div class="space-y-1 mt-4">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">🕒 Later today · sau {{ $slotBlock['slot'] }}</p>
-                                <ul class="space-y-1">
+                                <ul class="today-sortable-list space-y-1" data-today-sortable="later">
                                     @foreach($slotBlock['instances'] as $instance)
                                         @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'energyAffinity' => $todayPriorityScores[$instance->id]['energy_affinity'] ?? null, 'showIntelligence' => true, 'userDoingOtherTask' => $focusSession && (int)($focusSession['instance_id'] ?? 0) !== (int)$instance->id])
                                     @endforeach
@@ -318,7 +318,7 @@
                     @if($tiers[$tierKey]->isNotEmpty())
                         <div class="space-y-1">
                             <p class="text-xs font-semibold uppercase tracking-wide {{ $config['class'] }}">{{ $config['icon'] }} {{ $config['label'] }}</p>
-                            <ul class="space-y-1">
+                            <ul class="today-sortable-list space-y-1" data-today-sortable="tier-{{ $tierKey }}">
                                 @foreach($tiers[$tierKey] as $instance)
                                     @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'energyAffinity' => $todayPriorityScores[$instance->id]['energy_affinity'] ?? null, 'showIntelligence' => true, 'userDoingOtherTask' => isset($focusSession) && $focusSession && (int)($focusSession['instance_id'] ?? 0) !== (int)$instance->id])
                                 @endforeach

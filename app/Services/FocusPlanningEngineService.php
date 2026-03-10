@@ -143,10 +143,9 @@ class FocusPlanningEngineService
         return $default;
     }
 
-    /** Lấy available_minutes mặc định từ config hoặc 120. */
+    /** Lấy available_minutes: dynamic từ lịch sử focus (avg 7 ngày * 0.7, cap 240) hoặc config. */
     public function getDefaultAvailableMinutes(?int $userId = null): int
     {
-        $config = config('behavior_intelligence.execution_intelligence.focus_planning.default_available_minutes', 120);
-        return (int) $config;
+        return app(FocusBudgetService::class)->getBudgetMinutes($userId);
     }
 }

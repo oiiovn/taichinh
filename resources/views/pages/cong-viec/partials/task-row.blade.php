@@ -30,6 +30,11 @@
     }
 @endphp
 <li class="group/task {{ $asTodayRow ? 'task-row' : '' }} flex items-start gap-3 rounded-lg border border-transparent py-2.5 px-2 transition-colors hover:bg-gray-50 hover:border-gray-200 dark:hover:bg-gray-800/50 dark:hover:border-gray-700" @if($asTodayRow) data-task-id="{{ $task->id }}" @if($instance) data-instance-id="{{ $instance->id }}" @endif @endif>
+    @if($asTodayRow && $instance && !$completed)
+    <span class="today-drag-handle mt-1.5 flex h-6 w-6 shrink-0 cursor-grab items-center justify-center rounded text-gray-400 hover:bg-gray-200 hover:text-gray-600 active:cursor-grabbing dark:hover:bg-gray-600 dark:hover:text-gray-300" title="Kéo để đổi thứ tự ưu tiên" draggable="true" data-instance-id="{{ $instance->id }}">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+    </span>
+    @endif
     @if($focusOrder)<span class="mt-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{{ $focusOrder }}</span>@endif
     <input type="checkbox" class="task-checkbox mt-1.5 h-6 w-6 shrink-0 appearance-none rounded-full border-2 border-gray-300 bg-transparent text-red-500 focus:ring-2 focus:ring-red-500 focus:ring-offset-0 dark:border-gray-600 checked:border-red-500 checked:bg-red-500" data-task-id="{{ $task->id }}" data-task-title="{{ e($task->title) }}" data-url="{{ $toggleUrl }}" data-due-date="{{ $task->due_date?->format('Y-m-d') }}" data-due-time="{{ $task->due_time ?? '' }}" data-program-id="{{ $task->program_id ?? '' }}" @if($instance) data-instance-id="{{ $instance->id }}" data-confirm-url="{{ $confirmCompleteUrl ?? '' }}" @endif @checked($completed)>
     <div class="min-w-0 flex-1">

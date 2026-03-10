@@ -138,6 +138,14 @@ return [
         'focus_planning' => [
             'default_available_minutes' => (int) env('EXECUTION_FOCUS_AVAILABLE_MINUTES', 120),
             'default_task_minutes' => (int) env('EXECUTION_FOCUS_DEFAULT_TASK_MINUTES', 30),
+            /** Dynamic focus budget từ lịch sử: avg 7 ngày * multiplier, cap tối đa. */
+            'dynamic_budget' => [
+                'enabled' => env('EXECUTION_FOCUS_DYNAMIC_BUDGET', true),
+                'window_days' => (int) env('EXECUTION_FOCUS_BUDGET_WINDOW_DAYS', 7),
+                'multiplier' => (float) env('EXECUTION_FOCUS_BUDGET_MULTIPLIER', 0.7),
+                'cap_minutes' => (int) env('EXECUTION_FOCUS_BUDGET_CAP', 240),
+                'min_minutes' => (int) env('EXECUTION_FOCUS_BUDGET_MIN', 30),
+            ],
         ],
     ],
 ];
