@@ -51,7 +51,7 @@
                                 {{ $t->completed ? '· Đã xong' : '' }}
                             </p>
                         </div>
-                        <a href="{{ route('cong-viec', ['edit' => $t->id]) }}" class="text-sm text-brand-600 hover:underline dark:text-brand-400">Sửa</a>
+                        <a href="{{ route('cong-viec', ['edit' => $t->id]) }}" data-edit-task-id="{{ $t->id }}" class="text-sm text-brand-600 hover:underline dark:text-brand-400">Sửa</a>
                     </li>
                 @endforeach
             </ul>

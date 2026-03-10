@@ -8,9 +8,12 @@
     x-transition:leave-end="opacity-0"
     x-effect="showAddTask && $nextTick(() => $refs.addTaskModalOverlay?.scrollTo({ top: 0, behavior: 'instant' }))"
     class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/50 pt-24 pb-8 px-4"
-    @click.self="showAddTask = false; if (window.location.search.includes('edit=')) window.location = '{{ route('cong-viec') }}';">
+    @click.self="showAddTask = false; editTaskId = null; if (window.location.search.includes('edit=')) window.location = '{{ route('cong-viec') }}';">
     <div class="modal-add-task-content relative z-0 mt-0 mb-8 w-full max-w-[600px] shrink-0 overflow-visible rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-600 dark:bg-gray-800" @click.stop>
         <div class="px-4 py-3.5">
+            <p x-show="editTaskId" class="mb-3 text-sm">
+                <a :href="editTaskId ? '{{ url('/cong-viec/tasks') }}/' + editTaskId : '#'" class="text-brand-600 hover:underline dark:text-brand-400">Mở trang chi tiết →</a>
+            </p>
             @include('pages.cong-viec.partials.form-them-cong-viec', ['task' => $editTask ?? null, 'focusPlan' => $focusPlan ?? null, 'taskCreationContext' => $taskCreationContext ?? null])
         </div>
     </div>

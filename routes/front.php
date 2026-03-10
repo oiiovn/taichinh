@@ -123,6 +123,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/tai-chinh/lich-thanh-toan/{id}/edit', [\App\Http\Controllers\TaiChinh\PaymentScheduleController::class, 'edit'])->name('tai-chinh.payment-schedules.edit');
         Route::put('/tai-chinh/lich-thanh-toan/{id}', [\App\Http\Controllers\TaiChinh\PaymentScheduleController::class, 'update'])->name('tai-chinh.payment-schedules.update');
         Route::delete('/tai-chinh/lich-thanh-toan/{id}', [\App\Http\Controllers\TaiChinh\PaymentScheduleController::class, 'destroy'])->name('tai-chinh.payment-schedules.destroy');
+        Route::get('/tai-chinh/lich-thanh-toan/{id}/task-payload', [\App\Http\Controllers\TaiChinh\PaymentScheduleController::class, 'taskPayload'])->name('tai-chinh.payment-schedules.task-payload');
+        Route::post('/tai-chinh/lich-thanh-toan/{id}/create-task', [\App\Http\Controllers\TaiChinh\PaymentScheduleController::class, 'createTask'])->name('tai-chinh.payment-schedules.create-task');
         Route::post('/tai-chinh/tai-khoan', [\App\Http\Controllers\TaiChinh\BankAccountController::class, 'store'])->name('tai-chinh.tai-khoan.store');
         Route::post('/tai-chinh/tai-khoan/cap-nhat-so-du', [\App\Http\Controllers\TaiChinh\BankAccountController::class, 'updateAccountBalance'])->name('tai-chinh.tai-khoan.update-balance');
         Route::post('/tai-chinh/tai-khoan/unlink', [\App\Http\Controllers\TaiChinh\BankAccountController::class, 'unlink'])->name('tai-chinh.tai-khoan.unlink');
@@ -162,8 +164,11 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware(['feature:cong_viec'])->group(function () {
         Route::get('/cong-viec', [\App\Http\Controllers\CongViecController::class, 'index'])->name('cong-viec');
+        Route::get('/cong-viec/from-schedule-payload', [\App\Http\Controllers\CongViecController::class, 'fromSchedulePayload'])->name('cong-viec.from-schedule-payload');
         Route::get('/cong-viec/tasks/similar', [\App\Http\Controllers\CongViecController::class, 'similarTasks'])->name('cong-viec.tasks.similar');
+        Route::get('/cong-viec/tasks/{id}', [\App\Http\Controllers\CongViecController::class, 'show'])->name('cong-viec.tasks.show');
         Route::get('/cong-viec/tasks/{id}/edit', [\App\Http\Controllers\CongViecController::class, 'edit'])->name('cong-viec.tasks.edit');
+        Route::get('/cong-viec/tasks/{id}/edit-data', [\App\Http\Controllers\CongViecController::class, 'editData'])->name('cong-viec.tasks.edit-data');
         Route::post('/cong-viec/tasks', [\App\Http\Controllers\CongViecController::class, 'store'])->name('cong-viec.tasks.store');
         Route::put('/cong-viec/tasks/{id}', [\App\Http\Controllers\CongViecController::class, 'update'])->name('cong-viec.tasks.update');
         Route::delete('/cong-viec/tasks/{id}', [\App\Http\Controllers\CongViecController::class, 'destroy'])->name('cong-viec.tasks.destroy');

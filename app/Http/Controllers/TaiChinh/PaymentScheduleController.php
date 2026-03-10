@@ -4,7 +4,9 @@ namespace App\Http\Controllers\TaiChinh;
 
 use App\Http\Controllers\Controller;
 use App\Models\PaymentSchedule;
+use App\Services\PaymentScheduleToTaskService;
 use App\Services\TaiChinh\TaiChinhViewCache;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -150,6 +152,7 @@ class PaymentScheduleController extends Controller
             'auto_advance_on_match' => ['boolean'],
         ];
         $data = $request->validate($rules);
+        $oldNextDueStr = $schedule->next_due_date ? Carbon::parse($schedule->next_due_date)->format('Y-m-d') : null;
         $keywords = null;
         if (! empty($data['keywords'] ?? '')) {
             $parts = array_map('trim', explode(',', $data['keywords']));
@@ -176,7 +179,56 @@ class PaymentScheduleController extends Controller
         $schedule->overdue_alert = $request->boolean('overdue_alert', true);
         $schedule->auto_advance_on_match = $request->boolean('auto_advance_on_match', true);
         $schedule->save();
+        TaiChinhViewCache::forget($user->id);
+        $newNextDueStr = $schedule->next_due_date?->format('Y-m-d');
+        if ($oldNextDueStr && $newNextDueStr && $oldNextDueStr !== $newNextDueStr) {
+            $this->maybeCreateTaskForNewPeriod($schedule, $user->id);
+        }
         return redirect()->route('tai-chinh', ['tab' => 'lich-thanh-toan'])->with('success', 'Đã cập nhật lịch thanh toán.');
+    }
+
+    public function taskPayload(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập.'], 401);
+        }
+        $schedule = PaymentSchedule::where('user_id', $user->id)->where('id', $id)->first();
+        if (! $schedule) {
+            return response()->json(['success' => false, 'message' => 'Không tìm thấy lịch thanh toán.'], 404);
+        }
+        $payload = app(PaymentScheduleToTaskService::class)->buildTaskPayloadFromSchedule($schedule);
+        return response()->json(['success' => true, 'payload' => $payload]);
+    }
+
+    public function createTask(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập.'], 401);
+        }
+        $schedule = PaymentSchedule::where('user_id', $user->id)->where('id', $id)->first();
+        if (! $schedule) {
+            return response()->json(['success' => false, 'message' => 'Không tìm thấy lịch thanh toán.'], 404);
+        }
+        $task = app(PaymentScheduleToTaskService::class)->createTaskFromSchedule($schedule, null, $user->id);
+        return response()->json([
+            'success' => true,
+            'task_id' => $task->id,
+            'redirect_url' => route('cong-viec', ['tab' => 'hom-nay']),
+        ]);
+    }
+
+    private function maybeCreateTaskForNewPeriod(PaymentSchedule $schedule, int $userId): void
+    {
+        if (! config('payment_schedule.create_task_on_advance', true)) {
+            return;
+        }
+        if (! $schedule->next_due_date) {
+            return;
+        }
+        $due = Carbon::parse($schedule->next_due_date);
+        app(PaymentScheduleToTaskService::class)->createTaskFromSchedule($schedule, $due, $userId);
     }
 
     public function destroy(Request $request, int $id): RedirectResponse

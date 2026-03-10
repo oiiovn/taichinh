@@ -1,5 +1,6 @@
 @php
     $schedules = $paymentSchedules ?? collect();
+    $scheduleTaskMap = $scheduleTaskMap ?? [];
     $obligation30 = $paymentScheduleObligation30 ?? ['total' => 0, 'items' => []];
     $obligation90 = $paymentScheduleObligation90 ?? ['total' => 0, 'items' => []];
     $executionStatus = $paymentScheduleExecutionStatus ?? [];
@@ -114,7 +115,19 @@
                                 @endif
                             </td>
                             <td class="whitespace-nowrap px-4 py-3 text-right">
-                                <div class="flex shrink-0 items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                                <div class="flex shrink-0 items-center justify-end gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+                                    @php $linkedTask = $scheduleTaskMap[$schedule->id] ?? null; @endphp
+                                    @if($linkedTask)
+                                        <span class="shrink-0 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-400" title="Đã có công việc cho kỳ này">Đã có task</span>
+                                        <a href="{{ route('cong-viec.tasks.show', $linkedTask['task_id']) }}?from=lich-thanh-toan" class="shrink-0 rounded-full p-1.5 text-brand-600 hover:bg-brand-50 hover:text-brand-700 dark:hover:bg-brand-900/30 dark:text-brand-400" title="Xem chi tiết công việc">Xem</a>
+                                    @else
+                                        <button type="button"
+                                            data-create-task-url="{{ route('tai-chinh.payment-schedules.create-task', $schedule->id) }}"
+                                            class="lich-create-task-btn shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600 dark:hover:text-gray-200"
+                                            title="Đưa vào công việc (tạo task ngay)">
+                                            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+                                        </button>
+                                    @endif
                                     <button type="button" @click="$dispatch('open-edit-lich-modal', { id: {{ $schedule->id }} })" class="shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600 dark:hover:text-gray-200" title="Sửa">
                                         <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
                                     </button>
@@ -139,4 +152,36 @@
     </x-ui.modal>
 
     <x-ui.confirm-delete openVar="showConfirmDelete" title="Xác nhận xóa lịch thanh toán" defaultMessage="Bạn có chắc muốn xóa lịch này? Hành động không thể hoàn tác." />
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('click', function(e) {
+            var btn = e.target.closest('.lich-create-task-btn');
+            if (!btn || !btn.dataset.createTaskUrl) return;
+            e.preventDefault();
+            var url = btn.dataset.createTaskUrl;
+            var token = document.querySelector('meta[name="csrf-token"]');
+            if (!token || !token.content) { alert('Phiên đăng nhập hết hạn. Vui lòng tải lại trang.'); return; }
+            btn.disabled = true;
+            fetch(url, {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': token.content, 'Accept': 'application/json', 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: JSON.stringify({})
+            }).then(function(r) {
+                if (r.status === 419) { btn.disabled = false; alert('Phiên hết hạn. Vui lòng tải lại trang.'); return; }
+                return r.json();
+            }).then(function(data) {
+                btn.disabled = false;
+                if (data && data.success && data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    alert(data && data.message ? data.message : 'Không tạo được công việc.');
+                }
+            }).catch(function() {
+                btn.disabled = false;
+                alert('Lỗi kết nối. Vui lòng thử lại.');
+            });
+        });
+    });
+    </script>
 </div>

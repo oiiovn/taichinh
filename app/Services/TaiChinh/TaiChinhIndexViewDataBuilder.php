@@ -265,6 +265,10 @@ class TaiChinhIndexViewDataBuilder
         // #endregion
         $this->attachBudgetAndIncomeGoalData($user, $linkedAccountNumbers, $request, $viewData);
         $viewData['paymentSchedules'] = $user ? PaymentSchedule::where('user_id', $user->id)->orderBy('next_due_date')->get() : collect();
+        $viewData['scheduleTaskMap'] = [];
+        if ($user && $viewData['paymentSchedules']->isNotEmpty()) {
+            $viewData['scheduleTaskMap'] = app(\App\Services\PaymentScheduleToTaskService::class)->getTaskIdByScheduleIdForCurrentPeriod($user->id, $viewData['paymentSchedules']);
+        }
         if ($user) {
             $obligationService = app(PaymentScheduleObligationService::class);
             $viewData['paymentScheduleObligation30'] = $obligationService->obligationsNext30Days($user->id);

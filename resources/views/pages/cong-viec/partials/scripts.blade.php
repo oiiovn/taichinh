@@ -11,8 +11,12 @@ var __congViecFocusStartUrlBase = @json($_focusStartUrlBase);
 var __congViecFocusStopUrl = @json(route('cong-viec.focus.stop'));
 var __congViecBreakStartUrl = @json(route('cong-viec.focus.break.start'));
 var __congViecFocusActivityUrl = @json(route('cong-viec.focus.activity'));
-@php $_durPatchUrl = route('cong-viec.tasks.estimated-duration', ['id' => 999999]); @endphp
+@php $_durPatchUrl = route('cong-viec.tasks.estimated-duration', ['id' => 999999]); $_editDataUrl = route('cong-viec.tasks.edit-data', ['id' => '__ID__']); @endphp
 var __congViecEstimatedDurationUrlTemplate = @json(str_replace('999999', '__ID__', $_durPatchUrl));
+var __congViecEditTaskDataUrlTemplate = @json($_editDataUrl);
+var __congViecFromSchedulePayloadUrl = @json(route('cong-viec.from-schedule-payload'));
+var __congViecStoreUrl = @json(route('cong-viec.tasks.store'));
+var __fromScheduleId = {{ request('from_schedule') ? (int)request('from_schedule') : 'null' }};
 @php $_instDurUrl = route('cong-viec.instances.actual-duration', ['id' => 999999]); @endphp
 var __congViecInstanceActualDurationUrlTemplate = @json(str_replace('999999', '__ID__', $_instDurUrl));
 var __congViecMissedWindowPrompt = @json($missedWindowPrompt ?? null);
@@ -537,21 +541,19 @@ document.addEventListener('alpine:init', () => {
             var id = this.deleteTaskId;
             var url = this.deleteFormAction;
             var token = document.querySelector('meta[name=csrf-token]')?.content;
-            // #region agent log
-            fetch('http://127.0.0.1:7242/ingest/c4e6556a-4f65-43a2-a0c6-442b6960c7db',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b25103'},body:JSON.stringify({sessionId:'b25103',location:'scripts:deleteTaskSubmit:entry',message:'delete handler entry',data:{id:id,url:url,hasToken:!!token},timestamp:Date.now(),hypothesisId:'A'})}).catch(function(){});
-            // #endregion
             if (!id || url === '#') return;
             if (!token) { alert('Phiên đăng nhập hết hạn. Vui lòng tải lại trang.'); return; }
             this.closeDeleteModal();
             fetch(url, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': token, 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) {
-                // #region agent log
-                fetch('http://127.0.0.1:7242/ingest/c4e6556a-4f65-43a2-a0c6-442b6960c7db',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'b25103'},body:JSON.stringify({sessionId:'b25103',location:'scripts:deleteTaskSubmit:response',message:'delete response',data:{status:r.status,ok:r.ok},timestamp:Date.now(),hypothesisId:'B'})}).catch(function(){});
-                // #endregion
                 if (r.ok) {
-                    var rows = document.querySelectorAll('.task-row[data-task-id="' + id + '"]');
-                    rows.forEach(function(el) { el.style.transition = 'opacity 0.3s'; el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 300); });
-                    var cards = document.querySelectorAll('.kanban-card[data-task-id="' + id + '"]');
-                    cards.forEach(function(el) { el.style.transition = 'opacity 0.3s'; el.style.opacity = '0'; setTimeout(function() { el.remove(); }, 300); });
+                    var removeFade = function(el) { if (el && el.parentNode) { el.style.transition = 'opacity 0.3s'; el.style.opacity = '0'; setTimeout(function() { if (el.parentNode) el.remove(); }, 300); } };
+                    document.querySelectorAll('.task-row[data-task-id="' + id + '"]').forEach(removeFade);
+                    document.querySelectorAll('.kanban-card[data-task-id="' + id + '"]').forEach(removeFade);
+                    document.querySelectorAll('.task-checkbox[data-task-id="' + id + '"]').forEach(function(cb) { var li = cb.closest('li'); if (li) removeFade(li); });
+                    setTimeout(function() {
+                        var panel = document.getElementById('du-kien-panel');
+                        if (panel) panel.querySelectorAll('section').forEach(function(section) { var ul = section.querySelector('ul'); if (ul && ul.querySelectorAll('li').length === 0) section.remove(); });
+                    }, 350);
                     return;
                 }
                 if (r.status === 419) { alert('Phiên hết hạn. Vui lòng tải lại trang.'); return; }
@@ -567,6 +569,81 @@ document.addEventListener('alpine:init', () => {
         confirmTaskTitle: '',
         openConfirmCompleteModal(taskId, payload, p, instanceId, confirmInstanceUrl, taskTitle) { this.confirmTaskId = taskId; this.confirmInstanceId = instanceId || null; this.confirmInstanceUrl = confirmInstanceUrl || null; this.confirmPayload = payload || {}; this.confirmP = p; this.confirmTaskTitle = taskTitle || 'Việc này'; this.showConfirmCompleteModal = true; },
         closeConfirmCompleteModal() { this.showConfirmCompleteModal = false; this.confirmTaskId = null; this.confirmInstanceId = null; this.confirmInstanceUrl = null; this.confirmPayload = null; this.confirmP = null; this.confirmTaskTitle = ''; },
+        editTaskId: {{ isset($editTask) ? (int)$editTask->id : 'null' }},
+        editTaskDataUrl: __congViecEditTaskDataUrlTemplate,
+        async openEditModal(taskId) {
+            this.editTaskId = taskId;
+            var url = this.editTaskDataUrl.replace('__ID__', taskId);
+            var r = await fetch(url, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } });
+            if (!r.ok) { var p = window.location.pathname; var s = (window.location.search || '').replace(/[?&]edit=\d+&?/g, '').replace(/^&/, ''); window.location.href = window.location.origin + p + (s ? (s[0] === '?' ? s : '?' + s) : '') + (s ? '&' : '?') + 'edit=' + taskId; return; }
+            var data = await r.json();
+            this.addTaskKanbanStatus = data.kanban_status || 'backlog';
+            this.selectedLabelIds = Array.isArray(data.label_ids) ? data.label_ids : [];
+            this.selectedProjectId = data.project_id != null ? data.project_id : null;
+            this.selectedProgramId = data.program_id != null ? data.program_id : null;
+            this.locationText = data.location || '';
+            this.showAddTask = true;
+            var form = document.getElementById('form-add-edit-task');
+            if (form) {
+                form.action = url.replace(/\/edit-data\/?$/, '');
+                var methodInput = form.querySelector('input[name="_method"]');
+                if (!methodInput) { methodInput = document.createElement('input'); methodInput.setAttribute('type', 'hidden'); methodInput.setAttribute('name', '_method'); methodInput.value = 'PUT'; form.appendChild(methodInput); }
+                else methodInput.value = 'PUT';
+                var set = function(name, val) { var el = form.querySelector('[name="' + name + '"]'); if (el) el.value = val != null ? String(val) : ''; };
+                set('title', data.title);
+                set('task_due_date', data.due_date);
+                set('task_due_time', data.due_time);
+                set('task_repeat', data.repeat || 'none');
+                set('task_repeat_until', data.repeat_until);
+                set('task_repeat_interval', data.repeat_interval);
+                set('priority', data.priority);
+                set('remind_minutes_before', data.remind_minutes_before != null ? data.remind_minutes_before : '');
+                set('category', data.category);
+                set('impact', data.impact);
+                set('estimated_duration', data.estimated_duration);
+                set('location', data.location);
+                var aft = form.querySelector('input[name="task_available_after"]'); if (aft) aft.value = data.available_after || '';
+                var bef = form.querySelector('input[name="task_available_before"]'); if (bef) bef.value = data.available_before || '';
+                var descHtml = form.querySelector('input[name="description_html"]'); if (descHtml) descHtml.value = data.description_html || '';
+                var ed = form.querySelector('[contenteditable="true"]'); if (ed) { var html = data.description_html || ''; try { ed.innerHTML = html; } catch(e) {} }
+                window.dispatchEvent(new CustomEvent('edit-form-data', { detail: { due_date: data.due_date, due_time: data.due_time, repeat: data.repeat, repeat_until: data.repeat_until, repeat_interval: data.repeat_interval, priority: data.priority, remind_minutes_before: data.remind_minutes_before } }));
+            }
+        },
+        openAddTaskWithPayload(payload) {
+            if (!payload) return;
+            this.editTaskId = null;
+            this.addTaskKanbanStatus = payload.kanban_status || 'backlog';
+            this.selectedLabelIds = Array.isArray(payload.label_ids) ? payload.label_ids : [];
+            this.selectedProjectId = payload.project_id != null ? payload.project_id : null;
+            this.selectedProgramId = payload.program_id != null ? payload.program_id : null;
+            this.locationText = payload.location || '';
+            this.showAddTask = true;
+            var form = document.getElementById('form-add-edit-task');
+            if (form) {
+                form.action = window.__congViecStoreUrl || '';
+                var methodInput = form.querySelector('input[name="_method"]');
+                if (methodInput) methodInput.remove();
+                var set = function(name, val) { var el = form.querySelector('[name="' + name + '"]'); if (el) el.value = val != null ? String(val) : ''; };
+                set('title', payload.title);
+                set('task_due_date', payload.due_date);
+                set('task_due_time', payload.due_time);
+                set('task_repeat', payload.repeat || 'none');
+                set('task_repeat_until', payload.repeat_until);
+                set('task_repeat_interval', payload.repeat_interval);
+                set('priority', payload.priority);
+                set('remind_minutes_before', payload.remind_minutes_before != null ? payload.remind_minutes_before : '');
+                set('category', payload.category);
+                set('impact', payload.impact);
+                set('estimated_duration', payload.estimated_duration);
+                set('location', payload.location);
+                var aft = form.querySelector('input[name="task_available_after"]'); if (aft) aft.value = payload.available_after || '';
+                var bef = form.querySelector('input[name="task_available_before"]'); if (bef) bef.value = payload.available_before || '';
+                var descHtml = form.querySelector('input[name="description_html"]'); if (descHtml) descHtml.value = payload.description_html || '';
+                var ed = form.querySelector('[contenteditable="true"]'); if (ed) { try { ed.innerHTML = payload.description_html || ''; } catch(e) {} }
+                var detail = { due_date: payload.due_date, due_time: payload.due_time, repeat: payload.repeat, repeat_until: payload.repeat_until, repeat_interval: payload.repeat_interval, priority: payload.priority, remind_minutes_before: payload.remind_minutes_before };
+                setTimeout(function() { window.dispatchEvent(new CustomEvent('edit-form-data', { detail: detail })); }, 80);
+            }
+        },
         async confirmCompleteSubmit() {
             var url = this.confirmInstanceId && this.confirmInstanceUrl ? this.confirmInstanceUrl : (this.confirmTaskId ? __congViecConfirmCompleteUrlTemplate.replace('__ID__', this.confirmTaskId) : null);
             if (!url) return;
@@ -652,8 +729,26 @@ document.addEventListener('alpine:init', () => {
             return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r;
         },
         init() {
+            var self = this;
+            if (typeof this.$watch === 'function') this.$watch('showAddTask', function(v) { if (!v) self.editTaskId = null; });
             if (this.focusSession && this.focusSession.started_at) {
                 __congViecFocusApplyUi(this.focusSession);
+            }
+            if (window.__fromScheduleId) {
+                var self = this;
+                fetch(window.__congViecFromSchedulePayloadUrl + '?schedule_id=' + window.__fromScheduleId, { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' } })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (data.success && data.payload) {
+                            self.openAddTaskWithPayload(data.payload);
+                            if (history.replaceState) {
+                                var u = new URL(window.location.href);
+                                u.searchParams.delete('from_schedule');
+                                history.replaceState({}, '', u.pathname + u.search + u.hash);
+                            }
+                        }
+                    })
+                    .catch(function() {});
             }
         },
         async addLabel() {
@@ -668,6 +763,43 @@ document.addEventListener('alpine:init', () => {
             this.newLabelColor = '#6b7280';
         }
     }));
+    document.addEventListener('click', function(e) {
+        var a = e.target.closest('[data-edit-task-id]');
+        if (!a) return;
+        var id = parseInt(a.getAttribute('data-edit-task-id'), 10);
+        if (!id) return;
+        var root = document.querySelector('[x-data*="congViecPage"]');
+        if (root && root._x_dataStack && root._x_dataStack[0] && typeof root._x_dataStack[0].openEditModal === 'function') {
+            e.preventDefault();
+            e.stopPropagation();
+            root._x_dataStack[0].openEditModal(id);
+        }
+    });
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('a') || e.target.closest('button') || e.target.closest('input') || e.target.closest('.today-drag-handle')) return;
+        var row = e.target.closest('.task-row');
+        var body = e.target.closest('.task-row-body');
+        var el = row || body;
+        if (!el) return;
+        var url = (row && row.getAttribute('data-task-detail-url')) || (body && body.getAttribute('data-task-detail-url'));
+        if (!url) return;
+        var panel = el.closest('[data-current-tab]');
+        var tab = panel ? panel.getAttribute('data-current-tab') : 'tong-quan';
+        try {
+            sessionStorage.setItem('congViecScroll', String(window.scrollY || 0));
+            sessionStorage.setItem('congViecTab', tab);
+        } catch (err) {}
+        window.location.href = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'tab=' + encodeURIComponent(tab);
+    });
+    var returnTab = new URLSearchParams(window.location.search).get('tab');
+    if (returnTab && sessionStorage.getItem('congViecTab') === returnTab) {
+        var savedScroll = sessionStorage.getItem('congViecScroll');
+        if (savedScroll !== null) {
+            var y = parseInt(savedScroll, 10);
+            setTimeout(function() { window.scrollTo(0, y); }, 50);
+        }
+        try { sessionStorage.removeItem('congViecScroll'); sessionStorage.removeItem('congViecTab'); } catch (err) {}
+    }
 });
 document.addEventListener('change', async function(e) {
     const cb = e.target.closest('.task-checkbox');

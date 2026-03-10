@@ -168,8 +168,10 @@ class PaymentScheduleMatchService
         $schedule->last_matched_transaction_id = $transaction->id;
         $schedule->last_paid_date = $txDate->copy()->startOfDay();
 
+        $didAdvance = false;
         if ($schedule->auto_advance_on_match) {
             $schedule->next_due_date = $this->computeNextDueDate($schedule, $txDate);
+            $didAdvance = true;
         }
 
         if ($schedule->auto_update_amount) {
@@ -177,6 +179,14 @@ class PaymentScheduleMatchService
         }
 
         $schedule->save();
+
+        if ($didAdvance && config('payment_schedule.create_task_on_advance', true)) {
+            try {
+                app(\App\Services\PaymentScheduleToTaskService::class)->createTaskFromSchedule($schedule, $schedule->next_due_date, $schedule->user_id);
+            } catch (\Throwable $e) {
+                // log and ignore so match still succeeds
+            }
+        }
     }
 
     /**
@@ -194,6 +204,13 @@ class PaymentScheduleMatchService
         }
         $schedule->next_due_date = $newNext;
         $schedule->save();
+
+        if (config('payment_schedule.create_task_on_advance', true)) {
+            try {
+                app(\App\Services\PaymentScheduleToTaskService::class)->createTaskFromSchedule($schedule, $newNext, $schedule->user_id);
+            } catch (\Throwable $e) {
+            }
+        }
 
         return true;
     }

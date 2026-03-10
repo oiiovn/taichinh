@@ -69,7 +69,7 @@
         </div>
     @endif
     <div class="mt-0 flex items-center justify-end gap-0.5 overflow-hidden max-h-0 border-t border-transparent pt-0 opacity-0 transition-[max-height,opacity] duration-200 group-hover/task:max-h-10 group-hover/task:border-gray-100 group-hover/task:pt-2 group-hover/task:opacity-100 dark:group-hover/task:border-gray-700" data-no-drag>
-        <a href="{{ route('cong-viec', ['edit' => $task->id]) }}" class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300" title="Sửa">
+        <a href="{{ route('cong-viec', ['edit' => $task->id]) }}" data-edit-task-id="{{ $task->id }}" class="rounded p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-300" title="Sửa">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
         </a>
         <button type="button" @click="openDeleteModal({{ $task->id }}, @js($task->title))" class="rounded p-1 text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400" title="Xoá">

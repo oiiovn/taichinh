@@ -31,7 +31,7 @@ class FocusBudgetService
         $from = Carbon::now('Asia/Ho_Chi_Minh')->subDays($windowDays)->format('Y-m-d');
 
         $total = (int) WorkTaskInstance::query()
-            ->whereHas('task', fn ($q) => $q->where('user_id', $userId))
+            ->whereUser($userId, forLearning: true)
             ->where('status', WorkTaskInstance::STATUS_COMPLETED)
             ->whereBetween('instance_date', [$from, $todayHcm])
             ->whereNotNull('actual_duration')

@@ -113,7 +113,7 @@ class BehaviorDriftService
      */
     public function getDriftForUser(int $userId): array
     {
-        $taskIds = WorkTaskInstance::whereHas('task', fn ($q) => $q->where('user_id', $userId))
+        $taskIds = WorkTaskInstance::whereUser($userId, forLearning: true)
             ->where('status', WorkTaskInstance::STATUS_COMPLETED)
             ->whereNotNull('completed_at')
             ->distinct()

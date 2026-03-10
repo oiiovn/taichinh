@@ -188,7 +188,7 @@ class RoutineDetectionService
     public function getRoutinesForUser(int $userId): array
     {
         $threshold = (float) $this->config('confidence_threshold', 0.5);
-        $taskIds = WorkTaskInstance::whereHas('task', fn ($q) => $q->where('user_id', $userId))
+        $taskIds = WorkTaskInstance::whereUser($userId, forLearning: true)
             ->where('status', WorkTaskInstance::STATUS_COMPLETED)
             ->whereNotNull('completed_at')
             ->distinct()
@@ -207,7 +207,7 @@ class RoutineDetectionService
             if (! $r || $r['confidence'] < $threshold) {
                 continue;
             }
-            $task = CongViecTask::find($taskId);
+            $task = CongViecTask::withTrashed()->find($taskId);
             $row = [
                 'task_id' => $taskId,
                 'title' => $task?->title ?? '',

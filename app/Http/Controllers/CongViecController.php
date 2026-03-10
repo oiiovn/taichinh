@@ -46,15 +46,40 @@ class CongViecController extends Controller
 
         if ($request->boolean('partial')) {
             $tab = $request->get('tab');
+            $noCache = ['Cache-Control' => 'no-store, no-cache, must-revalidate'];
             if ($tab === 'hom-nay') {
-                return response()->view('pages.cong-viec.partials.hom-nay', $data)->header('Content-Type', 'text/html; charset=UTF-8');
+                return response()->view('pages.cong-viec.partials.hom-nay', $data)->header('Content-Type', 'text/html; charset=UTF-8')->withHeaders($noCache);
             }
             if ($tab === 'tong-quan') {
-                return response()->view('pages.cong-viec.partials.tong-quan', $data)->header('Content-Type', 'text/html; charset=UTF-8');
+                return response()->view('pages.cong-viec.partials.tong-quan', $data)->header('Content-Type', 'text/html; charset=UTF-8')->withHeaders($noCache);
+            }
+            if ($tab === 'du-kien') {
+                return response()->view('pages.cong-viec.partials.du-kien', $data)->header('Content-Type', 'text/html; charset=UTF-8')->withHeaders($noCache);
+            }
+            if ($tab === 'hoan-thanh') {
+                return response()->view('pages.cong-viec.partials.hoan-thanh', $data)->header('Content-Type', 'text/html; charset=UTF-8')->withHeaders($noCache);
             }
         }
 
         return view('pages.cong-viec', $data);
+    }
+
+    public function fromSchedulePayload(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'Vui lòng đăng nhập.'], 401);
+        }
+        $scheduleId = (int) $request->query('schedule_id');
+        if (! $scheduleId) {
+            return response()->json(['success' => false, 'message' => 'Thiếu schedule_id.'], 400);
+        }
+        $schedule = \App\Models\PaymentSchedule::where('user_id', $user->id)->where('id', $scheduleId)->first();
+        if (! $schedule) {
+            return response()->json(['success' => false, 'message' => 'Không tìm thấy lịch thanh toán.'], 404);
+        }
+        $payload = app(\App\Services\PaymentScheduleToTaskService::class)->buildTaskPayloadFromSchedule($schedule);
+        return response()->json(['success' => true, 'payload' => $payload]);
     }
 
     public function similarTasks(Request $request): JsonResponse
@@ -207,6 +232,58 @@ class CongViecController extends Controller
     {
         $task = CongViecTask::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
         return redirect()->route('cong-viec', ['edit' => $id]);
+    }
+
+    public function editData(Request $request, int $id): \Illuminate\Http\JsonResponse
+    {
+        $task = CongViecTask::with('labels')->where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
+        return response()->json([
+            'id' => $task->id,
+            'title' => $task->title,
+            'description_html' => $task->description_html ?? '',
+            'due_date' => $task->due_date ? $task->due_date->format('Y-m-d') : null,
+            'due_time' => $task->due_time ? substr($task->due_time, 0, 5) : null,
+            'repeat' => $task->repeat ?? 'none',
+            'repeat_until' => $task->repeat_until ? $task->repeat_until->format('Y-m-d') : null,
+            'repeat_interval' => (int) ($task->repeat_interval ?? 1),
+            'priority' => $task->priority,
+            'remind_minutes_before' => $task->remind_minutes_before,
+            'kanban_status' => $task->kanban_status ?? 'backlog',
+            'project_id' => $task->project_id,
+            'program_id' => $task->program_id,
+            'label_ids' => $task->labels->pluck('id')->values()->all(),
+            'location' => $task->location ?? '',
+            'category' => $task->category ?? '',
+            'impact' => $task->impact ?? '',
+            'estimated_duration' => (int) ($task->estimated_duration ?? 0),
+            'available_after' => $task->available_after ? substr($task->available_after, 0, 5) : null,
+            'available_before' => $task->available_before ? substr($task->available_before, 0, 5) : null,
+        ]);
+    }
+
+    public function show(Request $request, int $id): View
+    {
+        $task = CongViecTask::with(['labels', 'project', 'program'])
+            ->where('id', $id)
+            ->where('user_id', $request->user()->id)
+            ->firstOrFail();
+        $validTabs = ['tong-quan', 'hom-nay', 'du-kien', 'hoan-thanh'];
+        $returnTab = $request->query('tab');
+        if (! in_array($returnTab, $validTabs, true)) {
+            $returnTab = 'tong-quan';
+        }
+        $returnUrl = null;
+        $returnLabel = 'Quay lại công việc';
+        if ($request->query('from') === 'lich-thanh-toan') {
+            $returnUrl = route('tai-chinh', ['tab' => 'lich-thanh-toan']);
+            $returnLabel = 'Quay lại lịch thanh toán';
+        }
+        return view('pages.cong-viec.task-detail', [
+            'task' => $task,
+            'returnTab' => $returnTab,
+            'returnUrl' => $returnUrl,
+            'returnLabel' => $returnLabel,
+        ]);
     }
 
     public function update(Request $request, int $id): RedirectResponse

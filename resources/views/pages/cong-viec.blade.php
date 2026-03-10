@@ -75,17 +75,21 @@
         </div>
     @endif
     @if($tab === 'tong-quan')
-        <div id="tong-quan-panel" data-partial-url="{{ route('cong-viec', ['tab' => 'tong-quan', 'partial' => 1]) }}">
+        <div id="tong-quan-panel" data-current-tab="tong-quan" data-partial-url="{{ route('cong-viec', ['tab' => 'tong-quan', 'partial' => 1]) }}">
             @include('pages.cong-viec.partials.tong-quan')
         </div>
     @elseif($tab === 'hom-nay')
-        <div id="today-panel" data-partial-url="{{ route('cong-viec', ['tab' => 'hom-nay', 'partial' => 1]) }}">
+        <div id="today-panel" data-current-tab="hom-nay" data-partial-url="{{ route('cong-viec', ['tab' => 'hom-nay', 'partial' => 1]) }}">
             @include('pages.cong-viec.partials.hom-nay')
         </div>
     @elseif($tab === 'du-kien')
-        @include('pages.cong-viec.partials.du-kien')
+        <div id="du-kien-panel" data-current-tab="du-kien" data-partial-url="{{ route('cong-viec', ['tab' => 'du-kien', 'partial' => 1]) }}">
+            @include('pages.cong-viec.partials.du-kien')
+        </div>
     @elseif($tab === 'hoan-thanh')
-        @include('pages.cong-viec.partials.hoan-thanh')
+        <div id="hoan-thanh-panel" data-current-tab="hoan-thanh" data-partial-url="{{ route('cong-viec', ['tab' => 'hoan-thanh', 'partial' => 1]) }}">
+            @include('pages.cong-viec.partials.hoan-thanh')
+        </div>
     @endif
 </div>
 <div x-show="layout === 'board'" x-cloak class="space-y-4">
