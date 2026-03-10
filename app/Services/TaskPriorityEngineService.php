@@ -59,12 +59,16 @@ class TaskPriorityEngineService
      * @param  array{profile: string}|null  $behaviorProfile  Để điều chỉnh weight (procrastinator/burnout)
      * @return array{sorted: Collection, tiers: array{high: Collection, medium: Collection, low: Collection}, scores: array}
      */
+    /**
+     * @param  array<int, array{median_minutes: float, confidence: float}>  $routineByTask  RoutineDetectionService by_task (soft signal)
+     */
     public function scoreAndTierTodayInstances(
         Collection $instances,
         array $taskStreaks,
         string $todayHcm,
         ?int $activeProgramId = null,
-        ?array $behaviorProfile = null
+        ?array $behaviorProfile = null,
+        array $routineByTask = []
     ): array {
         $today = Carbon::parse($todayHcm)->startOfDay();
         $scores = [];
@@ -72,6 +76,11 @@ class TaskPriorityEngineService
 
         $now = Carbon::now('Asia/Ho_Chi_Minh');
         $boostHours = (float) (config('behavior_intelligence.execution_intelligence.priority_engine.deadline_boost_hours', 4));
+        $missedWindowBoost = (float) (config('behavior_intelligence.execution_intelligence.priority_engine.missed_window_boost', 0.25));
+        $routineBoostThreshold = (float) (config('behavior_intelligence.routine_detection.routine_boost_threshold', 0.7));
+        $routineBoostWindow = (int) (config('behavior_intelligence.routine_detection.routine_boost_window_minutes', 30));
+        $energyBonusValue = (float) (config('behavior_intelligence.execution_intelligence.priority_engine.energy_bonus', 0.08));
+        $energyService = config('behavior_intelligence.enabled', true) ? app(EnergyAffinityService::class) : null;
 
         foreach ($instances as $instance) {
             $task = $instance->task;
@@ -83,6 +92,20 @@ class TaskPriorityEngineService
             $deadlinePressure = $this->deadlinePressureComponent($task, $today, $now, $boostHours);
             $energyFit = $this->energyFitComponent($task, $now, $behaviorProfile, $instance);
             $agePenalty = $this->agePenaltyComponent($task, $today);
+            $missedWindow = $this->missedWindowBoostComponent($task, $instance, $now, $missedWindowBoost);
+            $routineBoost = $this->routineBoostComponent($task, $instance, $now, $routineByTask, $routineBoostThreshold, $routineBoostWindow);
+            $energyAffinityBonus = 0.0;
+            $energyAffinity = EnergyAffinityService::AFFINITY_NEUTRAL;
+            if ($energyService) {
+                $aff = $energyService->getAffinityForTask($task->id);
+                if ($aff && $aff['affinity'] !== EnergyAffinityService::AFFINITY_NEUTRAL && ($aff['confidence'] ?? 0) >= 0.3
+                    && ($aff['slot_index'] ?? -1) === $energyService->currentSlotIndex($now)) {
+                    $energyAffinityBonus = $energyBonusValue;
+                    $energyAffinity = $aff['affinity'];
+                } elseif ($aff) {
+                    $energyAffinity = $aff['affinity'];
+                }
+            }
             $score = $urgency * $w['urgency']
                 + $impact * $w['impact']
                 + $streakRisk * $w['streak_risk']
@@ -90,7 +113,10 @@ class TaskPriorityEngineService
                 + $overduePenalty * $w['overdue']
                 + $deadlinePressure * $w['deadline_pressure']
                 + $energyFit * ($w['energy_fit'] ?? 0)
-                + $agePenalty;
+                + $agePenalty
+                + $missedWindow
+                + $routineBoost
+                + $energyAffinityBonus;
 
             $scores[$instance->id] = [
                 'score' => round(min(1.0, $score), 4),
@@ -102,6 +128,10 @@ class TaskPriorityEngineService
                 'deadline_pressure' => $deadlinePressure,
                 'energy_fit' => $energyFit,
                 'age_penalty' => $agePenalty,
+                'missed_window_boost' => $missedWindow,
+                'routine_boost' => $routineBoost,
+                'energy_affinity_bonus' => $energyAffinityBonus,
+                'energy_affinity' => $energyAffinity,
             ];
         }
 
@@ -255,5 +285,44 @@ class TaskPriorityEngineService
             return 0.0;
         }
         return min(0.1, $ageDays * 0.02);
+    }
+
+    /**
+     * Task có execution window (available_before) mà đã quá giờ + chưa hoàn thành
+     * -> boost score để không rơi xuống dưới (expected execution vs real behaviour).
+     */
+    protected function missedWindowBoostComponent($task, WorkTaskInstance $instance, Carbon $now, float $boost): float
+    {
+        if ($instance->status === WorkTaskInstance::STATUS_COMPLETED || ! $task->available_before) {
+            return 0.0;
+        }
+        $beforeMin = $this->timeToMinutes($task->available_before);
+        $nowMin = $now->hour * 60 + $now->minute;
+        if ($nowMin <= $beforeMin) {
+            return 0.0;
+        }
+        return $boost;
+    }
+
+    /**
+     * Soft signal: task có routine và đang đúng khung giờ (now gần median) → boost nhẹ.
+     */
+    protected function routineBoostComponent($task, WorkTaskInstance $instance, Carbon $now, array $routineByTask, float $confidenceThreshold, int $windowMinutes): float
+    {
+        if ($instance->status === WorkTaskInstance::STATUS_COMPLETED) {
+            return 0.0;
+        }
+        $r = $routineByTask[$task->id] ?? null;
+        if (! $r || ($r['confidence'] ?? 0) < $confidenceThreshold) {
+            return 0.0;
+        }
+        $medianMinutes = (float) ($r['median_minutes'] ?? 0);
+        $nowMinutes = $now->hour * 60 + $now->minute;
+        $diff = abs($nowMinutes - $medianMinutes);
+        if ($diff > $windowMinutes) {
+            return 0.0;
+        }
+
+        return 0.10;
     }
 }

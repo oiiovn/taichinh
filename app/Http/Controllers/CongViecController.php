@@ -14,6 +14,7 @@ use App\Services\CongViecPageDataService;
 use App\Services\EnsureTaskInstancesService;
 use App\Services\MicroEventCaptureService;
 use App\Services\DurationSuggestionService;
+use App\Services\EnergyAffinityService;
 use App\Services\FocusDurationGuardService;
 use App\Services\FocusLoadService;
 use App\Services\FocusSessionService;
@@ -397,6 +398,7 @@ class CongViecController extends Controller
             $instance->refresh();
             $durationSuggestion = app(DurationSuggestionService::class)->maybeSuggestAfterComplete($task, $instance);
             $breakSuggestion = app(FocusLoadService::class)->maybeSuggestBreak($user->id);
+            $this->maybeUpdateEnergyMeta($task->id);
         }
 
         $json = [
@@ -442,6 +444,7 @@ class CongViecController extends Controller
         $instance->refresh();
         $durationSuggestion = app(DurationSuggestionService::class)->maybeSuggestAfterComplete($task, $instance);
         $breakSuggestion = app(FocusLoadService::class)->maybeSuggestBreak($user->id);
+        $this->maybeUpdateEnergyMeta($task->id);
 
         $json = [
             'completed' => true,
@@ -632,6 +635,7 @@ class CongViecController extends Controller
             $stoppedUnix
         );
         if ($resolved['need_short_pick'] || $resolved['need_sanity_pick']) {
+            $svc->stop($userId);
             return [
                 'instance_id' => $instance->id,
                 'kind' => $resolved['need_short_pick'] ? 'short' : 'sanity',
@@ -673,6 +677,22 @@ class CongViecController extends Controller
         app(FocusSessionService::class)->stop($user->id);
 
         return response()->json(['ok' => true, 'actual_duration' => $instance->actual_duration]);
+    }
+
+    /** Cập nhật work_tasks.meta (energy_affinity) mỗi 5 lần hoàn thành để tránh noise. */
+    protected function maybeUpdateEnergyMeta(int $taskId): void
+    {
+        if (! config('behavior_intelligence.enabled', true)) {
+            return;
+        }
+        $everyN = (int) config('behavior_intelligence.energy_affinity.update_meta_every_n_completions', 5);
+        $count = WorkTaskInstance::where('work_task_id', $taskId)
+            ->where('status', WorkTaskInstance::STATUS_COMPLETED)
+            ->whereNotNull('completed_at')
+            ->count();
+        if ($everyN > 0 && $count > 0 && $count % $everyN === 0) {
+            app(EnergyAffinityService::class)->updateTaskMeta($taskId);
+        }
     }
 
     protected function captureTickAndUpdateTrust(int $userId, int $workTaskId, array $payload = [], ?float $pReal = null, ?int $programId = null): void

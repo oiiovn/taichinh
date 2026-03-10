@@ -30,6 +30,10 @@ class ExecutionEngineService
     ): array {
         $behaviorProfile = $userId ? app(BehaviorProfileService::class)->getProfile($userId) : null;
         $failureDetection = $userId ? app(FailureDetectionService::class)->detect($userId) : null;
+        $routineDetection = $userId && config('behavior_intelligence.enabled', true)
+            ? app(RoutineDetectionService::class)->getRoutinesForUser($userId)
+            : ['by_task' => [], 'morning' => [], 'work' => [], 'afternoon' => [], 'evening' => []];
+        $routineByTask = $routineDetection['by_task'] ?? [];
 
         $todayPriority = $tasksToday->isNotEmpty()
             ? app(TaskPriorityEngineService::class)->scoreAndTierTodayInstances(
@@ -37,7 +41,8 @@ class ExecutionEngineService
                 $taskStreaks,
                 $todayHcm,
                 $activeProgramId,
-                $behaviorProfile
+                $behaviorProfile,
+                $routineByTask
             )
             : ['sorted' => $tasksToday, 'tiers' => ['high' => collect(), 'medium' => collect(), 'low' => collect()], 'scores' => []];
 
@@ -86,6 +91,7 @@ class ExecutionEngineService
             'today_priority' => $todayPriority,
             'focus_plan' => $focusPlan,
             'execution_metrics' => $executionMetrics,
+            'routine_detection' => $routineDetection,
         ];
     }
 }

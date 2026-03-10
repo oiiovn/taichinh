@@ -17,7 +17,225 @@ use Illuminate\Support\Facades\DB;
 
 class CongViecPageDataService
 {
+    private const VALID_TABS = ['tong-quan', 'hom-nay', 'du-kien', 'hoan-thanh'];
+
     public function getIndexData(Request $request): array
+    {
+        $tab = $request->get('tab', 'tong-quan');
+        if (! in_array($tab, self::VALID_TABS, true)) {
+            $tab = 'tong-quan';
+        }
+
+        return match ($tab) {
+            'hom-nay' => $this->getTodayData($request),
+            'du-kien' => $this->getUpcomingData($request),
+            'hoan-thanh' => $this->getCompletedData($request),
+            'tong-quan' => $this->getOverviewData($request),
+            default => $this->getTodayData($request),
+        };
+    }
+
+    /**
+     * Tab Hôm nay: chỉ ensure, tasks today, streaks, execution engine, focus session, missed window, labels, projects, programs, editTask.
+     */
+    protected function getTodayData(Request $request): array
+    {
+        $todayHcm = Carbon::now('Asia/Ho_Chi_Minh')->format('Y-m-d');
+        $userId = $request->user()?->id;
+
+        if ($userId) {
+            app(EnsureTaskInstancesService::class)->ensureForUserAndDate($userId, $todayHcm);
+        }
+        $tasksToday = $this->getTasksToday($userId, $todayHcm);
+        $taskStreaks = $this->getTaskStreaksForInstances($userId, $tasksToday);
+
+        $userLabels = $userId ? Label::where('user_id', $userId)->orderBy('name')->get() : collect();
+        $userProjects = $userId ? Project::where('user_id', $userId)->orderBy('name')->get() : collect();
+        $userPrograms = $userId ? BehaviorProgram::where('user_id', $userId)->where('status', BehaviorProgram::STATUS_ACTIVE)->orderBy('title')->get() : collect();
+        $activeProgram = $userId && $userPrograms->isNotEmpty() ? $userPrograms->first() : null;
+
+        $execution = $userId
+            ? app(ExecutionEngineService::class)->run($userId, $todayHcm, $tasksToday, $taskStreaks, $activeProgram?->id)
+            : null;
+
+        $behaviorProfile = $execution['behavior_profile'] ?? null;
+        $routineDetection = $execution['routine_detection'] ?? null;
+        $failureDetection = $execution['failure_detection'] ?? null;
+        $todayPriority = $execution['today_priority'] ?? ['sorted' => $tasksToday, 'tiers' => ['high' => collect(), 'medium' => collect(), 'low' => collect()], 'scores' => []];
+        $focusPlan = $execution['focus_plan'] ?? ['focus' => collect(), 'secondary' => collect(), 'backlog' => collect(), 'later' => [], 'missed_window' => collect(), 'total_planned_minutes' => 0, 'available_minutes' => 120];
+        $executionMetrics = $execution['execution_metrics'] ?? null;
+
+        $activeProgramProgress = null;
+        $todayProgramTaskTotal = 0;
+        $todayProgramTaskDone = 0;
+        if ($activeProgram && $userId) {
+            $activeProgramProgress = app(BehaviorProgramProgressService::class)->getProgressForUi($userId, $activeProgram->id);
+            $todayInstancesForProgram = WorkTaskInstance::where('instance_date', $todayHcm)
+                ->whereHas('task', fn ($q) => $q->where('user_id', $userId)->where('program_id', $activeProgram->id))
+                ->get();
+            $todayProgramTaskTotal = $todayInstancesForProgram->count();
+            $todayProgramTaskDone = $todayInstancesForProgram->where('status', WorkTaskInstance::STATUS_COMPLETED)->count();
+        }
+
+        $focusSessionPayload = null;
+        if ($userId) {
+            $fs = app(FocusSessionService::class)->get($userId);
+            if ($fs && ! empty($fs['instance_id'])) {
+                $fi = WorkTaskInstance::with('task')->find($fs['instance_id']);
+                if ($fi && $fi->status !== WorkTaskInstance::STATUS_COMPLETED) {
+                    $focusSessionPayload = [
+                        'instance_id' => (int) $fs['instance_id'],
+                        'started_at' => (int) $fs['started_at'],
+                        'title' => $fi->task?->title ?? '',
+                    ];
+                }
+            }
+        }
+
+        $missedWindowPrompt = null;
+        $missedWindow = $focusPlan['missed_window'] ?? collect();
+        if ($missedWindow->isNotEmpty()) {
+            $first = $missedWindow->first();
+            if ($first && $first->status !== WorkTaskInstance::STATUS_COMPLETED) {
+                $missedWindowPrompt = [
+                    'instance_id' => $first->id,
+                    'title' => $first->task?->title ?? '',
+                    'toggle_url' => route('cong-viec.instances.toggle-complete', $first->id),
+                ];
+            }
+        }
+
+        $coachingNarrative = ['empty_today_copy' => 'Hôm nay bạn chưa có cam kết nào. Thêm một việc để bắt đầu.'];
+
+        return array_merge($this->sharedMinimalData($request, $userId, $todayHcm), [
+            'focusSession' => $focusSessionPayload,
+            'missedWindowPrompt' => $missedWindowPrompt,
+            'routineDetection' => $routineDetection,
+            'tasksToday' => $todayPriority['sorted'],
+            'tasksTodayTiers' => $todayPriority['tiers'],
+            'todayPriorityScores' => $todayPriority['scores'],
+            'focusPlan' => $focusPlan,
+            'taskStreaks' => $taskStreaks,
+            'todayHcm' => $todayHcm,
+            'userLabels' => $userLabels,
+            'userProjects' => $userProjects,
+            'userPrograms' => $userPrograms,
+            'activeProgram' => $activeProgram,
+            'activeProgramProgress' => $activeProgramProgress,
+            'todayProgramTaskTotal' => $todayProgramTaskTotal,
+            'todayProgramTaskDone' => $todayProgramTaskDone,
+            'behaviorProfile' => $behaviorProfile,
+            'failureDetection' => $failureDetection,
+            'executionMetrics' => $executionMetrics,
+            'coachingNarrative' => $coachingNarrative,
+            'taskCreationContext' => $this->defaultTaskCreationContext(),
+            'behaviorPolicy' => null,
+            'behaviorProjection' => null,
+            'kanbanColumns' => collect(),
+            'kanbanTasks' => collect(),
+        ]);
+    }
+
+    /**
+     * Tab Dự kiến: upcoming instances, labels, projects, programs, editTask.
+     */
+    protected function getUpcomingData(Request $request): array
+    {
+        $todayHcm = Carbon::now('Asia/Ho_Chi_Minh')->format('Y-m-d');
+        $userId = $request->user()?->id;
+
+        $tasksUpcoming = $this->getInstancesUpcoming($userId, $todayHcm);
+        $userLabels = $userId ? Label::where('user_id', $userId)->orderBy('name')->get() : collect();
+        $userProjects = $userId ? Project::where('user_id', $userId)->orderBy('name')->get() : collect();
+        $userPrograms = $userId ? BehaviorProgram::where('user_id', $userId)->where('status', BehaviorProgram::STATUS_ACTIVE)->orderBy('title')->get() : collect();
+
+        return array_merge($this->sharedMinimalData($request, $userId, $todayHcm), [
+            'tasksUpcoming' => $tasksUpcoming,
+            'userLabels' => $userLabels,
+            'userProjects' => $userProjects,
+            'userPrograms' => $userPrograms,
+            'todayHcm' => $todayHcm,
+            'focusSession' => null,
+            'missedWindowPrompt' => null,
+            'routineDetection' => null,
+            'tasksToday' => collect(),
+            'tasksTodayTiers' => ['high' => collect(), 'medium' => collect(), 'low' => collect()],
+            'todayPriorityScores' => [],
+            'focusPlan' => ['focus' => collect(), 'secondary' => collect(), 'backlog' => collect(), 'later' => [], 'missed_window' => collect(), 'total_planned_minutes' => 0, 'available_minutes' => 120],
+            'taskStreaks' => [],
+            'completedInstancesGrouped' => ['today' => collect(), 'yesterday' => collect(), 'this_week' => collect(), 'older' => collect()],
+            'kanbanColumns' => collect(),
+            'kanbanTasks' => collect(),
+            'activeProgram' => null,
+            'activeProgramProgress' => null,
+            'todayProgramTaskTotal' => 0,
+            'todayProgramTaskDone' => 0,
+            'behaviorRadar' => null,
+            'behaviorPolicy' => null,
+            'behaviorProjection' => null,
+            'interfaceAdaptation' => [],
+            'coachingNarrative' => [],
+            'behaviorProfile' => null,
+            'failureDetection' => null,
+            'insightPayload' => null,
+            'executionMetrics' => null,
+            'taskCreationContext' => $this->defaultTaskCreationContext(),
+            'tasksInbox' => collect(),
+        ]);
+    }
+
+    /**
+     * Tab Hoàn thành: completed instances (4 query), labels, projects, programs, editTask.
+     */
+    protected function getCompletedData(Request $request): array
+    {
+        $todayHcm = Carbon::now('Asia/Ho_Chi_Minh')->format('Y-m-d');
+        $userId = $request->user()?->id;
+
+        $completedInstancesGrouped = $this->getCompletedInstancesGrouped($userId);
+        $userLabels = $userId ? Label::where('user_id', $userId)->orderBy('name')->get() : collect();
+        $userProjects = $userId ? Project::where('user_id', $userId)->orderBy('name')->get() : collect();
+        $userPrograms = $userId ? BehaviorProgram::where('user_id', $userId)->where('status', BehaviorProgram::STATUS_ACTIVE)->orderBy('title')->get() : collect();
+
+        return array_merge($this->sharedMinimalData($request, $userId, $todayHcm), [
+            'completedInstancesGrouped' => $completedInstancesGrouped,
+            'userLabels' => $userLabels,
+            'userProjects' => $userProjects,
+            'userPrograms' => $userPrograms,
+            'todayHcm' => $todayHcm,
+            'focusSession' => null,
+            'missedWindowPrompt' => null,
+            'routineDetection' => null,
+            'tasksToday' => collect(),
+            'tasksTodayTiers' => ['high' => collect(), 'medium' => collect(), 'low' => collect()],
+            'todayPriorityScores' => [],
+            'focusPlan' => ['focus' => collect(), 'secondary' => collect(), 'backlog' => collect(), 'later' => [], 'missed_window' => collect(), 'total_planned_minutes' => 0, 'available_minutes' => 120],
+            'taskStreaks' => [],
+            'tasksUpcoming' => collect(),
+            'tasksInbox' => collect(),
+            'kanbanColumns' => collect(),
+            'kanbanTasks' => collect(),
+            'activeProgram' => null,
+            'activeProgramProgress' => null,
+            'todayProgramTaskTotal' => 0,
+            'todayProgramTaskDone' => 0,
+            'behaviorRadar' => null,
+            'behaviorPolicy' => null,
+            'behaviorProjection' => null,
+            'interfaceAdaptation' => [],
+            'coachingNarrative' => [],
+            'behaviorProfile' => null,
+            'failureDetection' => null,
+            'insightPayload' => null,
+            'executionMetrics' => null,
+            'taskCreationContext' => $this->defaultTaskCreationContext(),
+        ]);
+    }
+
+    /**
+     * Tab Tổng quan: full context (radar, projection, adaptation, coaching, policy, kanban, inbox, execution cho today).
+     */
+    protected function getOverviewData(Request $request): array
     {
         $todayHcm = Carbon::now('Asia/Ho_Chi_Minh')->format('Y-m-d');
         $userId = $request->user()?->id;
@@ -32,19 +250,20 @@ class CongViecPageDataService
         $completedInstancesGrouped = $this->getCompletedInstancesGrouped($userId);
         [$kanbanColumns, $kanbanTasks] = $this->getKanbanData($userId);
 
-        $userLabels = $request->user() ? Label::where('user_id', $request->user()->id)->orderBy('name')->get() : collect();
-        $userProjects = $request->user() ? Project::where('user_id', $request->user()->id)->orderBy('name')->get() : collect();
-        $userPrograms = $request->user() ? BehaviorProgram::where('user_id', $request->user()->id)->where('status', BehaviorProgram::STATUS_ACTIVE)->orderBy('title')->get() : collect();
+        $userLabels = $userId ? Label::where('user_id', $userId)->orderBy('name')->get() : collect();
+        $userProjects = $userId ? Project::where('user_id', $userId)->orderBy('name')->get() : collect();
+        $userPrograms = $userId ? BehaviorProgram::where('user_id', $userId)->where('status', BehaviorProgram::STATUS_ACTIVE)->orderBy('title')->get() : collect();
         $activeProgram = $userId && $userPrograms->isNotEmpty() ? $userPrograms->first() : null;
 
         $execution = $userId
-            ? app(ExecutionEngineService::class)->run($userId, $todayHcm, $tasksToday, $taskStreaks, $activeProgram?->id ?? null)
+            ? app(ExecutionEngineService::class)->run($userId, $todayHcm, $tasksToday, $taskStreaks, $activeProgram?->id)
             : null;
 
         $behaviorProfile = $execution['behavior_profile'] ?? null;
+        $routineDetection = $execution['routine_detection'] ?? null;
         $failureDetection = $execution['failure_detection'] ?? null;
         $todayPriority = $execution['today_priority'] ?? ['sorted' => $tasksToday, 'tiers' => ['high' => collect(), 'medium' => collect(), 'low' => collect()], 'scores' => []];
-        $focusPlan = $execution['focus_plan'] ?? ['focus' => collect(), 'secondary' => collect(), 'backlog' => collect(), 'total_planned_minutes' => 0, 'available_minutes' => 120];
+        $focusPlan = $execution['focus_plan'] ?? ['focus' => collect(), 'secondary' => collect(), 'backlog' => collect(), 'later' => [], 'missed_window' => collect(), 'total_planned_minutes' => 0, 'available_minutes' => 120];
         $executionMetrics = $execution['execution_metrics'] ?? null;
 
         $activeProgramProgress = null;
@@ -60,7 +279,6 @@ class CongViecPageDataService
         }
 
         $behaviorRadar = $this->getBehaviorRadar($userId);
-        $editTask = $this->getEditTask($request, $userId);
         $behaviorPolicy = $userId && config('behavior_intelligence.enabled', true)
             ? DB::table('behavior_user_policy')->where('user_id', $userId)->first() : null;
         $behaviorProjection = $userId && config('behavior_intelligence.enabled', true)
@@ -109,23 +327,29 @@ class CongViecPageDataService
                 $failureDetection,
                 $insightPayload
             )
-            : ['focus_window' => '—', 'workload_pct' => 0, 'suggested_priority' => null, 'suggested_priority_value' => null, 'best_time' => null, 'execution_stage' => 'planning', 'risk_tier' => 'normal', 'overload_hint' => null, 'capacity_remaining_minutes' => 120, 'task_fit_score' => 50];
+            : $this->defaultTaskCreationContext();
 
         $focusSessionPayload = null;
         if ($userId) {
             $fs = app(FocusSessionService::class)->get($userId);
             if ($fs && ! empty($fs['instance_id'])) {
                 $fi = WorkTaskInstance::with('task')->find($fs['instance_id']);
-                $focusSessionPayload = [
-                    'instance_id' => (int) $fs['instance_id'],
-                    'started_at' => (int) $fs['started_at'],
-                    'title' => $fi?->task?->title ?? '',
-                ];
+                if ($fi && $fi->status !== WorkTaskInstance::STATUS_COMPLETED) {
+                    $focusSessionPayload = [
+                        'instance_id' => (int) $fs['instance_id'],
+                        'started_at' => (int) $fs['started_at'],
+                        'title' => $fi->task?->title ?? '',
+                    ];
+                }
             }
         }
 
-        return [
+        $missedWindowPrompt = null;
+
+        return array_merge($this->sharedMinimalData($request, $userId, $todayHcm), [
             'focusSession' => $focusSessionPayload,
+            'missedWindowPrompt' => $missedWindowPrompt,
+            'routineDetection' => $routineDetection,
             'tasksToday' => $todayPriority['sorted'],
             'tasksTodayTiers' => $todayPriority['tiers'],
             'todayPriorityScores' => $todayPriority['scores'],
@@ -145,7 +369,6 @@ class CongViecPageDataService
             'todayProgramTaskTotal' => $todayProgramTaskTotal,
             'todayProgramTaskDone' => $todayProgramTaskDone,
             'behaviorRadar' => $behaviorRadar,
-            'editTask' => $editTask,
             'behaviorPolicy' => $behaviorPolicy,
             'behaviorProjection' => $behaviorProjection,
             'interfaceAdaptation' => $interfaceAdaptation,
@@ -155,6 +378,29 @@ class CongViecPageDataService
             'insightPayload' => $insightPayload,
             'executionMetrics' => $executionMetrics,
             'taskCreationContext' => $taskCreationContext,
+        ]);
+    }
+
+    protected function sharedMinimalData(Request $request, ?int $userId, string $todayHcm): array
+    {
+        return [
+            'editTask' => $this->getEditTask($request, $userId),
+        ];
+    }
+
+    protected function defaultTaskCreationContext(): array
+    {
+        return [
+            'focus_window' => '—',
+            'workload_pct' => 0,
+            'suggested_priority' => null,
+            'suggested_priority_value' => null,
+            'best_time' => null,
+            'execution_stage' => 'planning',
+            'risk_tier' => 'normal',
+            'overload_hint' => null,
+            'capacity_remaining_minutes' => 120,
+            'task_fit_score' => 50,
         ];
     }
 
@@ -192,7 +438,7 @@ class CongViecPageDataService
     }
 
     /**
-     * Hôm nay: instance theo ngày (đã ensure), chỉ lấy pending/skipped.
+     * Hôm nay: instance theo ngày (đã ensure), chỉ lấy pending/skipped. Select cột cần thiết.
      */
     protected function getTasksToday(?int $userId, string $todayHcm): Collection
     {
@@ -202,6 +448,18 @@ class CongViecPageDataService
         return WorkTaskInstance::where('instance_date', $todayHcm)
             ->whereHas('task', fn ($q) => $q->where('user_id', $userId))
             ->whereIn('status', [WorkTaskInstance::STATUS_PENDING, WorkTaskInstance::STATUS_SKIPPED])
+            ->select([
+                'id',
+                'work_task_id',
+                'instance_date',
+                'status',
+                'completed_at',
+                'actual_duration',
+                'focus_started_at',
+                'focus_last_activity_at',
+                'focus_stopped_at',
+                'focus_recorded_minutes',
+            ])
             ->with(['task.project', 'task.labels', 'task.program'])
             ->orderBy('work_task_id')
             ->get();
@@ -230,7 +488,6 @@ class CongViecPageDataService
 
     /**
      * Dự kiến theo instance: instance_date > hôm nay, pending.
-     * Task lặp → chỉ 1 dòng (lần gần nhất) + metadata số lần còn lại / mở rộng.
      */
     protected function getInstancesUpcoming(?int $userId, string $todayHcm): Collection
     {
@@ -241,7 +498,6 @@ class CongViecPageDataService
         $end = Carbon::parse($todayHcm)->addDays((int) config('behavior_intelligence.instance_ensure_horizon_days', 90))->format('Y-m-d');
         $ensure = app(EnsureTaskInstancesService::class);
         $ensure->ensureForUserDateRange($userId, $tomorrow, $end);
-        // Việc một lần: luôn tạo instance đúng ngày due (vd. 5/5) để tab Dự kiến có dòng
         $ensure->ensureOneOffDueDatesAhead($userId, $todayHcm);
 
         $all = WorkTaskInstance::query()
@@ -292,7 +548,6 @@ class CongViecPageDataService
             ]);
         }
 
-        // Một timeline: sort theo ngày rồi giờ (next execution), không tách lặp/không lặp
         $sorted = $rows->sortBy(function ($r) {
             $inst = $r['instance'];
             $d = $inst->instance_date instanceof \Carbon\Carbon
@@ -324,7 +579,7 @@ class CongViecPageDataService
     }
 
     /**
-     * Tab Hoàn thành: instance-based, group theo Hôm nay / Hôm qua / Tuần này / Trước đó.
+     * Tab Hoàn thành: 4 query WHERE theo từng nhóm thay vì load all rồi filter PHP.
      *
      * @return array{today: \Illuminate\Support\Collection, yesterday: \Illuminate\Support\Collection, this_week: \Illuminate\Support\Collection, older: \Illuminate\Support\Collection}
      */
@@ -340,26 +595,36 @@ class CongViecPageDataService
         $startOfWeek = $today->copy()->startOfWeek(Carbon::MONDAY);
         $twoDaysAgo = $today->copy()->subDays(2);
 
-        $instances = WorkTaskInstance::where('status', WorkTaskInstance::STATUS_COMPLETED)
-            ->whereHas('task', fn ($q) => $q->where('user_id', $userId))
+        $scope = fn ($q) => $q->where('user_id', $userId);
+
+        $todayList = WorkTaskInstance::where('status', WorkTaskInstance::STATUS_COMPLETED)
+            ->whereHas('task', $scope)
             ->with(['task.project', 'task.labels', 'task.program'])
+            ->whereDate('instance_date', $todayStr)
             ->orderByDesc('completed_at')
             ->get();
 
-        $todayList = $instances->filter(fn ($i) => $i->instance_date?->format('Y-m-d') === $todayStr)->values();
-        $yesterdayList = $instances->filter(fn ($i) => $i->instance_date?->format('Y-m-d') === $yesterdayStr)->values();
-        $thisWeekList = $instances->filter(function ($i) use ($twoDaysAgo, $yesterdayStr, $todayStr, $startOfWeek) {
-            $d = $i->instance_date?->format('Y-m-d');
-            if (! $d || $d === $todayStr || $d === $yesterdayStr) {
-                return false;
-            }
-            $dt = Carbon::parse($d)->startOfDay();
-            return $dt->gte($startOfWeek) && $dt->lte($twoDaysAgo);
-        })->values();
-        $olderList = $instances->filter(function ($i) use ($startOfWeek) {
-            $d = $i->instance_date?->format('Y-m-d');
-            return $d && Carbon::parse($d)->startOfDay()->lt($startOfWeek);
-        })->values();
+        $yesterdayList = WorkTaskInstance::where('status', WorkTaskInstance::STATUS_COMPLETED)
+            ->whereHas('task', $scope)
+            ->with(['task.project', 'task.labels', 'task.program'])
+            ->whereDate('instance_date', $yesterdayStr)
+            ->orderByDesc('completed_at')
+            ->get();
+
+        $thisWeekList = WorkTaskInstance::where('status', WorkTaskInstance::STATUS_COMPLETED)
+            ->whereHas('task', $scope)
+            ->with(['task.project', 'task.labels', 'task.program'])
+            ->whereBetween('instance_date', [$startOfWeek->format('Y-m-d'), $twoDaysAgo->format('Y-m-d')])
+            ->whereNotIn('instance_date', [$todayStr, $yesterdayStr])
+            ->orderByDesc('completed_at')
+            ->get();
+
+        $olderList = WorkTaskInstance::where('status', WorkTaskInstance::STATUS_COMPLETED)
+            ->whereHas('task', $scope)
+            ->with(['task.project', 'task.labels', 'task.program'])
+            ->where('instance_date', '<', $startOfWeek->format('Y-m-d'))
+            ->orderByDesc('completed_at')
+            ->get();
 
         return [
             'today' => $todayList,

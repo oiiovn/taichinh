@@ -34,6 +34,7 @@ class CongViecTask extends Model
         'internalized_at',
         'program_id',
         'repeat_interval',
+        'meta',
     ];
 
     public function instances(): \Illuminate\Database\Eloquent\Relations\HasMany
@@ -76,6 +77,7 @@ class CongViecTask extends Model
         'repeat_until' => 'date',
         'completed' => 'boolean',
         'internalized_at' => 'datetime',
+        'meta' => 'array',
     ];
 
     public const PRIORITY_LABELS = [

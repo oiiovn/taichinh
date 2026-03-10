@@ -15,6 +15,7 @@ var __congViecFocusActivityUrl = @json(route('cong-viec.focus.activity'));
 var __congViecEstimatedDurationUrlTemplate = @json(str_replace('999999', '__ID__', $_durPatchUrl));
 @php $_instDurUrl = route('cong-viec.instances.actual-duration', ['id' => 999999]); @endphp
 var __congViecInstanceActualDurationUrlTemplate = @json(str_replace('999999', '__ID__', $_instDurUrl));
+var __congViecMissedWindowPrompt = @json($missedWindowPrompt ?? null);
 var __focusIdleMs = {{ (int) config('behavior_intelligence.focus_duration.idle_seconds', 300) * 1000 }};
 function __congViecFocusPing() {
     var token = document.querySelector('meta[name=csrf-token]');
@@ -137,22 +138,37 @@ function __congViecShowGhostCompletion(g) {
     setTimeout(hide, 25000);
 }
 function __congViecShowDurationConfirm(c, onDismiss) {
+    var wrap = document.getElementById('duration-confirm-toast-wrap');
+    if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'duration-confirm-toast-wrap';
+        wrap.className = 'fixed inset-0 z-[59] flex items-center justify-center bg-black/40';
+        wrap.style.display = 'none';
+        document.body.appendChild(wrap);
+    }
     var el = document.getElementById('duration-confirm-toast');
     if (!el) {
         el = document.createElement('div');
         el.id = 'duration-confirm-toast';
-        el.className = 'fixed bottom-4 left-1/2 z-[60] max-w-lg -translate-x-1/2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 shadow-lg dark:border-sky-800 dark:bg-sky-900/30';
-        document.body.appendChild(el);
+        el.className = 'relative z-[60] mx-4 max-w-lg rounded-xl border-2 border-sky-400 px-5 py-4 shadow-2xl dark:border-sky-500';
+        el.style.backgroundColor = '#ffffff';
+        wrap.appendChild(el);
     }
+    wrap.style.display = 'flex';
     var opts = (c.options || []).slice(0, 6);
     if (c.raw_minutes && opts.indexOf(c.raw_minutes) < 0) opts.push(c.raw_minutes);
+    var msg = (c.message || '').replace(/</g, '&lt;');
     var btns = opts.map(function(m) {
-        return '<button type="button" class="dur-pick rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800" data-m="' + m + '">' + m + ' phút</button>';
+        return '<button type="button" class="dur-pick rounded-lg border-2 border-sky-500 bg-sky-100 px-3 py-2 text-sm font-semibold text-sky-900 hover:bg-sky-200 dark:border-sky-400 dark:bg-slate-600 dark:text-white dark:hover:bg-slate-500" data-m="' + m + '">' + m + ' phút</button>';
     }).join(' ');
-    el.innerHTML = '<p class="text-sm text-gray-800 dark:text-gray-200">' + (c.message || '').replace(/</g, '&lt;') + '</p>' +
-        '<div class="mt-2 flex flex-wrap gap-2">' + btns + '</div>';
+    var isDark = document.documentElement.classList.contains('dark');
+    if (isDark) el.style.backgroundColor = '#1e293b';
+    el.innerHTML = '<p style="color:' + (isDark ? '#f1f5f9' : '#1f2937') + ';font-size:1.0625rem;font-weight:600;line-height:1.5;margin:0;" class="duration-confirm-msg">' + msg + '</p>' +
+        '<div class="mt-3 flex flex-wrap gap-2">' + btns + '</div>';
+    var msgEl = el.querySelector('.duration-confirm-msg');
+    if (msgEl) msgEl.style.color = isDark ? '#f1f5f9' : '#1f2937';
     el.style.display = 'block';
-    var hide = function() { el.style.display = 'none'; if (onDismiss) onDismiss(); };
+    var hide = function() { wrap.style.display = 'none'; if (onDismiss) onDismiss(); };
     var token = document.querySelector('meta[name=csrf-token]');
     var baseUrl = __congViecInstanceActualDurationUrlTemplate;
     el.querySelectorAll('.dur-pick').forEach(function(btn) {
@@ -163,7 +179,7 @@ function __congViecShowDurationConfirm(c, onDismiss) {
                 .then(function() { hide(); }).catch(function() { hide(); });
         };
     });
-    setTimeout(function() { if (el.style.display !== 'none') hide(); }, 20000);
+    setTimeout(function() { if (wrap.style.display !== 'none') hide(); }, 20000);
 }
 if (typeof window !== 'undefined') {
     window.__congViecFocusStart = __congViecFocusStart;
@@ -269,8 +285,32 @@ if (typeof window !== 'undefined') {
     window.__congViecSendPolicyFeedback = __congViecSendPolicyFeedback;
     window.__congViecPolicyFeedbackClick = __congViecPolicyFeedbackClick;
 }
+function __congViecShowMissedWindowPrompt(p) {
+    if (!p || !p.instance_id || !p.title) return;
+    var wrap = document.getElementById('missed-window-prompt-wrap');
+    if (!wrap) {
+        wrap = document.createElement('div');
+        wrap.id = 'missed-window-prompt-wrap';
+        wrap.className = 'fixed inset-0 z-[59] flex items-center justify-center bg-black/40';
+        document.body.appendChild(wrap);
+    }
+    var title = String(p.title).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+    wrap.innerHTML = '<div class="relative z-[60] mx-4 max-w-md rounded-xl border-2 border-rose-300 bg-white px-5 py-4 shadow-2xl dark:border-rose-500 dark:bg-slate-800" style="color:#1f2937"><p style="font-size:1.125rem;font-weight:700;color:#1f2937;line-height:1.4" class="dark:text-white">Việc <strong>« ' + title + ' »</strong></p><p class="mt-1 text-sm font-medium text-rose-600 dark:text-rose-400">Cửa sổ thực thi đã trễ.</p><p class="mt-2 text-sm text-gray-600 dark:text-gray-400">Bạn đã làm xong chưa? Tick &quot;Đã xong&quot; nếu đã hoàn thành.</p><div class="mt-4 flex flex-wrap gap-2"><button type="button" class="missed-done rounded-lg bg-rose-600 px-3 py-2 text-sm font-medium text-white hover:bg-rose-700">✓ Đã xong</button><button type="button" class="missed-not rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200">⏳ Chưa làm</button></div></div>';
+    wrap.style.display = 'flex';
+    var hide = function() { wrap.style.display = 'none'; };
+    wrap.querySelector('.missed-not').onclick = hide;
+    wrap.querySelector('.missed-done').onclick = function() {
+        var token = document.querySelector('meta[name=csrf-token]');
+        if (!token) { hide(); return; }
+        fetch(p.toggle_url, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token.content }, body: JSON.stringify({ _token: token.content }) })
+            .then(function(r) { if (r.ok) { hide(); var panel = document.getElementById('today-panel'); if (panel && panel.getAttribute('data-partial-url')) fetch(panel.getAttribute('data-partial-url'), { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(re) { return re.text(); }).then(function(html) { if (panel && html) panel.innerHTML = html; }).catch(function() {}); } })
+            .catch(function() { hide(); });
+    };
+    setTimeout(function() { if (wrap.style.display !== 'none') hide(); }, 30000);
+}
 document.addEventListener('DOMContentLoaded', function() {
     __congViecSendBehaviorEvents([{ event_type: 'page_view', payload: { path: 'cong-viec' } }]);
+    if (__congViecMissedWindowPrompt && __congViecMissedWindowPrompt.instance_id) __congViecShowMissedWindowPrompt(__congViecMissedWindowPrompt);
 });
 /**
  * Smart parsing: "mai 9h họp team 30p" → { title, dueDate, dueTime, duration }.
@@ -437,8 +477,9 @@ document.addEventListener('alpine:init', () => {
         confirmInstanceUrl: null,
         confirmPayload: null,
         confirmP: null,
-        openConfirmCompleteModal(taskId, payload, p, instanceId, confirmInstanceUrl) { this.confirmTaskId = taskId; this.confirmInstanceId = instanceId || null; this.confirmInstanceUrl = confirmInstanceUrl || null; this.confirmPayload = payload || {}; this.confirmP = p; this.showConfirmCompleteModal = true; },
-        closeConfirmCompleteModal() { this.showConfirmCompleteModal = false; this.confirmTaskId = null; this.confirmInstanceId = null; this.confirmInstanceUrl = null; this.confirmPayload = null; this.confirmP = null; },
+        confirmTaskTitle: '',
+        openConfirmCompleteModal(taskId, payload, p, instanceId, confirmInstanceUrl, taskTitle) { this.confirmTaskId = taskId; this.confirmInstanceId = instanceId || null; this.confirmInstanceUrl = confirmInstanceUrl || null; this.confirmPayload = payload || {}; this.confirmP = p; this.confirmTaskTitle = taskTitle || 'Việc này'; this.showConfirmCompleteModal = true; },
+        closeConfirmCompleteModal() { this.showConfirmCompleteModal = false; this.confirmTaskId = null; this.confirmInstanceId = null; this.confirmInstanceUrl = null; this.confirmPayload = null; this.confirmP = null; this.confirmTaskTitle = ''; },
         async confirmCompleteSubmit() {
             var url = this.confirmInstanceId && this.confirmInstanceUrl ? this.confirmInstanceUrl : (this.confirmTaskId ? __congViecConfirmCompleteUrlTemplate.replace('__ID__', this.confirmTaskId) : null);
             if (!url) return;
@@ -449,6 +490,7 @@ document.addEventListener('alpine:init', () => {
             if (res.ok) {
                 var data = await res.json().catch(function() { return {}; });
                 this.closeConfirmCompleteModal();
+                if (data.completed && typeof __congViecFocusApplyUi === 'function') __congViecFocusApplyUi(null);
                 var row = this.confirmInstanceId ? document.querySelector('.task-row[data-instance-id="' + this.confirmInstanceId + '"]') : document.querySelector('.task-row[data-task-id="' + this.confirmTaskId + '"]');
                 if (row && data.completed) {
                     __congViecAfterCompleteToasts(data, function() {
@@ -564,9 +606,11 @@ document.addEventListener('change', async function(e) {
             cb.checked = false;
             var instanceId = cb.dataset.instanceId ? parseInt(cb.dataset.instanceId, 10) : null;
             var confirmInstanceUrl = cb.dataset.confirmUrl || null;
-            window.dispatchEvent(new CustomEvent('cong-viec-require-confirm', { detail: { taskId: cb.dataset.taskId ? parseInt(cb.dataset.taskId, 10) : null, payload: payload, p: data.p, instanceId: instanceId, confirmInstanceUrl: confirmInstanceUrl } }));
+            var taskTitle = (cb.dataset.taskTitle || '').trim() || 'Việc này';
+            window.dispatchEvent(new CustomEvent('cong-viec-require-confirm', { detail: { taskId: cb.dataset.taskId ? parseInt(cb.dataset.taskId, 10) : null, taskTitle: taskTitle, payload: payload, p: data.p, instanceId: instanceId, confirmInstanceUrl: confirmInstanceUrl } }));
         } else if (data.completed !== undefined) {
             if (data.completed) {
+                if (typeof __congViecFocusApplyUi === 'function') __congViecFocusApplyUi(null);
                 var row = cb.dataset.instanceId ? document.querySelector('.task-row[data-instance-id="' + cb.dataset.instanceId + '"]') : document.querySelector('.task-row[data-task-id="' + cb.dataset.taskId + '"]');
                 var panel = row ? row.closest('[data-partial-url]') : null;
                 var partialUrl = panel ? panel.getAttribute('data-partial-url') : null;

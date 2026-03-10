@@ -130,6 +130,34 @@
         @endif
     @endif
 
+    @php
+        $routineDetection = $routineDetection ?? null;
+        $hasRoutines = $routineDetection && (
+            count($routineDetection['morning'] ?? []) > 0
+            || count($routineDetection['work'] ?? []) > 0
+            || count($routineDetection['afternoon'] ?? []) > 0
+            || count($routineDetection['evening'] ?? []) > 0
+        );
+    @endphp
+    @if($hasRoutines)
+        <div class="rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50/50 dark:bg-violet-900/20 px-4 py-3">
+            <p class="text-xs font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400 mb-2">Routine phát hiện (từ lịch sử hoàn thành)</p>
+            <div class="space-y-2 text-sm">
+                @foreach(['morning' => \App\Services\RoutineDetectionService::slotLabel('morning'), 'work' => \App\Services\RoutineDetectionService::slotLabel('work'), 'afternoon' => \App\Services\RoutineDetectionService::slotLabel('afternoon'), 'evening' => \App\Services\RoutineDetectionService::slotLabel('evening')] as $slot => $label)
+                    @if(!empty($routineDetection[$slot]))
+                        <p class="font-medium text-gray-800 dark:text-gray-200">{{ $label }}</p>
+                        <ul class="ml-2 space-y-0.5 text-gray-700 dark:text-gray-300">
+                            @foreach($routineDetection[$slot] as $r)
+                                <li><span class="font-mono text-violet-600 dark:text-violet-400">{{ $r['median_time'] }}</span> {{ $r['title'] }}@if(!empty($r['drift_detected']))<span class="text-xs text-amber-600 dark:text-amber-400" title="Gần đây lệch giờ — routine đã cập nhật"> ↻</span>@endif</li>
+                            @endforeach
+                        </ul>
+                    @endif
+                @endforeach
+            </div>
+            <p class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">Soft signal — planner vẫn ưu tiên deadline và cửa sổ thực thi.</p>
+        </div>
+    @endif
+
     @if($tasksToday->isNotEmpty())
         <div class="space-y-6" id="today-task-list">
             {{-- 🎯 FOCUS HÔM NAY — khi đã hoàn thành hết thì chỉ hiện thông báo --}}
@@ -237,9 +265,12 @@
                                             'asTodayRow' => true,
                                             'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null,
                                             'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null,
+                                            'energyAffinity' => $todayPriorityScores[$instance->id]['energy_affinity'] ?? null,
                                             'showIntelligence' => true,
                                             'focusOrder' => $taskIdx,
                                             'showStartFocus' => $taskIdx === 1 && $instance->status !== \App\Models\WorkTaskInstance::STATUS_COMPLETED && ($focusSession === null || (int)($focusSession['instance_id'] ?? 0) !== (int)$instance->id),
+                                            'inFocusNow' => true,
+                                            'userDoingOtherTask' => $focusSession && (int)($focusSession['instance_id'] ?? 0) !== (int)$instance->id,
                                         ])
                                     @endif
                                 </li>
@@ -252,7 +283,7 @@
                         <p class="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">⚡ Nên làm tiếp (nếu còn thời gian)</p>
                         <ul class="space-y-1">
                                 @foreach($focusPlan['secondary'] as $instance)
-                                @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'showIntelligence' => true])
+                                @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'energyAffinity' => $todayPriorityScores[$instance->id]['energy_affinity'] ?? null, 'showIntelligence' => true, 'userDoingOtherTask' => $focusSession && (int)($focusSession['instance_id'] ?? 0) !== (int)$instance->id])
                             @endforeach
                         </ul>
                     </div>
@@ -262,19 +293,19 @@
                         <p class="text-xs font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400">⚠ Trễ cửa sổ thực thi</p>
                         <ul class="space-y-1">
                             @foreach($focusPlan['missed_window'] as $instance)
-                                @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'showIntelligence' => true])
-                            @endforeach
-                        </ul>
-                    </div>
-                @endif
-                @if(!empty($focusPlanLater))
+@include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'energyAffinity' => $todayPriorityScores[$instance->id]['energy_affinity'] ?? null, 'showIntelligence' => true, 'userDoingOtherTask' => $focusSession && (int)($focusSession['instance_id'] ?? 0) !== (int)$instance->id])
+                                            @endforeach
+                                        </ul>
+                                    </div>
+                                @endif
+                                @if(!empty($focusPlanLater))
                     @foreach($focusPlanLater as $slotBlock)
                         @if(($slotBlock['instances'] ?? collect())->isNotEmpty())
                             <div class="space-y-1 mt-4">
                                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">🕒 Later today · sau {{ $slotBlock['slot'] }}</p>
                                 <ul class="space-y-1">
                                     @foreach($slotBlock['instances'] as $instance)
-                                        @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'showIntelligence' => true])
+                                        @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'energyAffinity' => $todayPriorityScores[$instance->id]['energy_affinity'] ?? null, 'showIntelligence' => true, 'userDoingOtherTask' => $focusSession && (int)($focusSession['instance_id'] ?? 0) !== (int)$instance->id])
                                     @endforeach
                                 </ul>
                             </div>
@@ -289,7 +320,7 @@
                             <p class="text-xs font-semibold uppercase tracking-wide {{ $config['class'] }}">{{ $config['icon'] }} {{ $config['label'] }}</p>
                             <ul class="space-y-1">
                                 @foreach($tiers[$tierKey] as $instance)
-                                    @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'showIntelligence' => true])
+                                    @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'energyAffinity' => $todayPriorityScores[$instance->id]['energy_affinity'] ?? null, 'showIntelligence' => true, 'userDoingOtherTask' => isset($focusSession) && $focusSession && (int)($focusSession['instance_id'] ?? 0) !== (int)$instance->id])
                                 @endforeach
                             </ul>
                         </div>

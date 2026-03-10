@@ -9,6 +9,33 @@ return [
     /** Số lần tiếp theo tối đa hiển thị khi mở rộng task lặp ở tab Dự kiến. */
     'du_kien_expand_limit' => (int) env('DU_KIEN_EXPAND_LIMIT', 10),
 
+    /** Routine Detection Engine: thống kê completed_at → median, stability, slot (soft signal). */
+    'routine_detection' => [
+        'min_samples' => (int) env('ROUTINE_MIN_SAMPLES', 3),
+        'max_samples' => (int) env('ROUTINE_MAX_SAMPLES', 50),
+        'confidence_threshold' => (float) env('ROUTINE_CONFIDENCE_THRESHOLD', 0.5),
+        'confidence_sample_cap' => (int) env('ROUTINE_CONFIDENCE_SAMPLE_CAP', 7),
+        'stability_denom_minutes' => (float) env('ROUTINE_STABILITY_DENOM', 120),
+        'routine_boost_threshold' => (float) env('ROUTINE_BOOST_CONFIDENCE', 0.7),
+        'routine_boost_window_minutes' => (int) env('ROUTINE_BOOST_WINDOW_MINUTES', 30),
+    ],
+    /** Task Energy Model — affinity theo slot (morning/afternoon/evening) từ quality = estimated/actual. */
+    'energy_affinity' => [
+        'min_samples' => (int) env('ENERGY_AFFINITY_MIN_SAMPLES', 6),
+        'max_samples' => (int) env('ENERGY_AFFINITY_MAX_SAMPLES', 30),
+        'energy_bonus' => (float) env('ENERGY_AFFINITY_BONUS', 0.08),
+        'update_meta_every_n_completions' => (int) env('ENERGY_UPDATE_META_EVERY_N', 5),
+    ],
+
+    /** Behavior Drift Detection — phát hiện khi hành vi lệch khỏi routine đã học. */
+    'behavior_drift' => [
+        'long_window' => (int) env('BEHAVIOR_DRIFT_LONG_WINDOW', 30),
+        'short_window' => (int) env('BEHAVIOR_DRIFT_SHORT_WINDOW', 5),
+        'threshold_minutes' => (float) env('BEHAVIOR_DRIFT_THRESHOLD_MINUTES', 45),
+        'short_variance_max' => (float) env('BEHAVIOR_DRIFT_SHORT_VARIANCE_MAX', 60),
+        'routine_decay_on_drift' => (float) env('BEHAVIOR_DRIFT_ROUTINE_DECAY', 0.7),
+    ],
+
     'layers' => [
         'identity_baseline' => true,
         'micro_event_capture' => true,
@@ -78,6 +105,8 @@ return [
             'weight_deadline_pressure' => (float) env('EXECUTION_PRIORITY_WEIGHT_DEADLINE_PRESSURE', 0.10),
             'weight_energy_fit' => (float) env('EXECUTION_PRIORITY_WEIGHT_ENERGY_FIT', 0.12),
             'deadline_boost_hours' => (float) env('EXECUTION_PRIORITY_DEADLINE_BOOST_HOURS', 4),
+            'missed_window_boost' => (float) env('EXECUTION_PRIORITY_MISSED_WINDOW_BOOST', 0.25),
+            'energy_bonus' => (float) env('EXECUTION_ENERGY_BONUS', 0.08),
             'threshold_high' => (float) env('EXECUTION_PRIORITY_THRESHOLD_HIGH', 0.65),
             'threshold_medium' => (float) env('EXECUTION_PRIORITY_THRESHOLD_MEDIUM', 0.40),
         ],

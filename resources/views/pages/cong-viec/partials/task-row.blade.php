@@ -5,9 +5,12 @@
     $toggleUrl = $instance ? $toggleCompleteUrl : str_replace('__ID__', $task->id, $toggleCompleteUrl);
     $streak = $streak ?? null;
     $priorityScore = $priorityScore ?? null;
+    $energyAffinity = $energyAffinity ?? null;
     $showIntelligence = $showIntelligence ?? false;
     $focusOrder = $focusOrder ?? null;
     $showStartFocus = $showStartFocus ?? false;
+    $inFocusNow = $inFocusNow ?? false;
+    $userDoingOtherTask = $userDoingOtherTask ?? false;
     $scorePct = $priorityScore !== null ? (int) round($priorityScore * 100) : null;
     $estimatedMinutes = $estimatedMinutes ?? (app(\App\Services\TaskDurationLearningService::class)->getPredictedMinutes($task->id) ?? $task->estimated_duration ?? null);
     $deadlineSoon = false;
@@ -28,7 +31,7 @@
 @endphp
 <li class="group/task {{ $asTodayRow ? 'task-row' : '' }} flex items-start gap-3 rounded-lg border border-transparent py-2.5 px-2 transition-colors hover:bg-gray-50 hover:border-gray-200 dark:hover:bg-gray-800/50 dark:hover:border-gray-700" @if($asTodayRow) data-task-id="{{ $task->id }}" @if($instance) data-instance-id="{{ $instance->id }}" @endif @endif>
     @if($focusOrder)<span class="mt-1.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-100 text-xs font-bold text-amber-700 dark:bg-amber-900/50 dark:text-amber-300">{{ $focusOrder }}</span>@endif
-    <input type="checkbox" class="task-checkbox mt-1.5 h-6 w-6 shrink-0 appearance-none rounded-full border-2 border-gray-300 bg-transparent text-red-500 focus:ring-2 focus:ring-red-500 focus:ring-offset-0 dark:border-gray-600 checked:border-red-500 checked:bg-red-500" data-task-id="{{ $task->id }}" data-url="{{ $toggleUrl }}" data-due-date="{{ $task->due_date?->format('Y-m-d') }}" data-due-time="{{ $task->due_time ?? '' }}" data-program-id="{{ $task->program_id ?? '' }}" @if($instance) data-instance-id="{{ $instance->id }}" data-confirm-url="{{ $confirmCompleteUrl ?? '' }}" @endif @checked($completed)>
+    <input type="checkbox" class="task-checkbox mt-1.5 h-6 w-6 shrink-0 appearance-none rounded-full border-2 border-gray-300 bg-transparent text-red-500 focus:ring-2 focus:ring-red-500 focus:ring-offset-0 dark:border-gray-600 checked:border-red-500 checked:bg-red-500" data-task-id="{{ $task->id }}" data-task-title="{{ e($task->title) }}" data-url="{{ $toggleUrl }}" data-due-date="{{ $task->due_date?->format('Y-m-d') }}" data-due-time="{{ $task->due_time ?? '' }}" data-program-id="{{ $task->program_id ?? '' }}" @if($instance) data-instance-id="{{ $instance->id }}" data-confirm-url="{{ $confirmCompleteUrl ?? '' }}" @endif @checked($completed)>
     <div class="min-w-0 flex-1">
         <div class="flex flex-wrap items-center gap-2">
             <p class="font-semibold {{ $completed ? 'text-gray-500 line-through dark:text-gray-400' : 'text-gray-900 dark:text-white' }}">{{ $task->title }}</p>
@@ -40,7 +43,7 @@
                     $beforeMin = (int)substr($beforeStr, 0, 2) * 60 + (int)substr($beforeStr, 3, 2);
                     $nowMin = \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->hour * 60 + \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->minute;
                 @endphp
-                @if($nowMin > $beforeMin)<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300" title="Đã qua cửa sổ">⚠ Trước {{ $beforeStr }}</span>@else<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" title="Phải làm trước">⏱ Trước {{ $beforeStr }}</span>@endif
+                @if($nowMin > $beforeMin)<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300" title="Đã qua cửa sổ thực thi">⚠ Cửa sổ thực thi đã trễ</span>@else<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" title="Phải làm trước">⏱ Trước {{ $beforeStr }}</span>@endif
             @endif
             @if($task->program_id && $task->relationLoaded('program') && $task->program)
                 <a href="{{ route('cong-viec.programs.show', $task->program->id) }}" class="rounded px-1.5 py-0.5 text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300" title="Chương trình">📋 {{ $task->program->title }}</a>
@@ -57,6 +60,10 @@
                     @endif">{{ $task->priority_label }}</span>
             @endif
             @if(!$completed && $task->internalized_at)<span class="text-xs text-gray-500 dark:text-gray-400" title="Đã nội tâm hoá">✓</span>@endif
+            @if($energyAffinity && $energyAffinity !== 'neutral')
+                @php $energyLabel = match($energyAffinity) { 'night' => '🌙 Night fit', 'morning' => '🌅 Morning fit', 'afternoon' => '☀️ Afternoon fit', 'evening' => '🌙 Evening fit', default => '' }; @endphp
+                @if($energyLabel)<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-sky-50 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300" title="Hợp khung giờ">{{ $energyLabel }}</span>@endif
+            @endif
             @if($streak && $streak >= 1)<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" title="Chuỗi ngày trượt">🔥 {{ $streak }} ngày</span>@endif
             @if($showIntelligence && $estimatedMinutes !== null)<span class="rounded px-1.5 py-0.5 text-xs font-medium text-gray-600 dark:text-gray-400" title="Ước tính">⏱ {{ $estimatedMinutes }} phút</span>@endif
             @if($showIntelligence && $scorePct !== null)
@@ -87,8 +94,8 @@
                             $dueAtToday = \Carbon\Carbon::parse($instanceDate->format('Y-m-d') . ' ' . $timePart, 'Asia/Ho_Chi_Minh');
                             $now = \Carbon\Carbon::now('Asia/Ho_Chi_Minh');
                             if ($dueAtToday->isPast()) {
-                                $hoursLate = (int) $dueAtToday->diffInHours($now);
-                                $dueDisplay = ['type' => 'overdue', 'text' => '⚠ Quá hạn ' . $hoursLate . ' giờ'];
+                                $overdueText = \App\Helpers\DeadlineHumanizer::overdueLabel($dueAtToday, $now, $inFocusNow, $userDoingOtherTask);
+                                $dueDisplay = ['type' => 'overdue', 'text' => $overdueText ?: '⚠ Quá hạn'];
                             } else {
                                 $hour = (int) $dueAtToday->format('G');
                                 $dueDisplay = ['type' => 'today', 'text' => '⏰ ' . $timePart . ($hour < 12 ? ' sáng nay' : ' hôm nay')];

@@ -59,8 +59,9 @@
     @click.self="closeConfirmCompleteModal()">
     <div class="w-full max-w-sm rounded-xl border border-gray-200 bg-white shadow-xl dark:border-gray-600 dark:bg-gray-800 p-5" @click.stop>
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">Xác nhận hoàn thành</h3>
+        <p class="text-sm font-medium text-gray-900 dark:text-white mb-1">Việc: « <span x-text="confirmTaskTitle || 'Việc này'"></span> »</p>
         <p class="text-sm text-gray-600 dark:text-gray-300 mb-4">
-            Hệ thống gợi ý xác nhận: P(thật) = <span x-text="confirmP != null ? Math.round(confirmP * 100) + '%' : ''"></span>. Bạn có thực sự đã hoàn thành?
+            Hệ thống gợi ý xác nhận: P(thật) = <span x-text="confirmP != null ? Math.round(confirmP * 100) + '%' : ''"></span>. Bạn có thực sự đã hoàn thành việc này?
         </p>
         <div class="flex flex-wrap items-center justify-end gap-2">
             <button type="button" @click="closeConfirmCompleteModal()" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">
