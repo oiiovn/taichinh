@@ -4,7 +4,7 @@ return [
     'enabled' => env('BEHAVIOR_INTELLIGENCE_ENABLED', true),
 
     /** Số ngày tối đa ensure instance khi mở Dự kiến (tránh loop quá lâu). */
-    'instance_ensure_horizon_days' => (int) env('INSTANCE_ENSURE_HORIZON_DAYS', 90),
+    'instance_ensure_horizon_days' => (int) env('INSTANCE_ENSURE_HORIZON_DAYS', 7),
 
     /** Số lần tiếp theo tối đa hiển thị khi mở rộng task lặp ở tab Dự kiến. */
     'du_kien_expand_limit' => (int) env('DU_KIEN_EXPAND_LIMIT', 10),

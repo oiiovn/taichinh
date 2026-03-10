@@ -45,6 +45,10 @@ class EnsureTaskInstancesService
      */
     /** Số ngày tối đa cho một lần ensure range, tránh loop hàng chục nghìn lần → timeout. */
     private const MAX_RANGE_DAYS = 120;
+    /** Số task tối đa xử lý trong range (tasks × days = occursOn calls) → tránh timeout 30s. */
+    private const MAX_TASKS_FOR_RANGE = 50;
+    /** Số task tối đa cho một ngày (tasksOccurringOnDate) → tránh timeout. */
+    private const MAX_TASKS_PER_DAY = 150;
 
     public function ensureForUserDateRange(int $userId, string $start, string $end): void
     {
@@ -66,33 +70,52 @@ class EnsureTaskInstancesService
             $to = $from->copy()->addDays(self::MAX_RANGE_DAYS - 1);
         }
 
-        $allTasks = $this->tasksCandidateForDateRange($userId, $from->format('Y-m-d'), $to->format('Y-m-d'));
+        try {
+            $allTasks = $this->tasksCandidateForDateRange($userId, $from->format('Y-m-d'), $to->format('Y-m-d'));
+        } catch (\Throwable $e) {
+            $this->ensureForUserDateRangeFallbackPerDay($userId, $from, $to);
+            return;
+        }
         if ($allTasks->isEmpty()) {
             return;
         }
 
-        for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
-            $dateStr = $d->format('Y-m-d');
-            $tasksForDay = $this->filterTasksOccurringOnDate($allTasks, $dateStr);
-            if ($tasksForDay->isEmpty()) {
-                continue;
+        try {
+            for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
+                $dateStr = $d->format('Y-m-d');
+                $tasksForDay = $this->filterTasksOccurringOnDate($allTasks, $dateStr);
+                if ($tasksForDay->isEmpty()) {
+                    continue;
+                }
+                $existing = WorkTaskInstance::where('instance_date', $dateStr)
+                    ->whereIn('work_task_id', $tasksForDay->pluck('id'))
+                    ->pluck('work_task_id')
+                    ->all();
+                $toCreate = $tasksForDay->pluck('id')->diff($existing)->all();
+                if (empty($toCreate)) {
+                    continue;
+                }
+                $rows = array_map(fn (int $taskId) => [
+                    'work_task_id' => $taskId,
+                    'instance_date' => $dateStr,
+                    'status' => WorkTaskInstance::STATUS_PENDING,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ], $toCreate);
+                DB::table('work_task_instances')->insert($rows);
             }
-            $existing = WorkTaskInstance::where('instance_date', $dateStr)
-                ->whereIn('work_task_id', $tasksForDay->pluck('id'))
-                ->pluck('work_task_id')
-                ->all();
-            $toCreate = $tasksForDay->pluck('id')->diff($existing)->all();
-            if (empty($toCreate)) {
-                continue;
-            }
-            $rows = array_map(fn (int $taskId) => [
-                'work_task_id' => $taskId,
-                'instance_date' => $dateStr,
-                'status' => WorkTaskInstance::STATUS_PENDING,
-                'created_at' => now(),
-                'updated_at' => now(),
-            ], $toCreate);
-            DB::table('work_task_instances')->insert($rows);
+        } catch (\Throwable $e) {
+            $this->ensureForUserDateRangeFallbackPerDay($userId, $from, $to);
+        }
+    }
+
+    /** Fallback: gọi ensureForUserAndDate từng ngày khi path tối ưu lỗi; giới hạn 30 ngày tránh timeout. */
+    private function ensureForUserDateRangeFallbackPerDay(int $userId, Carbon $from, Carbon $to): void
+    {
+        $cap = $from->copy()->addDays(min(30, (int) $from->diffInDays($to, false) + 1) - 1);
+        $end = $to->gt($cap) ? $cap : $to;
+        for ($d = $from->copy(); $d->lte($end); $d->addDay()) {
+            $this->ensureForUserAndDate($userId, $d->format('Y-m-d'));
         }
     }
 
@@ -112,19 +135,33 @@ class EnsureTaskInstancesService
                         });
                 })->orWhereNotNull('program_id');
             })
+            ->orderByDesc('due_date')
+            ->limit(self::MAX_TASKS_FOR_RANGE)
             ->get($cols);
     }
 
     /**
      * Lọc collection task theo ngày: occursOn hoặc program task (due null hoặc <= date).
+     * Parse $date một lần rồi truyền Carbon vào occursOn để tránh timeout (Carbon::parse gọi rất nhiều lần).
      */
     private function filterTasksOccurringOnDate(\Illuminate\Support\Collection $tasks, string $date): \Illuminate\Support\Collection
     {
-        return $tasks->filter(function (CongViecTask $t) use ($date) {
-            if ($t->program_id !== null && ($t->due_date === null || $t->due_date <= $date)) {
-                return true;
+        $dateCarbon = Carbon::parse($date)->startOfDay();
+        $dateStr = $dateCarbon->format('Y-m-d');
+        return $tasks->filter(function (CongViecTask $t) use ($dateCarbon, $dateStr) {
+            if ($t->program_id !== null) {
+                if ($t->due_date === null) {
+                    return true;
+                }
+                $dueStr = $t->due_date instanceof \DateTimeInterface
+                    ? $t->due_date->format('Y-m-d')
+                    : (string) $t->due_date;
+                if ($dueStr <= $dateStr) {
+                    return true;
+                }
+                return false;
             }
-            return $t->due_date && $t->occursOn($date);
+            return $t->due_date && $t->occursOn($dateCarbon);
         })->values();
     }
 
@@ -142,6 +179,8 @@ class EnsureTaskInstancesService
             ->where(function ($q) use ($date) {
                 $q->whereNull('repeat_until')->orWhere('repeat_until', '>=', $date);
             })
+            ->limit(self::MAX_TASKS_PER_DAY)
+            ->orderByDesc('due_date')
             ->get(self::TASKS_OCCUR_COLUMNS)
             ->filter(fn (CongViecTask $t) => $t->occursOn($date));
         $programTasksNoDue = CongViecTask::where('user_id', $userId)
@@ -149,8 +188,9 @@ class EnsureTaskInstancesService
             ->where(function ($q) use ($date) {
                 $q->whereNull('due_date')->orWhere('due_date', '<=', $date);
             })
+            ->limit(self::MAX_TASKS_PER_DAY)
             ->get(self::TASKS_OCCUR_COLUMNS);
-        return $tasksWithDue->merge($programTasksNoDue)->unique('id')->values();
+        return $tasksWithDue->merge($programTasksNoDue)->unique('id')->take(self::MAX_TASKS_PER_DAY)->values();
     }
 
     /**

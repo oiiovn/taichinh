@@ -186,19 +186,29 @@ class CongViecTask extends Model
     /**
      * Kiểm tra công việc có rơi vào ngày $date (theo múi giờ HCM) hay không.
      * repeat_interval: mỗi N ngày/tuần/tháng (ví dụ 2 = mỗi 2 ngày, mỗi 2 tuần).
+     * $date có thể là string (Y-m-d) hoặc Carbon để tránh parse lặp trong loop.
      */
     public function occursOn($date): bool
     {
-        $date = Carbon::parse($date)->startOfDay();
+        $date = $date instanceof \DateTimeInterface
+            ? Carbon::instance($date)->startOfDay()
+            : Carbon::parse($date)->startOfDay();
         if (! $this->due_date) {
             return false;
         }
-        $due = Carbon::parse($this->due_date)->startOfDay();
+        $due = $this->due_date instanceof \DateTimeInterface
+            ? Carbon::instance($this->due_date)->startOfDay()
+            : Carbon::parse($this->due_date)->startOfDay();
         if ($date->lt($due)) {
             return false;
         }
-        if ($this->repeat_until && $date->gt(Carbon::parse($this->repeat_until)->startOfDay())) {
-            return false;
+        if ($this->repeat_until) {
+            $until = $this->repeat_until instanceof \DateTimeInterface
+                ? Carbon::instance($this->repeat_until)->startOfDay()
+                : Carbon::parse($this->repeat_until)->startOfDay();
+            if ($date->gt($until)) {
+                return false;
+            }
         }
         $interval = max(1, (int) ($this->repeat_interval ?? 1));
         switch ($this->repeat ?? 'none') {

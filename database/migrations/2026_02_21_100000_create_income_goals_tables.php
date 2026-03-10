@@ -51,8 +51,10 @@ return new class extends Migration
 
     public function down(): void
     {
+        Schema::disableForeignKeyConstraints();
         Schema::dropIfExists('income_goal_events');
         Schema::dropIfExists('income_goal_snapshots');
         Schema::dropIfExists('income_goals');
+        Schema::enableForeignKeyConstraints();
     }
 };

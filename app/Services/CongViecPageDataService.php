@@ -566,6 +566,7 @@ class CongViecPageDataService
             ->with(['task.project', 'task.labels', 'task.program'])
             ->orderBy('instance_date')
             ->orderBy('work_task_id')
+            ->limit(1000)
             ->get();
 
         $expandLimit = (int) config('behavior_intelligence.du_kien_expand_limit', 10);

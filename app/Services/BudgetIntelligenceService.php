@@ -439,8 +439,11 @@ class BudgetIntelligenceService
         $events = BudgetThresholdEvent::where('user_id', $userId)
             ->whereIn('budget_threshold_id', $thresholdIds)
             ->whereIn('event_type', ['period_evaluated', 'threshold_updated'])
-            ->orderBy('created_at')
-            ->get();
+            ->orderByDesc('created_at')
+            ->limit(2000)
+            ->get()
+            ->sortBy('created_at')
+            ->values();
 
         $delays = [];
         $pendingByTid = [];
