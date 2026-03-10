@@ -404,6 +404,65 @@ class CongViecPageDataService
         ];
     }
 
+    /**
+     * Dữ liệu tối thiểu để view cong-viec vẫn render khi getIndexData() lỗi (tránh trang trắng).
+     */
+    public static function getMinimalDataForError(Request $request): array
+    {
+        $validTabs = ['tong-quan', 'hom-nay', 'du-kien', 'hoan-thanh'];
+        $tab = in_array($request->get('tab'), $validTabs, true) ? $request->get('tab') : 'tong-quan';
+        $todayHcm = Carbon::now('Asia/Ho_Chi_Minh')->format('Y-m-d');
+        $emptyFocusPlan = ['focus' => collect(), 'secondary' => collect(), 'backlog' => collect(), 'later' => [], 'missed_window' => collect(), 'total_planned_minutes' => 0, 'available_minutes' => 120];
+        $emptyTiers = ['high' => collect(), 'medium' => collect(), 'low' => collect()];
+
+        return [
+            'editTask' => null,
+            'tab' => $tab,
+            'todayHcm' => $todayHcm,
+            'tasksToday' => collect(),
+            'tasksTodayTiers' => $emptyTiers,
+            'todayPriorityScores' => [],
+            'focusPlan' => $emptyFocusPlan,
+            'taskStreaks' => [],
+            'userLabels' => collect(),
+            'userProjects' => collect(),
+            'userPrograms' => collect(),
+            'activeProgram' => null,
+            'activeProgramProgress' => null,
+            'todayProgramTaskTotal' => 0,
+            'todayProgramTaskDone' => 0,
+            'behaviorProfile' => null,
+            'routineDetection' => null,
+            'failureDetection' => ['risk_tier' => 'normal', 'risk_trend' => 'stable', 'risk_delta' => null],
+            'executionMetrics' => null,
+            'focusSession' => null,
+            'missedWindowPrompt' => null,
+            'coachingNarrative' => ['empty_today_copy' => 'Hôm nay bạn chưa có cam kết nào.'],
+            'tasksUpcoming' => collect(),
+            'tasksInbox' => collect(),
+            'completedInstancesGrouped' => [],
+            'kanbanColumns' => collect(),
+            'kanbanTasks' => collect(),
+            'behaviorPolicy' => null,
+            'behaviorProjection' => null,
+            'behaviorRadar' => [],
+            'interfaceAdaptation' => ['layout' => 'guided', 'stage' => null, 'config' => ['show_kpi_count' => 2]],
+            'insightPayload' => null,
+            'taskCreationContext' => [
+                'focus_window' => '—',
+                'workload_pct' => 0,
+                'suggested_priority' => null,
+                'suggested_priority_value' => null,
+                'best_time' => null,
+                'execution_stage' => 'planning',
+                'risk_tier' => 'normal',
+                'overload_hint' => null,
+                'capacity_remaining_minutes' => 120,
+                'task_fit_score' => 50,
+            ],
+        ];
+    }
+
     protected function logCoachingInterventions(
         ?int $userId,
         $behaviorPolicy,

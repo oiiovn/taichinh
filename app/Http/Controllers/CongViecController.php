@@ -25,6 +25,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -35,7 +36,17 @@ class CongViecController extends Controller
      */
     public function index(Request $request)
     {
-        $data = app(CongViecPageDataService::class)->getIndexData($request);
+        try {
+            $data = app(CongViecPageDataService::class)->getIndexData($request);
+        } catch (\Throwable $e) {
+            Log::error('CongViecController@index: ' . $e->getMessage(), [
+                'user_id' => $request->user()?->id,
+                'trace' => $e->getTraceAsString(),
+            ]);
+            $data = CongViecPageDataService::getMinimalDataForError($request);
+            $data['errorMessage'] = 'Không tải được dữ liệu công việc. Vui lòng thử lại sau.';
+        }
+
         $userId = $request->user()?->id;
         $focusPlan = $data['focusPlan'] ?? null;
         if ($userId && is_array($focusPlan) && ($focusPlan['focus'] ?? null) instanceof \Illuminate\Support\Collection && $focusPlan['focus']->isNotEmpty()) {
@@ -44,6 +55,17 @@ class CongViecController extends Controller
             session()->forget('focus_first_instance_id');
         }
 
+        if (! empty($data['errorMessage'])) {
+            try {
+                return view('pages.cong-viec', $data);
+            } catch (\Throwable $viewEx) {
+                Log::error('CongViecController@index view render: ' . $viewEx->getMessage(), ['trace' => $viewEx->getTraceAsString()]);
+                return response()->view('errors.minimal-message', [
+                    'message' => $data['errorMessage'],
+                    'retryUrl' => route('cong-viec'),
+                ], 200);
+            }
+        }
         if ($request->boolean('partial')) {
             $tab = $request->get('tab');
             $noCache = ['Cache-Control' => 'no-store, no-cache, must-revalidate'];

@@ -14,6 +14,11 @@
     $behaviorEventsUrl = route('cong-viec.behavior-events.store');
 @endphp
 @include('pages.cong-viec.partials.scripts')
+@if(!empty($errorMessage))
+    <div class="mb-4 rounded-xl border-2 border-red-300 border-l-4 border-l-red-500 bg-red-50 px-4 py-3 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/25 dark:text-red-200" role="alert">
+        {{ $errorMessage }}
+    </div>
+@endif
 <div x-data="congViecPage()" x-init="init()" @cong-viec-layout.window="layout = $event.detail.layout; try { localStorage.setItem('congViecLayout', layout); } catch(e) {}" @open-add-task.window="showAddTask = true; addTaskKanbanStatus = $event.detail?.kanban_status || 'backlog'" @cong-viec-require-confirm.window="openConfirmCompleteModal($event.detail.taskId, $event.detail.payload, $event.detail.p, $event.detail.instanceId, $event.detail.confirmInstanceUrl, $event.detail.taskTitle)" @form-dropdown-close-others.window="const id = $event.detail; if (id !== 'more' && id !== 'labels' && id !== 'location' && id !== 'inbox') { showMoreOptions = false; showLabelsPanel = false; showLocationPanel = false; showInboxDropdown = false; }">
 @if($tab === 'tong-quan' && isset($behaviorPolicy) && $behaviorPolicy && in_array($behaviorPolicy->mode, ['micro_goal', 'reduced_reminder']))
     <div id="policy-feedback-banner" class="mb-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 border-l-4 border-l-brand-500 pl-4 py-3 text-sm text-gray-900 dark:text-white" data-policy-mode="{{ $behaviorPolicy->mode }}">
