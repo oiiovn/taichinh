@@ -42,6 +42,9 @@ class EnsureTaskInstancesService
      * Đảm bảo instance cho mọi ngày trong khoảng [start, end] (Y-m-d).
      * Dùng cho tab Dự kiến: recurring cần có row instance_date > hôm nay.
      */
+    /** Số ngày tối đa cho một lần ensure range, tránh loop hàng chục nghìn lần → timeout. */
+    private const MAX_RANGE_DAYS = 120;
+
     public function ensureForUserDateRange(int $userId, string $start, string $end): void
     {
         $from = Carbon::parse($start)->startOfDay();
@@ -49,10 +52,17 @@ class EnsureTaskInstancesService
         if ($from->gt($to)) {
             return;
         }
-        $maxDays = (int) config('behavior_intelligence.instance_ensure_horizon_days', 90);
+        $maxDays = min(
+            (int) config('behavior_intelligence.instance_ensure_horizon_days', 90),
+            self::MAX_RANGE_DAYS
+        );
         $limit = $from->copy()->addDays($maxDays);
         if ($to->gt($limit)) {
             $to = $limit;
+        }
+        $daysToIterate = (int) $from->diffInDays($to, false) + 1;
+        if ($daysToIterate > self::MAX_RANGE_DAYS) {
+            $to = $from->copy()->addDays(self::MAX_RANGE_DAYS - 1);
         }
         for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
             $this->ensureForUserAndDate($userId, $d->format('Y-m-d'));
