@@ -41,6 +41,7 @@ class EnsureTaskInstancesService
     /**
      * Đảm bảo instance cho mọi ngày trong khoảng [start, end] (Y-m-d).
      * Dùng cho tab Dự kiến: recurring cần có row instance_date > hôm nay.
+     * Load tasks một lần rồi lọc theo ngày trong memory → tránh N×90 query + occursOn().
      */
     /** Số ngày tối đa cho một lần ensure range, tránh loop hàng chục nghìn lần → timeout. */
     private const MAX_RANGE_DAYS = 120;
@@ -64,10 +65,71 @@ class EnsureTaskInstancesService
         if ($daysToIterate > self::MAX_RANGE_DAYS) {
             $to = $from->copy()->addDays(self::MAX_RANGE_DAYS - 1);
         }
+
+        $allTasks = $this->tasksCandidateForDateRange($userId, $from->format('Y-m-d'), $to->format('Y-m-d'));
+        if ($allTasks->isEmpty()) {
+            return;
+        }
+
         for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
-            $this->ensureForUserAndDate($userId, $d->format('Y-m-d'));
+            $dateStr = $d->format('Y-m-d');
+            $tasksForDay = $this->filterTasksOccurringOnDate($allTasks, $dateStr);
+            if ($tasksForDay->isEmpty()) {
+                continue;
+            }
+            $existing = WorkTaskInstance::where('instance_date', $dateStr)
+                ->whereIn('work_task_id', $tasksForDay->pluck('id'))
+                ->pluck('work_task_id')
+                ->all();
+            $toCreate = $tasksForDay->pluck('id')->diff($existing)->all();
+            if (empty($toCreate)) {
+                continue;
+            }
+            $rows = array_map(fn (int $taskId) => [
+                'work_task_id' => $taskId,
+                'instance_date' => $dateStr,
+                'status' => WorkTaskInstance::STATUS_PENDING,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ], $toCreate);
+            DB::table('work_task_instances')->insert($rows);
         }
     }
+
+    /**
+     * Load một lần toàn bộ task có thể rơi vào khoảng [start, end] (due_date + repeat_until hoặc program_id).
+     */
+    private function tasksCandidateForDateRange(int $userId, string $start, string $end): \Illuminate\Support\Collection
+    {
+        $cols = ['id', 'due_date', 'repeat', 'repeat_until', 'repeat_interval', 'program_id'];
+        return CongViecTask::where('user_id', $userId)
+            ->where(function ($q) use ($start, $end) {
+                $q->where(function ($q2) use ($end, $start) {
+                    $q2->whereNotNull('due_date')
+                        ->where('due_date', '<=', $end)
+                        ->where(function ($q3) use ($start) {
+                            $q3->whereNull('repeat_until')->orWhere('repeat_until', '>=', $start);
+                        });
+                })->orWhereNotNull('program_id');
+            })
+            ->get($cols);
+    }
+
+    /**
+     * Lọc collection task theo ngày: occursOn hoặc program task (due null hoặc <= date).
+     */
+    private function filterTasksOccurringOnDate(\Illuminate\Support\Collection $tasks, string $date): \Illuminate\Support\Collection
+    {
+        return $tasks->filter(function (CongViecTask $t) use ($date) {
+            if ($t->program_id !== null && ($t->due_date === null || $t->due_date <= $date)) {
+                return true;
+            }
+            return $t->due_date && $t->occursOn($date);
+        })->values();
+    }
+
+    /** Cột đủ cho occursOn() và lọc program task. */
+    private const TASKS_OCCUR_COLUMNS = ['id', 'due_date', 'repeat', 'repeat_until', 'repeat_interval', 'program_id'];
 
     /**
      * Tasks có kỳ vọng làm trong ngày: due_date + occursOn hoặc program_id (due null hoặc <= date).
@@ -80,14 +142,14 @@ class EnsureTaskInstancesService
             ->where(function ($q) use ($date) {
                 $q->whereNull('repeat_until')->orWhere('repeat_until', '>=', $date);
             })
-            ->get()
+            ->get(self::TASKS_OCCUR_COLUMNS)
             ->filter(fn (CongViecTask $t) => $t->occursOn($date));
         $programTasksNoDue = CongViecTask::where('user_id', $userId)
             ->whereNotNull('program_id')
             ->where(function ($q) use ($date) {
                 $q->whereNull('due_date')->orWhere('due_date', '<=', $date);
             })
-            ->get();
+            ->get(self::TASKS_OCCUR_COLUMNS);
         return $tasksWithDue->merge($programTasksNoDue)->unique('id')->values();
     }
 
