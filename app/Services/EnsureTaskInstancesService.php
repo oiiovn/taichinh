@@ -39,6 +39,27 @@ class EnsureTaskInstancesService
     }
 
     /**
+     * Đảm bảo instance cho mọi ngày trong khoảng [start, end] (Y-m-d).
+     * Dùng cho tab Dự kiến: recurring cần có row instance_date > hôm nay.
+     */
+    public function ensureForUserDateRange(int $userId, string $start, string $end): void
+    {
+        $from = Carbon::parse($start)->startOfDay();
+        $to = Carbon::parse($end)->startOfDay();
+        if ($from->gt($to)) {
+            return;
+        }
+        $maxDays = (int) config('behavior_intelligence.instance_ensure_horizon_days', 90);
+        $limit = $from->copy()->addDays($maxDays);
+        if ($to->gt($limit)) {
+            $to = $limit;
+        }
+        for ($d = $from->copy(); $d->lte($to); $d->addDay()) {
+            $this->ensureForUserAndDate($userId, $d->format('Y-m-d'));
+        }
+    }
+
+    /**
      * Tasks có kỳ vọng làm trong ngày: due_date + occursOn hoặc program_id (due null hoặc <= date).
      */
     private function tasksOccurringOnDate(int $userId, string $date): \Illuminate\Support\Collection
@@ -58,5 +79,26 @@ class EnsureTaskInstancesService
             })
             ->get();
         return $tasksWithDue->merge($programTasksNoDue)->unique('id')->values();
+    }
+
+    /**
+     * Đảm bảo instance đúng ngày due_date cho task không lặp / custom có hạn trong tương lai.
+     * Tránh lệ thuộc loop theo ngày (task due sau hạn mới vào tasksOccurringOnDate).
+     */
+    public function ensureOneOffDueDatesAhead(int $userId, string $todayYmd): void
+    {
+        $today = Carbon::parse($todayYmd)->format('Y-m-d');
+        $tasks = CongViecTask::where('user_id', $userId)
+            ->where('completed', false)
+            ->whereNotNull('due_date')
+            ->where('due_date', '>', $today)
+            ->where(function ($q) {
+                $q->whereNull('repeat')->orWhereIn('repeat', ['none', 'custom']);
+            })
+            ->get();
+        foreach ($tasks as $t) {
+            $d = Carbon::parse($t->due_date)->format('Y-m-d');
+            $this->ensureForUserAndDate($userId, $d);
+        }
     }
 }

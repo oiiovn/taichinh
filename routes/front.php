@@ -172,7 +172,13 @@ Route::middleware('auth')->group(function () {
         Route::patch('/cong-viec/tasks/{id}/toggle-complete', [\App\Http\Controllers\CongViecController::class, 'toggleComplete'])->name('cong-viec.tasks.toggle-complete');
         Route::patch('/cong-viec/instances/{id}/toggle-complete', [\App\Http\Controllers\CongViecController::class, 'toggleInstanceComplete'])->name('cong-viec.instances.toggle-complete');
         Route::post('/cong-viec/instances/{id}/confirm-complete', [\App\Http\Controllers\CongViecController::class, 'confirmInstanceComplete'])->name('cong-viec.instances.confirm-complete');
+        Route::post('/cong-viec/focus/start/{instance}', [\App\Http\Controllers\CongViecController::class, 'focusStart'])->name('cong-viec.focus.start');
+        Route::post('/cong-viec/focus/stop', [\App\Http\Controllers\CongViecController::class, 'focusStop'])->name('cong-viec.focus.stop');
+        Route::post('/cong-viec/focus/activity', [\App\Http\Controllers\CongViecController::class, 'focusActivity'])->name('cong-viec.focus.activity');
+        Route::patch('/cong-viec/instances/{id}/actual-duration', [\App\Http\Controllers\CongViecController::class, 'patchInstanceActualDuration'])->name('cong-viec.instances.actual-duration');
+        Route::post('/cong-viec/focus/break/start', [\App\Http\Controllers\CongViecController::class, 'focusBreakStart'])->name('cong-viec.focus.break.start');
         Route::post('/cong-viec/tasks/{id}/confirm-complete', [\App\Http\Controllers\CongViecController::class, 'confirmComplete'])->name('cong-viec.tasks.confirm-complete');
+        Route::patch('/cong-viec/tasks/{id}/estimated-duration', [\App\Http\Controllers\CongViecController::class, 'patchEstimatedDuration'])->name('cong-viec.tasks.estimated-duration');
         Route::patch('/cong-viec/tasks/{id}/kanban-status', [\App\Http\Controllers\CongViecController::class, 'updateKanbanStatus'])->name('cong-viec.tasks.kanban-status');
         Route::post('/cong-viec/kanban-columns', [\App\Http\Controllers\CongViecController::class, 'storeKanbanColumn'])->name('cong-viec.kanban-columns.store');
         Route::patch('/cong-viec/kanban-columns/{id}', [\App\Http\Controllers\CongViecController::class, 'updateKanbanColumn'])->name('cong-viec.kanban-columns.update');

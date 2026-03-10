@@ -59,7 +59,7 @@
 
 | Service | Trách nhiệm |
 |---------|--------------|
-| CongViecPageDataService | getIndexData: ensure instances, getTasksToday (instances), getTasksUpcoming, getTasksInbox, **getCompletedInstancesGrouped** (today/yesterday/this_week/older), getKanbanData; behaviorRadar, editTask, behaviorPolicy, behaviorProjection; InterfaceAdaptation, CoachingNarrative; buildProgramProgressPayload (today_done/today_total từ instances). |
+| CongViecPageDataService | getIndexData: ensure instances, getTasksToday (instances), getInstancesUpcoming (instance_date > today, pending), getTasksInbox, **getCompletedInstancesGrouped** (today/yesterday/this_week/older), getKanbanData; behaviorRadar, editTask, behaviorPolicy, behaviorProjection; InterfaceAdaptation, CoachingNarrative; buildProgramProgressPayload (today_done/today_total từ instances). |
 | EnsureTaskInstancesService | ensureForUserAndDate: tasksOccurringOnDate (due + occursOn, hoặc program_id); insert work_task_instances thiếu. |
 | InterfaceAdaptationService | getAdaptation: BehaviorStageClassifier → stage → layout (focus/guided/analytic/strategic) + config; level-up message. |
 | CoachingNarrativeService | getTodayNarrative: today_message, empty_today_copy, integrity/trust/projection interpretation, sidebar narrative, coaching effectiveness. |

@@ -1,6 +1,7 @@
 {{-- Execution Panel: Header, Progress, Momentum, Focus, Priority tiers, Intelligence cards --}}
 @php
-    $focusPlan = $focusPlan ?? ['focus' => collect(), 'secondary' => collect(), 'backlog' => collect(), 'total_planned_minutes' => 0, 'available_minutes' => 120];
+    $focusPlan = $focusPlan ?? ['focus' => collect(), 'secondary' => collect(), 'backlog' => collect(), 'later' => [], 'missed_window' => collect(), 'total_planned_minutes' => 0, 'available_minutes' => 120];
+    $focusPlanLater = $focusPlan['later'] ?? [];
     $useFocusPlan = $focusPlan['focus']->isNotEmpty();
     $tiers = $tasksTodayTiers ?? ['high' => collect(), 'medium' => collect(), 'low' => collect()];
     $tierConfig = [
@@ -140,45 +141,107 @@
                             <p class="mt-1 text-sm text-green-700 dark:text-green-300">Đã xong {{ $completedToday }} / {{ $totalToday }} việc.</p>
                         </div>
                     @else
-                        <p class="text-sm font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">🎯 Focus hôm nay ({{ $focusPlan['focus']->count() }} việc)</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">⚡ Focus order · {{ $focusPlan['total_planned_minutes'] }} phút / {{ $focusPlan['available_minutes'] }} phút @if($estimatedFinish)<span class="font-medium text-amber-600 dark:text-amber-400">· Dự kiến xong lúc: {{ $estimatedFinish }}</span>@endif</p>
+                        @php $focusTaskCount = $focusPlan['focus']->filter(fn ($i) => $i instanceof \App\Models\WorkTaskInstance)->count(); @endphp
+                        <p class="text-sm font-bold uppercase tracking-wide text-amber-600 dark:text-amber-400">🎯 Focus hôm nay ({{ $focusTaskCount }} việc)</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">⚡ Làm ngay (now) · {{ $focusPlan['total_planned_minutes'] }} phút / {{ $focusPlan['available_minutes'] }} phút @if($estimatedFinish)<span class="font-medium text-amber-600 dark:text-amber-400">· Dự kiến xong lúc: {{ $estimatedFinish }}</span>@endif</p>
+                        @if(!empty($focusPlanLater))
+                            @php $firstLaterSlot = $focusPlanLater[0]['slot'] ?? null; @endphp
+                            @if($firstLaterSlot)
+                                <p class="text-xs text-gray-500 dark:text-gray-500">Next slot today: <span class="font-mono font-medium text-gray-600 dark:text-gray-400">{{ $firstLaterSlot }}</span></p>
+                            @endif
+                        @endif
                         @php
                             $focusStart = now()->copy();
                             $focusTimeline = [];
                             foreach ($focusPlan['focus'] as $inst) {
-                                $mins = app(\App\Services\TaskDurationLearningService::class)->getPredictedMinutes($inst->task->id) ?? $inst->task->estimated_duration ?? 30;
+                                if (is_array($inst) && !empty($inst['is_break'])) {
+                                    $bm = (int) ($inst['duration'] ?? 5);
+                                    $focusTimeline[] = ['time' => $focusStart->format('H:i'), 'title' => $inst['label'] ?? '☕ Nghỉ', 'minutes' => $bm, 'due_time' => null, 'is_break' => true];
+                                    $focusStart->addMinutes($bm);
+                                    continue;
+                                }
+                                if (! $inst instanceof \App\Models\WorkTaskInstance) {
+                                    continue;
+                                }
+                                $mins = (int) max(1, app(\App\Services\TaskDurationLearningService::class)->getPredictedMinutes($inst->task->id) ?? $inst->task->estimated_duration ?? 30);
                                 $dueTime = $inst->task->due_time ? substr($inst->task->due_time, 0, 5) : null;
                                 $focusTimeline[] = ['time' => $focusStart->format('H:i'), 'title' => $inst->task->title, 'minutes' => $mins, 'due_time' => $dueTime];
                                 $focusStart->addMinutes($mins);
                             }
                             $focusSlackMinutes = max(0, $focusPlan['available_minutes'] - $focusPlan['total_planned_minutes']);
                         @endphp
-                        @if(count($focusTimeline) > 0)
+                        @if(count($focusTimeline) > 0 || !empty($focusPlanLater))
                             <div class="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/30 px-3 py-2 text-xs">
-                                <p class="font-semibold text-gray-500 dark:text-gray-400 mb-1">⚡ Focus order · Dòng thời gian (giờ bắt đầu đề xuất)</p>
-                                @foreach($focusTimeline as $t)
-                                    <p class="text-gray-700 dark:text-gray-300"><span class="font-mono text-gray-500 dark:text-gray-400">{{ $t['time'] }}</span> {{ $t['title'] }}@if(!empty($t['due_time'])) <span class="text-gray-500 dark:text-gray-400">— Hạn: {{ $t['due_time'] }}</span>@endif</p>
-                                @endforeach
+                                @if(count($focusTimeline) > 0)
+                                    <p class="font-semibold text-gray-600 dark:text-gray-300 mb-1">⚡ Focus order (now)</p>
+                                    @foreach($focusTimeline as $t)
+                                        @if(!empty($t['is_break']))
+                                            <p class="text-amber-700 dark:text-amber-300 font-medium"><span class="font-mono text-amber-600 dark:text-amber-400">{{ $t['time'] }}</span> {{ $t['title'] }}</p>
+                                        @else
+                                            <p class="text-gray-700 dark:text-gray-300"><span class="font-mono text-gray-500 dark:text-gray-400">{{ $t['time'] }}</span> {{ $t['title'] }}@if(!empty($t['due_time'])) <span class="text-gray-500 dark:text-gray-400">— Hạn: {{ $t['due_time'] }}</span>@endif</p>
+                                        @endif
+                                    @endforeach
+                                @endif
+                                @if(!empty($focusPlanLater))
+                                    <div class="mt-2 border-t border-gray-200 pt-2 dark:border-gray-600">
+                                        <p class="mb-1 font-semibold text-gray-500 dark:text-gray-400">🕒 Later today</p>
+                                        @foreach($focusPlanLater as $slotBlock)
+                                            @if(($slotBlock['instances'] ?? collect())->isNotEmpty())
+                                                @foreach($slotBlock['instances'] as $laterInst)
+                                                    <p class="text-gray-500 opacity-90 dark:text-gray-500"><span class="font-mono">{{ $slotBlock['slot'] }}</span> {{ $laterInst->task->title }}</p>
+                                                @endforeach
+                                            @endif
+                                        @endforeach
+                                    </div>
+                                @endif
                             </div>
                         @endif
                         @if($focusSlackMinutes > 0)
                             <p class="text-xs text-amber-600 dark:text-amber-400">⚡ Bạn còn {{ $focusSlackMinutes }} phút trống. Thêm task?</p>
                         @endif
+                        @php
+                            $focusSession = $focusSession ?? null;
+                            $firstFocusInstance = $focusPlan['focus']->first(fn ($i) => $i instanceof \App\Models\WorkTaskInstance);
+                            $firstFocusId = $firstFocusInstance?->id;
+                        @endphp
+                        @if($useFocusPlan)
+                            <div id="focus-session-banner" data-instance-id="{{ ($focusSession ?? [])['instance_id'] ?? '' }}" class="mb-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 dark:border-green-800 dark:bg-green-900/20 {{ ($focusSession ?? null) ? '' : 'hidden' }}" style="{{ ($focusSession ?? null) ? '' : 'display:none' }}">
+                                <p class="text-sm font-medium text-green-800 dark:text-green-200">🟢 Đang tập trung: <span id="focus-session-title">{{ ($focusSession ?? [])['title'] ?? '' }}</span></p>
+                                <p id="focus-session-time" class="font-mono text-lg text-green-700 dark:text-green-300">00:00</p>
+                                <div class="mt-2 flex flex-wrap gap-2">
+                                    <button type="button" onclick="__congViecFocusStop()" class="rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800">↷ Dừng / đổi việc</button>
+                                    <span class="text-xs text-green-700 dark:text-green-400">Hoàn thành checkbox khi xong — hệ ghi thời gian thực.</span>
+                                </div>
+                            </div>
+                            @if($focusSession ?? null)
+                                <script>document.addEventListener('DOMContentLoaded',function(){ if(typeof __congViecFocusApplyUi==='function') __congViecFocusApplyUi(@json($focusSession)); });</script>
+                            @endif
+                        @endif
+                        @php $taskIdx = 0; @endphp
                         <ol class="space-y-1 list-none pl-0">
                             @foreach($focusPlan['focus'] as $idx => $instance)
                                 <li>
-                                    @include('pages.cong-viec.partials.task-row', [
-                                        'instance' => $instance,
-                                        'task' => $instance->task,
-                                        'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id),
-                                        'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id),
-                                        'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED,
-                                        'asTodayRow' => true,
-                                        'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null,
-                                        'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null,
-                                        'showIntelligence' => true,
-                                        'focusOrder' => $idx + 1,
-                                    ])
+                                    @if(is_array($instance) && !empty($instance['is_break']))
+                                        <div class="rounded-lg border border-amber-200 bg-amber-50/80 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-100">
+                                            {{ $instance['label'] ?? '☕ Nghỉ ngắn' }}
+                                            <span class="text-xs text-amber-700 dark:text-amber-300">— Không phải việc, chỉ gợi ý nghỉ.</span>
+                                        </div>
+                                    @else
+                                        @php $taskIdx++; @endphp
+                                        @include('pages.cong-viec.partials.task-row', [
+                                            'instance' => $instance,
+                                            'task' => $instance->task,
+                                            'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id),
+                                            'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id),
+                                            'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED,
+                                            'asTodayRow' => true,
+                                            'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null,
+                                            'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null,
+                                            'showIntelligence' => true,
+                                            'focusOrder' => $taskIdx,
+                                            'showStartFocus' => $taskIdx === 1 && $instance->status !== \App\Models\WorkTaskInstance::STATUS_COMPLETED && ($focusSession === null || (int)($focusSession['instance_id'] ?? 0) !== (int)$instance->id),
+                                        ])
+                                    @endif
                                 </li>
                             @endforeach
                         </ol>
@@ -193,6 +256,30 @@
                             @endforeach
                         </ul>
                     </div>
+                @endif
+                @if(($focusPlan['missed_window'] ?? collect())->isNotEmpty())
+                    <div class="space-y-1 mt-3">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-rose-600 dark:text-rose-400">⚠ Trễ cửa sổ thực thi</p>
+                        <ul class="space-y-1">
+                            @foreach($focusPlan['missed_window'] as $instance)
+                                @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'showIntelligence' => true])
+                            @endforeach
+                        </ul>
+                    </div>
+                @endif
+                @if(!empty($focusPlanLater))
+                    @foreach($focusPlanLater as $slotBlock)
+                        @if(($slotBlock['instances'] ?? collect())->isNotEmpty())
+                            <div class="space-y-1 mt-4">
+                                <p class="text-xs font-semibold uppercase tracking-wide text-gray-600 dark:text-gray-400">🕒 Later today · sau {{ $slotBlock['slot'] }}</p>
+                                <ul class="space-y-1">
+                                    @foreach($slotBlock['instances'] as $instance)
+                                        @include('pages.cong-viec.partials.task-row', ['instance' => $instance, 'task' => $instance->task, 'toggleCompleteUrl' => route('cong-viec.instances.toggle-complete', $instance->id), 'confirmCompleteUrl' => route('cong-viec.instances.confirm-complete', $instance->id), 'completed' => $instance->status === \App\Models\WorkTaskInstance::STATUS_COMPLETED, 'asTodayRow' => true, 'streak' => ($taskStreaks ?? [])[$instance->work_task_id] ?? null, 'priorityScore' => $todayPriorityScores[$instance->id]['score'] ?? null, 'showIntelligence' => true])
+                                    @endforeach
+                                </ul>
+                            </div>
+                        @endif
+                    @endforeach
                 @endif
             @else
                 {{-- Theo độ ưu tiên (khi không dùng focus plan) --}}

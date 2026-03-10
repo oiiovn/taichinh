@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\WorkTaskInstance;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 
 /**
@@ -42,14 +43,18 @@ class ExecutionEngineService
 
         $focusPlanning = app(FocusPlanningEngineService::class);
         $availableMinutes = $focusPlanning->getDefaultAvailableMinutes($userId);
+        $now = Carbon::now('Asia/Ho_Chi_Minh');
+        $initialFocusLoad = $userId ? app(FocusLoadService::class)->getFocusLoadMinutes($userId) : 0;
         $focusPlan = $todayPriority['sorted']->isNotEmpty()
             ? $focusPlanning->plan(
                 $todayPriority['sorted'],
                 $todayPriority['scores'],
                 $availableMinutes,
-                (int) config('behavior_intelligence.execution_intelligence.focus_planning.default_task_minutes', 30)
+                (int) config('behavior_intelligence.execution_intelligence.focus_planning.default_task_minutes', 30),
+                $now,
+                $initialFocusLoad
             )
-            : ['focus' => collect(), 'secondary' => collect(), 'backlog' => collect(), 'total_planned_minutes' => 0, 'available_minutes' => $availableMinutes];
+            : ['focus' => collect(), 'secondary' => collect(), 'backlog' => collect(), 'later' => [], 'missed_window' => collect(), 'total_planned_minutes' => 0, 'available_minutes' => $availableMinutes];
 
         $plannedTodayCount = $todayPriority['sorted']->count();
         $completedTodayCount = $userId
@@ -58,7 +63,7 @@ class ExecutionEngineService
                 ->where('status', WorkTaskInstance::STATUS_COMPLETED)
                 ->count()
             : 0;
-        $focusPlanFocusIds = $focusPlan['focus']->pluck('id')->all();
+        $focusPlanFocusIds = $focusPlan['focus']->filter(fn ($i) => $i instanceof WorkTaskInstance)->pluck('id')->all();
         $focusCompletedCount = ! empty($focusPlanFocusIds)
             ? WorkTaskInstance::whereIn('id', $focusPlanFocusIds)->where('status', WorkTaskInstance::STATUS_COMPLETED)->count()
             : 0;
@@ -70,7 +75,7 @@ class ExecutionEngineService
                 $failureDetection,
                 $plannedTodayCount,
                 $completedTodayCount,
-                $focusPlan['focus']->count(),
+                $focusPlan['focus']->filter(fn ($i) => $i instanceof WorkTaskInstance)->count(),
                 $focusCompletedCount
             )
             : null;

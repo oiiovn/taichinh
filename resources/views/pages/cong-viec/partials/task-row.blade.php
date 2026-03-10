@@ -7,6 +7,7 @@
     $priorityScore = $priorityScore ?? null;
     $showIntelligence = $showIntelligence ?? false;
     $focusOrder = $focusOrder ?? null;
+    $showStartFocus = $showStartFocus ?? false;
     $scorePct = $priorityScore !== null ? (int) round($priorityScore * 100) : null;
     $estimatedMinutes = $estimatedMinutes ?? (app(\App\Services\TaskDurationLearningService::class)->getPredictedMinutes($task->id) ?? $task->estimated_duration ?? null);
     $deadlineSoon = false;
@@ -32,6 +33,15 @@
         <div class="flex flex-wrap items-center gap-2">
             <p class="font-semibold {{ $completed ? 'text-gray-500 line-through dark:text-gray-400' : 'text-gray-900 dark:text-white' }}">{{ $task->title }}</p>
             @if($deadlineSoon && $deadlineSoonTime)<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300" title="Hạn gần">⏳ hạn {{ $deadlineSoonTime }}</span>@endif
+            @if(!$completed && $task->available_after)<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300" title="Thực hiện sau giờ này">🕒 Thực hiện sau {{ \Illuminate\Support\Str::length($task->available_after) >= 5 ? substr($task->available_after, 0, 5) : $task->available_after }}</span>@endif
+            @if(!$completed && $task->available_before)
+                @php
+                    $beforeStr = \Illuminate\Support\Str::length($task->available_before) >= 5 ? substr($task->available_before, 0, 5) : $task->available_before;
+                    $beforeMin = (int)substr($beforeStr, 0, 2) * 60 + (int)substr($beforeStr, 3, 2);
+                    $nowMin = \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->hour * 60 + \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->minute;
+                @endphp
+                @if($nowMin > $beforeMin)<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-300" title="Đã qua cửa sổ">⚠ Trước {{ $beforeStr }}</span>@else<span class="rounded px-1.5 py-0.5 text-xs font-medium bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300" title="Phải làm trước">⏱ Trước {{ $beforeStr }}</span>@endif
+            @endif
             @if($task->program_id && $task->relationLoaded('program') && $task->program)
                 <a href="{{ route('cong-viec.programs.show', $task->program->id) }}" class="rounded px-1.5 py-0.5 text-xs font-medium bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300" title="Chương trình">📋 {{ $task->program->title }}</a>
             @endif
@@ -64,7 +74,11 @@
             @if($task->project)<span>{{ $task->project->name }}</span>@endif
             @php
                 $dueDisplay = null;
-                if ($asTodayRow && $instance && $instance->instance_date) {
+                $showInstanceDate = $showInstanceDate ?? false;
+                if ($showInstanceDate && $instance && $instance->instance_date) {
+                    $dueDisplay = ['type' => 'date', 'text' => '📅 ' . $instance->instance_date->format('d/m/Y') . ($task->due_time ? ' · ' . substr($task->due_time, 0, 5) : '')];
+                }
+                if ($dueDisplay === null && $asTodayRow && $instance && $instance->instance_date) {
                     $instanceDate = \Carbon\Carbon::parse($instance->instance_date, 'Asia/Ho_Chi_Minh');
                     $todayStart = \Carbon\Carbon::now('Asia/Ho_Chi_Minh')->startOfDay();
                     if ($instanceDate->isSameDay($todayStart)) {
@@ -100,6 +114,11 @@
                 @if($task->labels->count() > 3)<span>+{{ $task->labels->count() - 3 }}</span>@endif
             @endif
         </div>
+        @if($showStartFocus && $instance && !$completed)
+            <div class="mt-2" id="focus-start-wrap-{{ $instance->id }}">
+                <button type="button" onclick="__congViecFocusStart({{ $instance->id }})" class="rounded-lg bg-green-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-green-700 dark:bg-green-700 dark:hover:bg-green-600">▶ Bắt đầu tập trung</button>
+            </div>
+        @endif
     </div>
     <div class="flex shrink-0 items-center gap-0 overflow-hidden max-w-0 opacity-0 transition-[max-width,opacity] duration-200 group-hover/task:max-w-[80px] group-hover/task:opacity-100 group-hover/task:overflow-visible">
         <a href="{{ route('cong-viec', ['edit' => $task->id]) }}" class="shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600 dark:hover:text-gray-200" title="Sửa">

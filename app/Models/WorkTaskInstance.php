@@ -15,6 +15,12 @@ class WorkTaskInstance extends Model
         'status',
         'completed_at',
         'actual_duration',
+        'focus_started_at',
+        'focus_last_activity_at',
+        'focus_stopped_at',
+        'focus_recorded_minutes',
+        'ghost_completion_detected',
+        'ghost_completion_confirmed',
         'skipped',
         'notes',
     ];
@@ -22,7 +28,12 @@ class WorkTaskInstance extends Model
     protected $casts = [
         'instance_date' => 'date',
         'completed_at' => 'datetime',
+        'focus_started_at' => 'datetime',
+        'focus_last_activity_at' => 'datetime',
+        'focus_stopped_at' => 'datetime',
         'skipped' => 'boolean',
+        'ghost_completion_detected' => 'boolean',
+        'ghost_completion_confirmed' => 'boolean',
     ];
 
     public const STATUS_PENDING = 'pending';

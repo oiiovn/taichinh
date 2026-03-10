@@ -19,6 +19,8 @@ class CongViecTask extends Model
         'priority',
         'due_date',
         'due_time',
+        'available_after',
+        'available_before',
         'remind_minutes_before',
         'location',
         'repeat',

@@ -31,6 +31,10 @@ class BehaviorEvent extends Model
     public const TYPE_REMINDER_READ_AT = 'reminder_read_at';
     public const TYPE_PAGE_VIEW = 'page_view';
     public const TYPE_POLICY_FEEDBACK = 'policy_feedback';
+    /** Bấm bắt đầu tập trung (theo instance/task — phân tích loại việc sau). */
+    public const TYPE_FOCUS_START = 'focus_start';
+    /** Bấm dừng / đổi việc (không hoàn thành checkbox). */
+    public const TYPE_FOCUS_STOP = 'focus_stop';
 
     public static function allowedEventTypes(): array
     {
@@ -43,6 +47,8 @@ class BehaviorEvent extends Model
             self::TYPE_REMINDER_READ_AT,
             self::TYPE_PAGE_VIEW,
             self::TYPE_POLICY_FEEDBACK,
+            self::TYPE_FOCUS_START,
+            self::TYPE_FOCUS_STOP,
         ];
     }
 

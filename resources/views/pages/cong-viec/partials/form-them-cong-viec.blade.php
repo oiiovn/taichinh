@@ -85,7 +85,8 @@
             if (s.repeat && s.repeat !== 'none') detail.repeat = s.repeat;
             if (Object.keys(detail).length) window.dispatchEvent(new CustomEvent('smart-parse-apply', { detail: detail }));
             if (s.repeat && s.repeat !== 'none') { var r = form.querySelector('input[name=task_repeat]'); if (r) r.value = s.repeat; }
-            if (s.due_time) { var t = form.querySelector('input[name=task_due_time]'); if (t) t.value = s.due_time; }
+            var timeToSet = s.due_time || s.preferred_time;
+            if (timeToSet) { var t = form.querySelector('input[name=task_due_time]'); if (t) t.value = timeToSet; window.dispatchEvent(new CustomEvent('smart-parse-apply', { detail: { dueTime: timeToSet } })); }
             this.similarSuggestion = null;
         },
         dueDateLabel() {
@@ -147,13 +148,14 @@
             <button type="button" @click="applyParsed()" class="rounded bg-brand-600 px-2 py-0.5 font-medium text-white hover:bg-brand-700 dark:bg-brand-500 dark:hover:bg-brand-600">Áp dụng</button>
         </div>
         @if(!isset($task))
-        <div x-show="similarSuggestion && (similarSuggestion.estimated_duration || similarSuggestion.repeat !== 'none' || similarSuggestion.due_time)" x-cloak class="mt-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/80 dark:border-blue-800 dark:bg-blue-900/20 px-2.5 py-1.5 text-xs text-gray-700 dark:text-gray-300">
+        <div x-show="similarSuggestion && (similarSuggestion.estimated_duration || similarSuggestion.repeat !== 'none' || similarSuggestion.due_time || similarSuggestion.preferred_time)" x-cloak class="mt-1.5 flex flex-wrap items-center gap-2 rounded-lg border border-blue-200 bg-blue-50/80 dark:border-blue-800 dark:bg-blue-900/20 px-2.5 py-1.5 text-xs text-gray-700 dark:text-gray-300">
             <span class="font-medium">⚡ Giống task trước</span>
             <template x-if="similarSuggestion">
                 <span class="flex flex-wrap items-center gap-x-2 gap-y-0">
                     <span x-show="similarSuggestion.estimated_duration" x-text="'Duration: ' + similarSuggestion.estimated_duration + ' phút'"></span>
                     <span x-show="similarSuggestion.repeat && similarSuggestion.repeat !== 'none'" x-text="'Repeat: ' + ({ daily: 'Hàng ngày', weekly: 'Hàng tuần', monthly: 'Hàng tháng' }[similarSuggestion.repeat] || similarSuggestion.repeat)"></span>
                     <span x-show="similarSuggestion.due_time" x-text="'Time: ' + similarSuggestion.due_time"></span>
+                    <span x-show="!similarSuggestion.due_time && similarSuggestion.preferred_time" x-text="'Best time (học): ' + similarSuggestion.preferred_time"></span>
                 </span>
             </template>
             <button type="button" @click="applySimilar()" class="rounded bg-blue-600 px-2 py-0.5 font-medium text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600">Áp dụng</button>
@@ -324,6 +326,18 @@
                     <button type="button" @click="document.querySelector('input[name=category]').value = 'growth'; showMoreOptions = false" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"><span class="h-2 w-2 rounded-full bg-purple-500"></span> Growth</button>
                     <button type="button" @click="document.querySelector('input[name=category]').value = 'maintenance'; showMoreOptions = false" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"><span class="h-2 w-2 rounded-full bg-gray-500"></span> Maintenance</button>
                     <button type="button" @click="document.querySelector('input[name=category]').value = ''; showMoreOptions = false" class="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700">Bỏ chọn</button>
+                </div>
+                <div class="border-t border-gray-100 dark:border-gray-600 px-2.5 py-1.5">
+                    <p class="px-2.5 py-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">Cửa sổ thực thi</p>
+                    <div class="mt-1 flex gap-2">
+                        <label class="flex-1 text-xs text-gray-600 dark:text-gray-400">Thực hiện sau</label>
+                        <input type="time" name="task_available_after" value="{{ isset($task) && $task->available_after ? substr($task->available_after, 0, 5) : '' }}" class="flex-1 rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" step="300">
+                    </div>
+                    <div class="mt-1 flex gap-2">
+                        <label class="flex-1 text-xs text-gray-600 dark:text-gray-400">Thực hiện trước</label>
+                        <input type="time" name="task_available_before" value="{{ isset($task) && $task->available_before ? substr($task->available_before, 0, 5) : '' }}" class="flex-1 rounded border border-gray-300 px-2 py-1 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" step="300">
+                    </div>
+                    <p class="mt-1 px-2.5 text-xs text-gray-500 dark:text-gray-400">Chỉ làm được trong khung giờ này (vd: sau 22:00)</p>
                 </div>
                 <div class="border-t border-gray-100 dark:border-gray-600 px-2.5 py-1.5">
                     <p class="px-2.5 py-0.5 text-xs font-medium text-gray-500 dark:text-gray-400">Ước lượng (phút)</p>

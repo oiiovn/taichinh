@@ -1,8 +1,251 @@
+@php
+    $_focusStartUrl = route('cong-viec.focus.start', ['instance' => 0]);
+    $_focusStartUrlBase = \Illuminate\Support\Str::beforeLast($_focusStartUrl, '/');
+@endphp
 <script>
 var __congViecDestroyUrlTemplate = @json($destroyUrlTemplate);
 var __congViecToggleCompleteUrlTemplate = @json($toggleCompleteUrl);
 var __congViecConfirmCompleteUrlTemplate = @json($confirmCompleteUrl);
 var __congViecBehaviorEventsUrl = @json($behaviorEventsUrl);
+var __congViecFocusStartUrlBase = @json($_focusStartUrlBase);
+var __congViecFocusStopUrl = @json(route('cong-viec.focus.stop'));
+var __congViecBreakStartUrl = @json(route('cong-viec.focus.break.start'));
+var __congViecFocusActivityUrl = @json(route('cong-viec.focus.activity'));
+@php $_durPatchUrl = route('cong-viec.tasks.estimated-duration', ['id' => 999999]); @endphp
+var __congViecEstimatedDurationUrlTemplate = @json(str_replace('999999', '__ID__', $_durPatchUrl));
+@php $_instDurUrl = route('cong-viec.instances.actual-duration', ['id' => 999999]); @endphp
+var __congViecInstanceActualDurationUrlTemplate = @json(str_replace('999999', '__ID__', $_instDurUrl));
+var __focusIdleMs = {{ (int) config('behavior_intelligence.focus_duration.idle_seconds', 300) * 1000 }};
+function __congViecFocusPing() {
+    var token = document.querySelector('meta[name=csrf-token]');
+    if (!token || !__congViecFocusActivityUrl) return;
+    fetch(__congViecFocusActivityUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token.content }, body: JSON.stringify({ _token: token.content }) }).catch(function() {});
+}
+function __congViecFocusActivityBoot() {
+    if (window.__focusActivityInterval) { clearInterval(window.__focusActivityInterval); window.__focusActivityInterval = null; }
+    if (window.__focusIdleCheckInterval) { clearInterval(window.__focusIdleCheckInterval); window.__focusIdleCheckInterval = null; }
+    window.__focusLastUserActivity = Date.now();
+    function mark() { window.__focusLastUserActivity = Date.now(); __congViecFocusPing(); }
+    ['click','keydown','scroll','touchstart'].forEach(function(ev) {
+        document.addEventListener(ev, function() { window.__focusLastUserActivity = Date.now(); }, { passive: true });
+    });
+    document.addEventListener('visibilitychange', function() { if (!document.hidden) mark(); });
+    window.__focusActivityInterval = setInterval(function() {
+        if (document.hidden) return;
+        if (Date.now() - window.__focusLastUserActivity < 120000) __congViecFocusPing();
+    }, 60000);
+    window.__focusIdleCheckInterval = setInterval(function() {
+        if (document.hidden) return;
+        var banner = document.getElementById('focus-session-banner');
+        if (!banner || banner.style.display === 'none') return;
+        if (Date.now() - window.__focusLastUserActivity > __focusIdleMs) {
+            __congViecFocusStop();
+        }
+    }, 30000);
+}
+function __congViecFocusApplyUi(session) {
+    if (!session && document.getElementById('focus-session-banner')) {
+        var bid = document.getElementById('focus-session-banner').getAttribute('data-instance-id');
+        if (bid) { var w = document.getElementById('focus-start-wrap-' + bid); if (w) w.style.display = ''; }
+    }
+    var banner = document.getElementById('focus-session-banner');
+    var titleEl = document.getElementById('focus-session-title');
+    var timeEl = document.getElementById('focus-session-time');
+    if (session && banner) {
+        banner.setAttribute('data-instance-id', session.instance_id || '');
+        banner.style.display = '';
+        banner.classList.remove('hidden');
+        if (titleEl) titleEl.textContent = session.title || '';
+        if (window.__focusElapsedTimer) clearInterval(window.__focusElapsedTimer);
+        function tick() {
+            if (!session.started_at || !timeEl) return;
+            var sec = Math.max(0, Math.floor(Date.now() / 1000) - session.started_at);
+            var m = Math.floor(sec / 60), r = sec % 60;
+            timeEl.textContent = (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r;
+        }
+        tick();
+        window.__focusElapsedTimer = setInterval(tick, 1000);
+    } else if (banner) {
+        banner.style.display = 'none';
+        banner.classList.add('hidden');
+        if (window.__focusElapsedTimer) { clearInterval(window.__focusElapsedTimer); window.__focusElapsedTimer = null; }
+    }
+    try {
+        var rootEl = document.querySelector('[x-data*="congViecPage"]');
+        if (rootEl && rootEl._x_dataStack && rootEl._x_dataStack[0]) {
+            var d = rootEl._x_dataStack[0];
+            d.focusSession = session || null;
+            d.focusElapsedSec = session && session.started_at ? Math.max(0, Math.floor(Date.now() / 1000) - session.started_at) : 0;
+        }
+    } catch (e) {}
+}
+function __congViecFocusStart(instanceId) {
+    var url = __congViecFocusStartUrlBase + '/' + instanceId;
+    var token = document.querySelector('meta[name=csrf-token]');
+    if (!token) { alert('Thiếu CSRF. Tải lại trang.'); return; }
+    fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token.content }, body: JSON.stringify({ _token: token.content }) })
+        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, status: r.status, d: d }; }); })
+        .then(function(x) {
+            if (!x.ok) {
+                alert(x.d && x.d.message ? x.d.message : 'Không bắt đầu được (' + x.status + '). Tải lại trang rồi thử lại.');
+                return;
+            }
+            if (!x.d || !x.d.instance_id) return;
+            var session = { instance_id: x.d.instance_id, started_at: x.d.started_at, title: x.d.title };
+            __congViecFocusApplyUi(session);
+            __congViecFocusActivityBoot();
+            if (x.d.ghost_completion && x.d.ghost_completion.instance_id) {
+                __congViecShowGhostCompletion(x.d.ghost_completion);
+            }
+            var wrap = document.getElementById('focus-start-wrap-' + x.d.instance_id);
+            if (wrap) wrap.style.display = 'none';
+        })
+        .catch(function() { alert('Lỗi mạng. Thử lại.'); });
+}
+function __congViecFocusStop() {
+    var token = document.querySelector('meta[name=csrf-token]');
+    if (!token) return;
+    fetch(__congViecFocusStopUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token.content }, body: JSON.stringify({ _token: token.content }) })
+        .then(function() {
+            if (window.__focusActivityInterval) { clearInterval(window.__focusActivityInterval); window.__focusActivityInterval = null; }
+            if (window.__focusIdleCheckInterval) { clearInterval(window.__focusIdleCheckInterval); window.__focusIdleCheckInterval = null; }
+            __congViecFocusApplyUi(null);
+        });
+}
+function __congViecShowGhostCompletion(g) {
+    var el = document.getElementById('ghost-completion-toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'ghost-completion-toast';
+        el.className = 'fixed bottom-4 left-1/2 z-[60] max-w-lg -translate-x-1/2 rounded-xl border border-violet-200 bg-violet-50 px-4 py-3 shadow-lg dark:border-violet-800 dark:bg-violet-900/30';
+        document.body.appendChild(el);
+    }
+    var title = (g.title || '').replace(/</g, '&lt;');
+    el.innerHTML = '<p class="text-sm text-gray-800 dark:text-gray-200">Bạn có vừa hoàn thành <strong>' + title + '</strong>?</p>' +
+        '<div class="mt-2 flex flex-wrap gap-2">' +
+        '<button type="button" class="ghost-yes rounded-lg bg-violet-600 px-3 py-1.5 text-xs font-medium text-white">✓ Đúng</button>' +
+        '<button type="button" class="ghost-no rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-800">Chưa</button></div>';
+    el.style.display = 'block';
+    var hide = function() { el.style.display = 'none'; };
+    el.querySelector('.ghost-no').onclick = hide;
+    el.querySelector('.ghost-yes').onclick = function() {
+        var token = document.querySelector('meta[name=csrf-token]');
+        var url = __congViecInstanceActualDurationUrlTemplate.replace(/999999/g, g.instance_id);
+        fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token.content }, body: JSON.stringify({ actual_duration: g.elapsed_minutes, ghost_confirm: true, _token: token.content }) })
+            .then(function() { hide(); }).catch(function() { hide(); });
+    };
+    setTimeout(hide, 25000);
+}
+function __congViecShowDurationConfirm(c, onDismiss) {
+    var el = document.getElementById('duration-confirm-toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'duration-confirm-toast';
+        el.className = 'fixed bottom-4 left-1/2 z-[60] max-w-lg -translate-x-1/2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 shadow-lg dark:border-sky-800 dark:bg-sky-900/30';
+        document.body.appendChild(el);
+    }
+    var opts = (c.options || []).slice(0, 6);
+    if (c.raw_minutes && opts.indexOf(c.raw_minutes) < 0) opts.push(c.raw_minutes);
+    var btns = opts.map(function(m) {
+        return '<button type="button" class="dur-pick rounded-lg border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-800" data-m="' + m + '">' + m + ' phút</button>';
+    }).join(' ');
+    el.innerHTML = '<p class="text-sm text-gray-800 dark:text-gray-200">' + (c.message || '').replace(/</g, '&lt;') + '</p>' +
+        '<div class="mt-2 flex flex-wrap gap-2">' + btns + '</div>';
+    el.style.display = 'block';
+    var hide = function() { el.style.display = 'none'; if (onDismiss) onDismiss(); };
+    var token = document.querySelector('meta[name=csrf-token]');
+    var baseUrl = __congViecInstanceActualDurationUrlTemplate;
+    el.querySelectorAll('.dur-pick').forEach(function(btn) {
+        btn.onclick = function() {
+            var m = parseInt(btn.getAttribute('data-m'), 10);
+            var url = baseUrl.replace(/999999/g, c.instance_id);
+            fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token.content }, body: JSON.stringify({ actual_duration: m, _token: token.content }) })
+                .then(function() { hide(); }).catch(function() { hide(); });
+        };
+    });
+    setTimeout(function() { if (el.style.display !== 'none') hide(); }, 20000);
+}
+if (typeof window !== 'undefined') {
+    window.__congViecFocusStart = __congViecFocusStart;
+    window.__congViecFocusStop = __congViecFocusStop;
+}
+function __congViecShowDurationSuggestion(s, onDismiss) {
+    var el = document.getElementById('duration-suggestion-toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'duration-suggestion-toast';
+        el.className = 'fixed bottom-4 left-1/2 z-[60] max-w-lg -translate-x-1/2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 shadow-lg dark:border-amber-800 dark:bg-amber-900/30';
+        el.style.display = 'none';
+        document.body.appendChild(el);
+    }
+    el.innerHTML = '<p class="text-sm text-gray-800 dark:text-gray-200">' + (s.message || '').replace(/</g, '&lt;') + '</p>' +
+        '<div class="mt-2 flex flex-wrap gap-2">' +
+        '<button type="button" class="dur-sugg-yes rounded-lg bg-brand-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-brand-700">Có</button>' +
+        '<button type="button" class="dur-sugg-no rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-800">Không</button></div>';
+    el.style.display = 'block';
+    var hide = function() { el.style.display = 'none'; if (onDismiss) onDismiss(); };
+    el.querySelector('.dur-sugg-no').onclick = hide;
+    el.querySelector('.dur-sugg-yes').onclick = function() {
+        var token = document.querySelector('meta[name=csrf-token]');
+        var url = __congViecEstimatedDurationUrlTemplate.replace('__ID__', s.task_id);
+        fetch(url, { method: 'PATCH', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token.content }, body: JSON.stringify({ estimated_duration: s.suggested, _token: token.content }) })
+            .then(function() { hide(); }).catch(function() { hide(); });
+    };
+    setTimeout(function() { if (el.style.display !== 'none') hide(); }, 14000);
+}
+function __congViecShowBreakSuggestion(s, onDismiss) {
+    var el = document.getElementById('break-suggestion-toast');
+    if (!el) {
+        el = document.createElement('div');
+        el.id = 'break-suggestion-toast';
+        el.className = 'fixed bottom-4 left-1/2 z-[60] max-w-lg -translate-x-1/2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 shadow-lg dark:border-emerald-800 dark:bg-emerald-900/30';
+        el.style.display = 'none';
+        document.body.appendChild(el);
+    }
+    var mins = s.break_minutes || 5;
+    el.innerHTML = '<p class="text-sm font-medium text-gray-800 dark:text-gray-200">☕ ' + (s.message || '').replace(/</g, '&lt;') + '</p>' +
+        '<div class="mt-2 flex flex-wrap gap-2">' +
+        '<button type="button" class="break-sugg-yes rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-emerald-700">Nghỉ</button>' +
+        '<button type="button" class="break-sugg-no rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs dark:border-gray-600 dark:bg-gray-800">Bỏ qua</button></div>' +
+        '<p id="break-countdown" class="mt-1 text-xs text-emerald-700 dark:text-emerald-300"></p>';
+    el.style.display = 'block';
+    var hide = function() { el.style.display = 'none'; if (window.__breakCountdownTimer) { clearInterval(window.__breakCountdownTimer); window.__breakCountdownTimer = null; } if (onDismiss) onDismiss(); };
+    el.querySelector('.break-sugg-no').onclick = hide;
+    el.querySelector('.break-sugg-yes').onclick = function() {
+        var token = document.querySelector('meta[name=csrf-token]');
+        if (token) fetch(__congViecBreakStartUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': token.content }, body: JSON.stringify({ _token: token.content }) }).catch(function() {});
+        var cd = el.querySelector('#break-countdown');
+        var left = mins * 60;
+        function tick() {
+            if (!cd) return;
+            var m = Math.floor(left / 60), r = left % 60;
+            cd.textContent = 'Nghỉ ' + m + ':' + (r < 10 ? '0' : '') + r + ' — xong tự tiếp tục.';
+            left--;
+            if (left < 0) hide();
+        }
+        tick();
+        window.__breakCountdownTimer = setInterval(tick, 1000);
+    };
+    setTimeout(function() { if (el.style.display !== 'none') hide(); }, 18000);
+}
+function __congViecAfterCompleteToasts(data, onAllDone) {
+    function done() { if (onAllDone) onAllDone(); }
+    function chainSuggestions() {
+        if (data.duration_suggestion && data.duration_suggestion.show) {
+            __congViecShowDurationSuggestion(data.duration_suggestion, function() {
+                if (data.break_suggestion && data.break_suggestion.show) __congViecShowBreakSuggestion(data.break_suggestion, done);
+                else done();
+            });
+        } else if (data.break_suggestion && data.break_suggestion.show) {
+            __congViecShowBreakSuggestion(data.break_suggestion, done);
+        } else done();
+    }
+    if (data.duration_confirm && data.duration_confirm.instance_id) {
+        __congViecShowDurationConfirm(data.duration_confirm, chainSuggestions);
+        return;
+    }
+    chainSuggestions();
+}
 function __congViecSendBehaviorEvents(events) {
     if (!__congViecBehaviorEventsUrl || !events || !events.length) return;
     var token = document.querySelector('meta[name=csrf-token]');
@@ -207,7 +450,13 @@ document.addEventListener('alpine:init', () => {
                 var data = await res.json().catch(function() { return {}; });
                 this.closeConfirmCompleteModal();
                 var row = this.confirmInstanceId ? document.querySelector('.task-row[data-instance-id="' + this.confirmInstanceId + '"]') : document.querySelector('.task-row[data-task-id="' + this.confirmTaskId + '"]');
-                if (row && data.completed) { row.style.transition = 'opacity 0.3s'; row.style.opacity = '0'; setTimeout(function() { row.remove(); }, 300); }
+                if (row && data.completed) {
+                    __congViecAfterCompleteToasts(data, function() {
+                        row.style.transition = 'opacity 0.3s';
+                        row.style.opacity = '0';
+                        setTimeout(function() { row.remove(); }, 300);
+                    });
+                }
                 if (data.program_progress) {
                     var p = data.program_progress;
                     var integrityEl = document.getElementById('program-integrity-value');
@@ -258,6 +507,26 @@ document.addEventListener('alpine:init', () => {
             this.showInboxDropdown = false;
             this.newProjectName = '';
         },
+        focusSession: @json($focusSession ?? null),
+        focusElapsedSec: 0,
+        focusTimerId: null,
+        focusStart(instanceId) { __congViecFocusStart(instanceId); },
+        focusStop() { __congViecFocusStop(); },
+        _focusTick() {
+            if (!this.focusSession || !this.focusSession.started_at) return;
+            this.focusElapsedSec = Math.max(0, Math.floor(Date.now() / 1000) - this.focusSession.started_at);
+        },
+        focusElapsedFormatted() {
+            var s = this.focusElapsedSec || 0;
+            var m = Math.floor(s / 60);
+            var r = s % 60;
+            return (m < 10 ? '0' : '') + m + ':' + (r < 10 ? '0' : '') + r;
+        },
+        init() {
+            if (this.focusSession && this.focusSession.started_at) {
+                __congViecFocusApplyUi(this.focusSession);
+            }
+        },
         async addLabel() {
             if (!this.newLabelName.trim()) return;
             const token = document.querySelector('meta[name=csrf-token]')?.content;
@@ -301,7 +570,22 @@ document.addEventListener('change', async function(e) {
                 var row = cb.dataset.instanceId ? document.querySelector('.task-row[data-instance-id="' + cb.dataset.instanceId + '"]') : document.querySelector('.task-row[data-task-id="' + cb.dataset.taskId + '"]');
                 var panel = row ? row.closest('[data-partial-url]') : null;
                 var partialUrl = panel ? panel.getAttribute('data-partial-url') : null;
-                if (row) {
+                if ((data.duration_suggestion && data.duration_suggestion.show) || (data.break_suggestion && data.break_suggestion.show) || (data.duration_confirm && data.duration_confirm.instance_id)) {
+                    __congViecAfterCompleteToasts(data, function() {
+                        if (row) {
+                            row.style.transition = 'opacity 0.3s';
+                            row.style.opacity = '0';
+                            setTimeout(function() {
+                                row.remove();
+                                if (partialUrl && panel && panel.parentNode) {
+                                    fetch(partialUrl, { headers: { 'Accept': 'text/html', 'X-Requested-With': 'XMLHttpRequest' } }).then(function(r) { return r.ok ? r.text() : null; }).then(function(html) {
+                                        if (panel && html) panel.innerHTML = html;
+                                    }).catch(function() {});
+                                }
+                            }, 300);
+                        }
+                    });
+                } else if (row) {
                     row.style.transition = 'opacity 0.3s';
                     row.style.opacity = '0';
                     setTimeout(function() {

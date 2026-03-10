@@ -28,6 +28,7 @@ class TaskPriorityEngineService
             'program' => $c['weight_program'] ?? 0.10,
             'overdue' => $c['weight_overdue'] ?? 0.10,
             'deadline_pressure' => $c['weight_deadline_pressure'] ?? 0.10,
+            'energy_fit' => $c['weight_energy_fit'] ?? 0.10,
         ];
         if ($behaviorProfile && isset($behaviorProfile['profile'])) {
             $profile = $behaviorProfile['profile'];
@@ -80,6 +81,7 @@ class TaskPriorityEngineService
             $programImportance = $this->programImportanceComponent($task, $activeProgramId);
             $overduePenalty = $this->overduePenaltyComponent($task, $today);
             $deadlinePressure = $this->deadlinePressureComponent($task, $today, $now, $boostHours);
+            $energyFit = $this->energyFitComponent($task, $now, $behaviorProfile, $instance);
             $agePenalty = $this->agePenaltyComponent($task, $today);
             $score = $urgency * $w['urgency']
                 + $impact * $w['impact']
@@ -87,6 +89,7 @@ class TaskPriorityEngineService
                 + $programImportance * $w['program']
                 + $overduePenalty * $w['overdue']
                 + $deadlinePressure * $w['deadline_pressure']
+                + $energyFit * ($w['energy_fit'] ?? 0)
                 + $agePenalty;
 
             $scores[$instance->id] = [
@@ -97,6 +100,7 @@ class TaskPriorityEngineService
                 'program_importance' => $programImportance,
                 'overdue_penalty' => $overduePenalty,
                 'deadline_pressure' => $deadlinePressure,
+                'energy_fit' => $energyFit,
                 'age_penalty' => $agePenalty,
             ];
         }
@@ -204,6 +208,36 @@ class TaskPriorityEngineService
             return 1.0;
         }
         return (float) min(1.0, 1.0 / $hoursRemaining);
+    }
+
+    /**
+     * Energy fit 0–1: completion_by_hour[now] thấp → ưu tiên task nhẹ (ngắn); cao → ưu tiên task nặng.
+     * Công thức: (1 - energy) * (1 - load) + energy * load.
+     */
+    protected function energyFitComponent($task, Carbon $now, ?array $behaviorProfile, WorkTaskInstance $instance): float
+    {
+        $byHour = $behaviorProfile['completion_by_hour'] ?? null;
+        if (! is_array($byHour) || count($byHour) < 24) {
+            return 0.5;
+        }
+        $hour = (int) $now->format('G');
+        $counts = array_values(array_slice($byHour, 0, 24, true));
+        if (! isset($byHour[$hour])) {
+            return 0.5;
+        }
+        $max = max(1, max($counts));
+        $energy = (float) ($byHour[$hour] / $max);
+        $duration = app(TaskDurationLearningService::class)->getPredictedMinutes($task->id)
+            ?? $task->estimated_duration
+            ?? 30;
+        $load = min(1.0, (float) $duration / 90.0);
+        if (($task->impact ?? '') === 'high') {
+            $load = min(1.0, $load + 0.2);
+        }
+        if (($task->impact ?? '') === 'low') {
+            $load = max(0.0, $load - 0.15);
+        }
+        return (float) ((1.0 - $energy) * (1.0 - $load) + $energy * $load);
     }
 
     /** Priority aging: task càng cũ (max created_at, updated_at) càng tăng nhẹ score. Chỉnh sửa task reset “tuổi” để tránh penalty sau khi user đã cập nhật. age_penalty = min(age_days * 0.02, 0.1). */

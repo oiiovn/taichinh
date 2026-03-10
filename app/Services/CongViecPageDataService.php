@@ -8,6 +8,7 @@ use App\Models\KanbanColumn;
 use App\Models\Label;
 use App\Models\Project;
 use App\Models\WorkTaskInstance;
+use App\Services\FocusSessionService;
 use App\Services\LongTermProjectionService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -26,7 +27,7 @@ class CongViecPageDataService
         }
         $tasksToday = $this->getTasksToday($userId, $todayHcm);
         $taskStreaks = $this->getTaskStreaksForInstances($userId, $tasksToday);
-        $tasksUpcoming = $this->getTasksUpcoming($userId, $todayHcm);
+        $tasksUpcoming = $this->getInstancesUpcoming($userId, $todayHcm);
         $tasksInbox = $this->getTasksInbox($userId);
         $completedInstancesGrouped = $this->getCompletedInstancesGrouped($userId);
         [$kanbanColumns, $kanbanTasks] = $this->getKanbanData($userId);
@@ -110,7 +111,21 @@ class CongViecPageDataService
             )
             : ['focus_window' => '—', 'workload_pct' => 0, 'suggested_priority' => null, 'suggested_priority_value' => null, 'best_time' => null, 'execution_stage' => 'planning', 'risk_tier' => 'normal', 'overload_hint' => null, 'capacity_remaining_minutes' => 120, 'task_fit_score' => 50];
 
+        $focusSessionPayload = null;
+        if ($userId) {
+            $fs = app(FocusSessionService::class)->get($userId);
+            if ($fs && ! empty($fs['instance_id'])) {
+                $fi = WorkTaskInstance::with('task')->find($fs['instance_id']);
+                $focusSessionPayload = [
+                    'instance_id' => (int) $fs['instance_id'],
+                    'started_at' => (int) $fs['started_at'],
+                    'title' => $fi?->task?->title ?? '',
+                ];
+            }
+        }
+
         return [
+            'focusSession' => $focusSessionPayload,
             'tasksToday' => $todayPriority['sorted'],
             'tasksTodayTiers' => $todayPriority['tiers'],
             'todayPriorityScores' => $todayPriority['scores'],
@@ -214,22 +229,85 @@ class CongViecPageDataService
     }
 
     /**
-     * Task chưa đến hạn: due_date > hôm nay, chưa hoàn thành.
+     * Dự kiến theo instance: instance_date > hôm nay, pending.
+     * Task lặp → chỉ 1 dòng (lần gần nhất) + metadata số lần còn lại / mở rộng.
      */
-    protected function getTasksUpcoming(?int $userId, string $todayHcm): Collection
+    protected function getInstancesUpcoming(?int $userId, string $todayHcm): Collection
     {
         if (! $userId) {
             return collect();
         }
+        $tomorrow = Carbon::parse($todayHcm)->addDay()->format('Y-m-d');
+        $end = Carbon::parse($todayHcm)->addDays((int) config('behavior_intelligence.instance_ensure_horizon_days', 90))->format('Y-m-d');
+        $ensure = app(EnsureTaskInstancesService::class);
+        $ensure->ensureForUserDateRange($userId, $tomorrow, $end);
+        // Việc một lần: luôn tạo instance đúng ngày due (vd. 5/5) để tab Dự kiến có dòng
+        $ensure->ensureOneOffDueDatesAhead($userId, $todayHcm);
 
-        return CongViecTask::where('user_id', $userId)
-            ->where('completed', false)
-            ->whereNotNull('due_date')
-            ->where('due_date', '>', $todayHcm)
-            ->with(['project', 'labels', 'program'])
-            ->orderBy('due_date')
-            ->orderByRaw('due_time IS NULL, due_time ASC')
+        $all = WorkTaskInstance::query()
+            ->where('instance_date', '>', $todayHcm)
+            ->where('status', WorkTaskInstance::STATUS_PENDING)
+            ->whereHas('task', fn ($q) => $q->where('user_id', $userId)->where('completed', false))
+            ->with(['task.project', 'task.labels', 'task.program'])
+            ->orderBy('instance_date')
+            ->orderBy('work_task_id')
             ->get();
+
+        $expandLimit = (int) config('behavior_intelligence.du_kien_expand_limit', 10);
+        $rows = collect();
+        foreach ($all->groupBy('work_task_id') as $taskId => $instances) {
+            $sorted = $instances->sortBy(fn ($i) => $i->instance_date->format('Y-m-d'))->values();
+            $first = $sorted->first();
+            $task = $first->task;
+            $repeat = $task ? ($task->repeat ?? 'none') : 'none';
+            if ($repeat === 'none' || $repeat === 'custom') {
+                foreach ($sorted as $inst) {
+                    $rows->push(['kind' => 'single', 'instance' => $inst]);
+                }
+                continue;
+            }
+            $more = $sorted->skip(1)->take($expandLimit)->map(fn ($i) => [
+                'id' => $i->id,
+                'date' => $i->instance_date->format('d/m/Y'),
+                'time' => $task->due_time ? substr($task->due_time, 0, 5) : null,
+            ])->values()->all();
+            $lastInst = $sorted->last();
+            $lastDate = $lastInst && $lastInst->instance_date
+                ? Carbon::parse($lastInst->instance_date)->format('Y-m-d')
+                : null;
+            $repeatUntil = $task->repeat_until ? Carbon::parse($task->repeat_until)->format('Y-m-d') : null;
+            $horizonUntil = $lastDate;
+            if ($repeatUntil && $lastDate) {
+                $horizonUntil = min($lastDate, $repeatUntil);
+            } elseif ($repeatUntil) {
+                $horizonUntil = $repeatUntil;
+            }
+            $rows->push([
+                'kind' => 'recurring',
+                'instance' => $first,
+                'upcoming_total' => $sorted->count(),
+                'more' => $more,
+                'more_count' => max(0, $sorted->count() - 1),
+                'horizon_until' => $horizonUntil ? Carbon::parse($horizonUntil)->format('d/m/Y') : null,
+            ]);
+        }
+
+        // Một timeline: sort theo ngày rồi giờ (next execution), không tách lặp/không lặp
+        $sorted = $rows->sortBy(function ($r) {
+            $inst = $r['instance'];
+            $d = $inst->instance_date instanceof \Carbon\Carbon
+                ? $inst->instance_date->format('Y-m-d')
+                : (string) $inst->instance_date;
+            $time = $inst->task->due_time ?? '99:99:99';
+            return $d . ' ' . substr($time, 0, 8);
+        })->values();
+
+        return $sorted->groupBy(function ($r) {
+            $inst = $r['instance'];
+            return $inst->instance_date instanceof \Carbon\Carbon
+                ? $inst->instance_date->format('Y-m-d')
+                : Carbon::parse($inst->instance_date)->format('Y-m-d');
+        });
     }
 
     protected function getTasksInbox(?int $userId): Collection

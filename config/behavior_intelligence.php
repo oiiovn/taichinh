@@ -3,6 +3,12 @@
 return [
     'enabled' => env('BEHAVIOR_INTELLIGENCE_ENABLED', true),
 
+    /** Số ngày tối đa ensure instance khi mở Dự kiến (tránh loop quá lâu). */
+    'instance_ensure_horizon_days' => (int) env('INSTANCE_ENSURE_HORIZON_DAYS', 90),
+
+    /** Số lần tiếp theo tối đa hiển thị khi mở rộng task lặp ở tab Dự kiến. */
+    'du_kien_expand_limit' => (int) env('DU_KIEN_EXPAND_LIMIT', 10),
+
     'layers' => [
         'identity_baseline' => true,
         'micro_event_capture' => true,
@@ -70,6 +76,7 @@ return [
             'weight_program' => (float) env('EXECUTION_PRIORITY_WEIGHT_PROGRAM', 0.10),
             'weight_overdue' => (float) env('EXECUTION_PRIORITY_WEIGHT_OVERDUE', 0.10),
             'weight_deadline_pressure' => (float) env('EXECUTION_PRIORITY_WEIGHT_DEADLINE_PRESSURE', 0.10),
+            'weight_energy_fit' => (float) env('EXECUTION_PRIORITY_WEIGHT_ENERGY_FIT', 0.12),
             'deadline_boost_hours' => (float) env('EXECUTION_PRIORITY_DEADLINE_BOOST_HOURS', 4),
             'threshold_high' => (float) env('EXECUTION_PRIORITY_THRESHOLD_HIGH', 0.65),
             'threshold_medium' => (float) env('EXECUTION_PRIORITY_THRESHOLD_MEDIUM', 0.40),
@@ -77,6 +84,27 @@ return [
         'failure_detection' => [
             'skip_streak_threshold' => (int) env('EXECUTION_FAILURE_SKIP_STREAK', 3),
             'delay_count_threshold' => (int) env('EXECUTION_FAILURE_DELAY_COUNT', 5),
+        ],
+        /** Gợi ý cập nhật ước lượng phút sau khi complete (tránh hỏi mỗi lần). */
+        'duration_suggestion' => [
+            'min_actual_minutes' => (int) env('DURATION_SUGGEST_MIN_ACTUAL', 3),
+            'min_samples_for_suggest' => (int) env('DURATION_SUGGEST_MIN_SAMPLES', 3),
+            'last_n_actuals' => (int) env('DURATION_SUGGEST_LAST_N', 5),
+            'ratio_high' => (float) env('DURATION_SUGGEST_RATIO_HIGH', 1.2),
+            'ratio_low' => (float) env('DURATION_SUGGEST_RATIO_LOW', 0.8),
+            'deviation_vs_predicted_pct' => (float) env('DURATION_SUGGEST_DEVIATION_PCT', 0.25),
+            'max_cv_last3' => (float) env('DURATION_SUGGEST_MAX_CV', 0.35),
+        ],
+        /** Bảo vệ duration: idle = coi session kết thúc; cap 3× estimated; sanity > 2×. */
+        'focus_duration' => [
+            'idle_seconds' => (int) env('FOCUS_IDLE_SECONDS', 300),
+        ],
+        /** Gợi ý nghỉ theo Focus Load (không ép Pomodoro). */
+        'break_suggestion' => [
+            'threshold_short_minutes' => (int) env('BREAK_SUGGEST_THRESHOLD_SHORT', 45),
+            'threshold_long_minutes' => (int) env('BREAK_SUGGEST_THRESHOLD_LONG', 90),
+            'break_duration_short' => (int) env('BREAK_SUGGEST_DURATION_SHORT', 5),
+            'break_duration_long' => (int) env('BREAK_SUGGEST_DURATION_LONG', 10),
         ],
         'focus_planning' => [
             'default_available_minutes' => (int) env('EXECUTION_FOCUS_AVAILABLE_MINUTES', 120),

@@ -13,6 +13,10 @@ use App\Services\AdaptiveTrustGradientService;
 use App\Services\CongViecPageDataService;
 use App\Services\EnsureTaskInstancesService;
 use App\Services\MicroEventCaptureService;
+use App\Services\DurationSuggestionService;
+use App\Services\FocusDurationGuardService;
+use App\Services\FocusLoadService;
+use App\Services\FocusSessionService;
 use App\Services\ProbabilisticTruthService;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -31,6 +35,13 @@ class CongViecController extends Controller
     public function index(Request $request)
     {
         $data = app(CongViecPageDataService::class)->getIndexData($request);
+        $userId = $request->user()?->id;
+        $focusPlan = $data['focusPlan'] ?? null;
+        if ($userId && is_array($focusPlan) && ($focusPlan['focus'] ?? null) instanceof \Illuminate\Support\Collection && $focusPlan['focus']->isNotEmpty()) {
+            session(['focus_first_instance_id' => $focusPlan['focus']->first()->id]);
+        } else {
+            session()->forget('focus_first_instance_id');
+        }
 
         if ($request->boolean('partial')) {
             $tab = $request->get('tab');
@@ -58,14 +69,17 @@ class CongViecController extends Controller
             ->orderByDesc('updated_at')
             ->limit(3)
             ->get(['id', 'title', 'due_time', 'repeat', 'estimated_duration']);
-        $suggestions = $tasks->map(function ($t) {
+        $pattern = app(\App\Services\TaskPatternLearningService::class);
+        $suggestions = $tasks->map(function ($t) use ($pattern) {
             $dueTime = $t->due_time;
             if ($dueTime && strlen($dueTime) >= 5) {
                 $dueTime = substr($dueTime, 0, 5);
             }
+            $preferredTime = $pattern->getPreferredTimeString($t->id);
             return [
                 'title' => $t->title,
                 'due_time' => $dueTime,
+                'preferred_time' => $preferredTime,
                 'repeat' => in_array($t->repeat ?? 'none', ['none', 'daily', 'weekly', 'monthly', 'custom']) ? ($t->repeat ?? 'none') : 'none',
                 'estimated_duration' => $t->estimated_duration ? (int) $t->estimated_duration : null,
             ];
@@ -88,6 +102,8 @@ class CongViecController extends Controller
             'task_due_date' => $request->filled('task_due_date') ? $request->input('task_due_date') : null,
             'task_due_time' => $request->filled('task_due_time') ? $request->input('task_due_time') : null,
             'task_repeat_until' => $request->filled('task_repeat_until') ? $request->input('task_repeat_until') : null,
+            'task_available_after' => $request->filled('task_available_after') ? $request->input('task_available_after') : null,
+            'task_available_before' => $request->filled('task_available_before') ? $request->input('task_available_before') : null,
         ]);
 
         $validated = $request->validate([
@@ -97,6 +113,8 @@ class CongViecController extends Controller
             'priority' => ['nullable', 'integer', 'in:1,2,3,4'],
             'task_due_date' => ['nullable', 'date'],
             'task_due_time' => ['nullable', 'string', 'max:5', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/'],
+            'task_available_after' => ['nullable', 'string', 'max:5', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/'],
+            'task_available_before' => ['nullable', 'string', 'max:5', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/'],
             'task_repeat' => ['nullable', 'string', 'in:none,daily,weekly,monthly,custom'],
             'task_repeat_until' => ['nullable', 'date', Rule::when($request->filled('task_due_date'), ['after_or_equal:task_due_date'])],
             'task_repeat_interval' => ['nullable', 'integer', 'min:1', 'max:99'],
@@ -124,6 +142,8 @@ class CongViecController extends Controller
         }
         $task->due_date = $dueDate;
         $task->due_time = ! empty($validated['task_due_time']) ? substr($validated['task_due_time'], 0, 5) : null;
+        $task->available_after = ! empty($validated['task_available_after']) ? substr($validated['task_available_after'], 0, 5) : null;
+        $task->available_before = ! empty($validated['task_available_before']) ? substr($validated['task_available_before'], 0, 5) : null;
         $task->remind_minutes_before = $validated['remind_minutes_before'] ?? null;
         $task->location = $validated['location'] ?? null;
         $task->repeat = $validated['task_repeat'] ?? 'none';
@@ -204,6 +224,8 @@ class CongViecController extends Controller
             'task_due_date' => $request->filled('task_due_date') ? $request->input('task_due_date') : null,
             'task_due_time' => $request->filled('task_due_time') ? $dueTime : null,
             'task_repeat_until' => $request->filled('task_repeat_until') ? $request->input('task_repeat_until') : null,
+            'task_available_after' => $request->filled('task_available_after') ? $request->input('task_available_after') : null,
+            'task_available_before' => $request->filled('task_available_before') ? $request->input('task_available_before') : null,
         ]);
         $validated = $request->validate([
             'title' => ['required', 'string', 'max:500'],
@@ -212,6 +234,8 @@ class CongViecController extends Controller
             'remind_minutes_before' => ['nullable', 'integer', 'in:0,5,15,30,60,120,1440'],
             'task_due_date' => ['nullable', 'date'],
             'task_due_time' => ['nullable', 'string', 'max:8', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$/'],
+            'task_available_after' => ['nullable', 'string', 'max:5', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/'],
+            'task_available_before' => ['nullable', 'string', 'max:5', 'regex:/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/'],
             'task_repeat' => ['nullable', 'string', 'in:none,daily,weekly,monthly,custom'],
             'task_repeat_until' => ['nullable', 'date', Rule::when($request->filled('task_due_date'), ['after_or_equal:task_due_date'])],
             'task_repeat_interval' => ['nullable', 'integer', 'min:1', 'max:99'],
@@ -230,6 +254,8 @@ class CongViecController extends Controller
         $task->remind_minutes_before = isset($validated['remind_minutes_before']) ? (int) $validated['remind_minutes_before'] : null;
         $task->due_date = $validated['task_due_date'] ?? (($validated['program_id'] ?? null) ? Carbon::now('Asia/Ho_Chi_Minh')->format('Y-m-d') : $task->due_date);
         $task->due_time = ! empty($validated['task_due_time']) ? substr($validated['task_due_time'], 0, 5) : null;
+        $task->available_after = ! empty($validated['task_available_after']) ? substr($validated['task_available_after'], 0, 5) : null;
+        $task->available_before = ! empty($validated['task_available_before']) ? substr($validated['task_available_before'], 0, 5) : null;
         $task->location = $validated['location'] ?? null;
         $task->repeat = $validated['task_repeat'] ?? 'none';
         $task->repeat_until = $validated['task_repeat_until'] ?? null;
@@ -348,12 +374,14 @@ class CongViecController extends Controller
             }
         }
 
+        $durationConfirm = null;
         if ($instance->status === WorkTaskInstance::STATUS_COMPLETED) {
             $instance->status = WorkTaskInstance::STATUS_PENDING;
             $instance->completed_at = null;
         } else {
             $instance->status = WorkTaskInstance::STATUS_COMPLETED;
             $instance->completed_at = now();
+            $durationConfirm = $this->applyFocusDurationIfAny($user->id, $instance);
         }
         $instance->save();
 
@@ -363,10 +391,29 @@ class CongViecController extends Controller
 
         $programProgress = CongViecPageDataService::buildProgramProgressPayload($user->id, $task);
 
-        return response()->json([
+        $durationSuggestion = null;
+        $breakSuggestion = null;
+        if ($tickingToComplete && $instance->status === WorkTaskInstance::STATUS_COMPLETED) {
+            $instance->refresh();
+            $durationSuggestion = app(DurationSuggestionService::class)->maybeSuggestAfterComplete($task, $instance);
+            $breakSuggestion = app(FocusLoadService::class)->maybeSuggestBreak($user->id);
+        }
+
+        $json = [
             'completed' => $instance->status === WorkTaskInstance::STATUS_COMPLETED,
             'program_progress' => $programProgress,
-        ]);
+        ];
+        if ($durationSuggestion !== null) {
+            $json['duration_suggestion'] = $durationSuggestion;
+        }
+        if ($breakSuggestion !== null) {
+            $json['break_suggestion'] = $breakSuggestion;
+        }
+        if ($durationConfirm !== null) {
+            $json['duration_confirm'] = $durationConfirm;
+        }
+
+        return response()->json($json);
     }
 
     public function confirmInstanceComplete(Request $request, int $id): JsonResponse
@@ -385,15 +432,247 @@ class CongViecController extends Controller
 
         $instance->status = WorkTaskInstance::STATUS_COMPLETED;
         $instance->completed_at = now();
+        $durationConfirm = $this->applyFocusDurationIfAny($user->id, $instance);
         $instance->save();
+        app(FocusSessionService::class)->stop($user->id);
         $this->captureTickAndUpdateTrust($user->id, $task->id, $payload, 1.0, $task->program_id);
 
         $programProgress = CongViecPageDataService::buildProgramProgressPayload($user->id, $task);
 
-        return response()->json([
+        $instance->refresh();
+        $durationSuggestion = app(DurationSuggestionService::class)->maybeSuggestAfterComplete($task, $instance);
+        $breakSuggestion = app(FocusLoadService::class)->maybeSuggestBreak($user->id);
+
+        $json = [
             'completed' => true,
             'program_progress' => $programProgress,
+        ];
+        if ($durationSuggestion !== null) {
+            $json['duration_suggestion'] = $durationSuggestion;
+        }
+        if ($breakSuggestion !== null) {
+            $json['break_suggestion'] = $breakSuggestion;
+        }
+        if ($durationConfirm !== null) {
+            $json['duration_confirm'] = $durationConfirm;
+        }
+
+        return response()->json($json);
+    }
+
+    public function focusBreakStart(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        app(FocusLoadService::class)->recordBreak($user->id);
+        return response()->json(['ok' => true]);
+    }
+
+    public function patchEstimatedDuration(Request $request, int $id): JsonResponse
+    {
+        $task = CongViecTask::where('id', $id)->where('user_id', $request->user()->id)->firstOrFail();
+        $validated = $request->validate([
+            'estimated_duration' => ['required', 'integer', 'min:1', 'max:1440'],
         ]);
+        $task->estimated_duration = (int) $validated['estimated_duration'];
+        $task->save();
+
+        return response()->json([
+            'ok' => true,
+            'estimated_duration' => $task->estimated_duration,
+        ]);
+    }
+
+    public function focusStart(Request $request, int $instance): JsonResponse
+    {
+        $user = $request->user();
+        if ((int) session('focus_first_instance_id') !== $instance) {
+            return response()->json(['ok' => false, 'message' => 'Chỉ task đầu focus mới bắt đầu được.'], 422);
+        }
+        $inst = WorkTaskInstance::with('task')->whereHas('task', fn ($q) => $q->where('user_id', $user->id))->findOrFail($instance);
+        if ($inst->status === WorkTaskInstance::STATUS_COMPLETED) {
+            return response()->json(['ok' => false, 'message' => 'Đã hoàn thành.'], 422);
+        }
+        $svc = app(FocusSessionService::class);
+        $ghost = null;
+        $prev = $svc->get($user->id);
+        if ($prev && (int) $prev['instance_id'] !== (int) $inst->id) {
+            $prevInst = WorkTaskInstance::with('task')->find($prev['instance_id']);
+            if ($prevInst && $prevInst->status !== WorkTaskInstance::STATUS_COMPLETED && $prevInst->task) {
+                $started = (int) $prev['started_at'];
+                $lastAct = (int) ($prev['last_activity_at'] ?? $started);
+                $idleSec = (int) config('behavior_intelligence.focus_duration.idle_seconds', 300);
+                $endUnix = (time() - $lastAct > $idleSec) ? $lastAct : time();
+                $elapsedMin = max(0, (int) round(($endUnix - $started) / 60));
+                $est = $prevInst->task->estimated_duration ? (int) $prevInst->task->estimated_duration : null;
+                if ($est && $est > 0 && $elapsedMin >= (int) ceil($est * 0.6)) {
+                    $ghost = [
+                        'instance_id' => $prevInst->id,
+                        'title' => $prevInst->task->title,
+                        'elapsed_minutes' => max(1, $elapsedMin),
+                    ];
+                    $prevInst->ghost_completion_detected = true;
+                    $prevInst->save();
+                }
+            }
+            $svc->stop($user->id);
+        }
+        $svc->start($user->id, $inst->id);
+        $now = now();
+        $inst->focus_started_at = $now;
+        $inst->focus_last_activity_at = $now;
+        $inst->focus_stopped_at = null;
+        $inst->focus_recorded_minutes = null;
+        $inst->save();
+
+        $task = $inst->task;
+        $payload = [
+            'instance_id' => $inst->id,
+            'instance_date' => $inst->instance_date?->format('Y-m-d'),
+            'started_at' => now()->toIso8601String(),
+            'repeat' => $task->repeat ?? null,
+            'category' => $task->category ?? null,
+            'kanban_status' => $task->kanban_status ?? null,
+            'program_id' => $task->program_id,
+            'estimated_duration' => $task->estimated_duration,
+            'impact' => $task->impact ?? null,
+        ];
+        app(MicroEventCaptureService::class)->capture($user->id, BehaviorEvent::TYPE_FOCUS_START, $task->id, $payload);
+
+        $out = [
+            'ok' => true,
+            'instance_id' => $inst->id,
+            'title' => $inst->task->title,
+            'started_at' => time(),
+        ];
+        if ($ghost !== null) {
+            $out['ghost_completion'] = $ghost;
+        }
+
+        return response()->json($out);
+    }
+
+    public function focusActivity(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $svc = app(FocusSessionService::class);
+        $svc->touchActivity($user->id);
+        $s = $svc->get($user->id);
+        if ($s && ! empty($s['instance_id'])) {
+            $inst = WorkTaskInstance::where('id', $s['instance_id'])->whereHas('task', fn ($q) => $q->where('user_id', $user->id))->first();
+            if ($inst) {
+                $inst->focus_last_activity_at = now();
+                $inst->save();
+            }
+        }
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function focusStop(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $svc = app(FocusSessionService::class);
+        $session = $svc->get($user->id);
+        if ($session && ! empty($session['instance_id'])) {
+            $inst = WorkTaskInstance::with('task')->find($session['instance_id']);
+            if ($inst && $inst->task && $inst->task->user_id === $user->id) {
+                $guard = app(FocusDurationGuardService::class);
+                $resolved = $guard->resolveForComplete(
+                    $inst,
+                    $inst->task,
+                    (int) $session['started_at'],
+                    isset($session['last_activity_at']) ? (int) $session['last_activity_at'] : null,
+                    time()
+                );
+                if ($resolved['minutes'] !== null) {
+                    $inst->focus_stopped_at = now();
+                    $inst->focus_recorded_minutes = $resolved['minutes'];
+                    $inst->save();
+                }
+                $elapsed = $svc->elapsedSeconds($user->id);
+                $payload = [
+                    'instance_id' => $inst->id,
+                    'stopped_at' => now()->toIso8601String(),
+                    'elapsed_seconds' => $elapsed,
+                    'reason' => 'switch_task',
+                    'repeat' => $inst->task->repeat ?? null,
+                    'category' => $inst->task->category ?? null,
+                    'kanban_status' => $inst->task->kanban_status ?? null,
+                    'program_id' => $inst->task->program_id,
+                ];
+                app(MicroEventCaptureService::class)->capture($user->id, BehaviorEvent::TYPE_FOCUS_STOP, $inst->task->id, $payload);
+            }
+        }
+        $svc->stop($user->id);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Không set actual_duration nếu không có focus session khớp instance.
+     * Dùng idle + cap + sanity; trả duration_confirm để toast chọn phút.
+     *
+     * @return array|null
+     */
+    protected function applyFocusDurationIfAny(int $userId, WorkTaskInstance $instance): ?array
+    {
+        $svc = app(FocusSessionService::class);
+        $s = $svc->get($userId);
+        if (! $s || (int) $s['instance_id'] !== (int) $instance->id) {
+            return null;
+        }
+        $task = $instance->task;
+        $stoppedUnix = $instance->focus_stopped_at ? $instance->focus_stopped_at->timestamp : null;
+        $guard = app(FocusDurationGuardService::class);
+        $resolved = $guard->resolveForComplete(
+            $instance,
+            $task,
+            (int) $s['started_at'],
+            isset($s['last_activity_at']) ? (int) $s['last_activity_at'] : null,
+            $stoppedUnix
+        );
+        if ($resolved['need_short_pick'] || $resolved['need_sanity_pick']) {
+            return [
+                'instance_id' => $instance->id,
+                'kind' => $resolved['need_short_pick'] ? 'short' : 'sanity',
+                'message' => $resolved['need_short_pick']
+                    ? 'Bạn mất khoảng bao lâu? (có thể đã xong trước khi bấm bắt đầu)'
+                    : sprintf('Bạn thực sự mất %d phút cho task này?', $resolved['raw_elapsed_minutes']),
+                'options' => $resolved['options'],
+                'raw_minutes' => $resolved['raw_elapsed_minutes'],
+            ];
+        }
+        if ($resolved['minutes'] !== null && $resolved['use_for_learning']) {
+            $instance->actual_duration = $resolved['minutes'];
+            $instance->focus_recorded_minutes = $resolved['minutes'];
+            $instance->focus_stopped_at = $instance->focus_stopped_at ?? now();
+        }
+        $svc->stop($userId);
+
+        return null;
+    }
+
+    public function patchInstanceActualDuration(Request $request, int $id): JsonResponse
+    {
+        $user = $request->user();
+        $instance = WorkTaskInstance::with('task')->whereHas('task', fn ($q) => $q->where('user_id', $user->id))->findOrFail($id);
+        $validated = $request->validate([
+            'actual_duration' => ['required', 'integer', 'min:1', 'max:1440'],
+            'ghost_confirm' => ['sometimes', 'boolean'],
+        ]);
+        $instance->actual_duration = (int) $validated['actual_duration'];
+        $instance->focus_recorded_minutes = (int) $validated['actual_duration'];
+        if (! empty($validated['ghost_confirm'])) {
+            $instance->ghost_completion_confirmed = true;
+            if ($instance->status !== WorkTaskInstance::STATUS_COMPLETED) {
+                $instance->status = WorkTaskInstance::STATUS_COMPLETED;
+                $instance->completed_at = now();
+            }
+        }
+        $instance->save();
+        app(FocusSessionService::class)->stop($user->id);
+
+        return response()->json(['ok' => true, 'actual_duration' => $instance->actual_duration]);
     }
 
     protected function captureTickAndUpdateTrust(int $userId, int $workTaskId, array $payload = [], ?float $pReal = null, ?int $programId = null): void
