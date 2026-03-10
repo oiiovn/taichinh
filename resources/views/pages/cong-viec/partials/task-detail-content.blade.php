@@ -108,10 +108,11 @@
         @endif
 
         {{-- Liên kết lịch thanh toán --}}
-        @if($task->meta && !empty($task->meta['payment_schedule_id']))
+        @php $taskMeta = $task->meta ?? []; @endphp
+        @if(!empty($taskMeta['payment_schedule_id']))
             <section class="mt-4">
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Liên kết</p>
-                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Từ lịch thanh toán #{{ $task->meta['payment_schedule_id'] }}</p>
+                <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Từ lịch thanh toán #{{ $taskMeta['payment_schedule_id'] }}</p>
             </section>
         @endif
 

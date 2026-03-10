@@ -61,6 +61,9 @@ class PaymentScheduleToTaskService
             return null;
         }
         $dueStr = Carbon::parse($due)->format('Y-m-d');
+        if (! \Illuminate\Support\Facades\Schema::hasColumn((new CongViecTask)->getTable(), 'meta')) {
+            return null;
+        }
 
         return CongViecTask::where('user_id', $userId)
             ->where('meta->payment_schedule_id', $schedule->id)
@@ -85,9 +88,13 @@ class PaymentScheduleToTaskService
         foreach ($schedules as $s) {
             $nextDueBySchedule[$s->id] = $s->next_due_date ? Carbon::parse($s->next_due_date)->format('Y-m-d') : null;
         }
+        if (! \Illuminate\Support\Facades\Schema::hasColumn((new CongViecTask)->getTable(), 'meta')) {
+            return $map;
+        }
         $tasks = CongViecTask::where('user_id', $userId)->whereNotNull('meta')->get(['id', 'title', 'due_date', 'meta']);
         foreach ($tasks as $task) {
-            $sid = (int) ($task->meta['payment_schedule_id'] ?? 0);
+            $meta = $task->meta ?? [];
+            $sid = (int) ($meta['payment_schedule_id'] ?? 0);
             if ($sid && in_array($sid, $scheduleIds, true) && isset($nextDueBySchedule[$sid])) {
                 $taskDue = $task->due_date ? Carbon::parse($task->due_date)->format('Y-m-d') : null;
                 if ($taskDue === $nextDueBySchedule[$sid]) {
@@ -130,7 +137,9 @@ class PaymentScheduleToTaskService
         $task->category = $payload['category'];
         $task->impact = $payload['impact'];
         $task->estimated_duration = $payload['estimated_duration'];
-        $task->meta = ['payment_schedule_id' => $schedule->id];
+        if (\Illuminate\Support\Facades\Schema::hasColumn($task->getTable(), 'meta')) {
+            $task->meta = array_merge($task->meta ?? [], ['payment_schedule_id' => $schedule->id]);
+        }
         $task->save();
 
         return $task;

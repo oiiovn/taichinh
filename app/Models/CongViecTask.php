@@ -7,12 +7,21 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\SoftDeletingScope;
+use Illuminate\Support\Facades\Schema;
 
 class CongViecTask extends Model
 {
     use SoftDeletes;
 
     protected $table = 'work_tasks';
+
+    protected static function booted(): void
+    {
+        if (! Schema::hasColumn((new static)->getTable(), 'deleted_at')) {
+            static::withoutGlobalScope(SoftDeletingScope::class);
+        }
+    }
 
     protected $fillable = [
         'user_id',
@@ -80,8 +89,21 @@ class CongViecTask extends Model
         'repeat_until' => 'date',
         'completed' => 'boolean',
         'internalized_at' => 'datetime',
-        'meta' => 'array',
     ];
+
+    /** Task cũ có thể không có cột meta hoặc meta = null; luôn trả về array để tránh lỗi. */
+    public function getMetaAttribute($value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+        return is_array($value) ? $value : (json_decode($value, true) ?? []);
+    }
+
+    public function setMetaAttribute($value): void
+    {
+        $this->attributes['meta'] = $value === null || $value === [] ? null : json_encode($value);
+    }
 
     public const PRIORITY_LABELS = [
         1 => 'Khẩn cấp',
@@ -141,6 +163,15 @@ class CongViecTask extends Model
     public function getImpactLabelAttribute(): ?string
     {
         return $this->impact ? (self::IMPACTS[$this->impact] ?? null) : null;
+    }
+
+    /** Khi bảng chưa có cột deleted_at (migration chưa chạy), xóa hẳn bản ghi thay vì soft delete. */
+    public function delete(): ?bool
+    {
+        if (! Schema::hasColumn($this->getTable(), 'deleted_at')) {
+            return $this->forceDelete();
+        }
+        return parent::delete();
     }
 
     /** Overtime: due_date đã qua mà chưa done. */

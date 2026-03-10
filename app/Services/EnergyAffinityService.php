@@ -174,6 +174,9 @@ class EnergyAffinityService
         if (! $task) {
             return;
         }
+        if (! \Illuminate\Support\Facades\Schema::hasColumn($task->getTable(), 'meta')) {
+            return;
+        }
         $meta = $task->meta ?? [];
         $meta['energy_affinity'] = $a['affinity'] ?? self::AFFINITY_NEUTRAL;
         $meta['energy_confidence'] = $a['confidence'] ?? 0;
