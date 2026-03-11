@@ -233,14 +233,22 @@ class FoodController extends Controller
         $chartDoanhSoLoiNhuan = [];
         $cursor = $from->copy()->startOfDay();
         $end = $to->copy()->startOfDay();
-        while ($cursor->lte($end)) {
-            $dateStr = $cursor->format('Y-m-d');
-            $chartDoanhSoDates[] = $dateStr;
-            $dayReports = $reportsDoanhSo->filter(fn ($r) => $r->report_date && $r->report_date->format('Y-m-d') === $dateStr);
-            $tongDoanhSo = $dayReports->sum(fn ($r) => (float) ($r->doanh_so ?? 0));
-            $tongQuyetToan = $dayReports->sum(fn ($r) => (float) $r->quyet_toan);
-            $chartDoanhSoLoiNhuan[] = (int) round($tongDoanhSo - $tongQuyetToan);
-            $cursor->addDay();
+        if ($cursor->lte($end)) {
+            while ($cursor->lte($end)) {
+                $dateStr = $cursor->format('Y-m-d');
+                $chartDoanhSoDates[] = $dateStr;
+                $dayReports = $reportsDoanhSo->filter(function ($r) use ($dateStr) {
+                    try {
+                        return $r->report_date && $r->report_date->format('Y-m-d') === $dateStr;
+                    } catch (\Throwable $e) {
+                        return false;
+                    }
+                });
+                $tongDoanhSo = $dayReports->sum(fn ($r) => (float) ($r->doanh_so ?? 0));
+                $tongQuyetToan = $dayReports->sum(fn ($r) => (float) $r->quyet_toan);
+                $chartDoanhSoLoiNhuan[] = (int) round($tongDoanhSo - $tongQuyetToan);
+                $cursor->addDay();
+            }
         }
 
         $danhMucThu = UserCategory::where('user_id', $user->id)->where('type', 'income')->orderBy('name')->get();

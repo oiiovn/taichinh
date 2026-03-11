@@ -224,7 +224,7 @@
                         async save() {
                             this.saving = true;
                             try {
-                                const res = await fetch('{{ route('food.bao-cao-ban-hang.update-doanh-so', $r->id) }}', {
+                                const res = await fetch('{{ url('/food/bao-cao-ban-hang/' . (int) $r->id . '/doanh-so') }}', {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '', 'Accept': 'application/json' },
                                     body: JSON.stringify({ doanh_so: this.doanhSo === '' ? null : parseInt(this.doanhSo, 10) })
