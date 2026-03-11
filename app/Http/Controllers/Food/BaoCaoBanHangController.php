@@ -313,15 +313,57 @@ class BaoCaoBanHangController extends Controller
             return redirect()->back()->with('error', 'User không tồn tại.');
         }
 
+        $onlyTienCong = $request->boolean('only_tien_cong');
+        $bonus = (float) ($report->bonus ?? 0);
+        $baseAmount = $onlyTienCong
+            ? (float) $report->total_tien_cong + $bonus
+            : (float) $report->total_cost + (float) $report->total_tien_cong + $bonus;
+
+        $deductionAmount = (float) $request->input('deduction_amount', 0);
+        if ($deductionAmount < 0 || $deductionAmount > $baseAmount) {
+            return redirect()->back()->with('error', 'Số tiền trừ công nợ phải từ 0 đến '.number_format($baseAmount, 0, ',', '.').' đ.');
+        }
+        $deductionAmount = (int) round($deductionAmount);
+
         FoodReportDebt::query()->updateOrCreate(
             [
                 'food_sales_report_id' => $report->id,
                 'debtor_user_id' => $debtorUserId,
             ],
-            ['only_tien_cong' => $request->boolean('only_tien_cong')]
+            [
+                'only_tien_cong' => $onlyTienCong,
+                'deduction_amount' => $deductionAmount,
+            ]
         );
 
         return redirect()->back()->with('success', 'Đã tạo công nợ cho '.$debtor->name);
+    }
+
+    public function updateDoanhSo(Request $request, int $id): \Illuminate\Http\JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['success' => false, 'message' => 'Unauthorized'], 401);
+        }
+
+        $report = FoodSalesReport::query()->where('user_id', $user->id)->find($id);
+        if (! $report) {
+            return response()->json(['success' => false, 'message' => 'Không tìm thấy báo cáo.'], 404);
+        }
+
+        $value = $request->input('doanh_so');
+        if ($value !== null && trim((string) $value) !== '') {
+            $report->doanh_so = VndHelper::toStoredAmount($value);
+        } else {
+            $report->doanh_so = null;
+        }
+        $report->save();
+
+        return response()->json([
+            'success' => true,
+            'doanh_so' => $report->doanh_so,
+            'loi_nhuan' => $report->loi_nhuan,
+        ]);
     }
 
     private function parseRow(string $line): array

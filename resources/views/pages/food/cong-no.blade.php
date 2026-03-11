@@ -68,7 +68,7 @@
                     </thead>
                     <tbody>
                         @forelse($debts as $d)
-                            @php $r = $d->report; @endphp
+                            @php $r = $d->report; $det = $d->debt_detail; @endphp
                             <tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                                 <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">
                                     <span>{{ $r->report_code }}</span>
@@ -78,7 +78,12 @@
                                 </td>
                                 <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $r->report_date->format('d/m/Y') }}</td>
                                 <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $r->total_orders }}</td>
-                                <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $fmt($d->debt_amount) }} đ</td>
+                                <td class="px-4 py-2 text-gray-900 dark:text-white">
+                                    <span>{{ $fmt($d->debt_amount) }} đ</span>
+                                    @if((float)($det['deduction'] ?? 0) > 0)
+                                        <span class="block text-xs text-gray-500 dark:text-gray-400" title="Tổng − Trừ = Còn">Tổng {{ $fmt($det['base']) }} − Trừ {{ $fmt($det['deduction']) }}</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-2 text-gray-600 dark:text-gray-400">{{ $r->uploaded_at->format('d/m/Y H:i') }}</td>
                                 <td class="px-4 py-2">
                                     @if($d->payment)

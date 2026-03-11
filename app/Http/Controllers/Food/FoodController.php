@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Food;
 
 use App\Http\Controllers\Controller;
+use App\Models\FoodSalesReport;
 use App\Models\TransactionHistory;
 use App\Models\UserCategory;
 use App\Helpers\BaoCaoHelper;
@@ -85,6 +86,10 @@ class FoodController extends Controller
         }
         if (! $from || ! $to) {
             [$from, $to] = $this->getDateRange($period);
+        }
+
+        if ($request->input('tab') === 'doanh-so') {
+            return $this->indexDoanhSo($request, $user, $period, $from, $to);
         }
 
         $hasFilterParams = $request->has('period') || $request->has('from_date') || $request->has('to_date');
@@ -195,6 +200,7 @@ class FoodController extends Controller
 
         return view('pages.food', [
             'title' => 'Food',
+            'tab' => 'tong-quan',
             'danhMucThu' => $danhMucThu,
             'danhMucChi' => $danhMucChi,
             'period' => $period,
@@ -212,6 +218,48 @@ class FoodController extends Controller
             'chartLoiNhuan' => $chartLoiNhuan,
             'fromDateInput' => $from ? $from->format('Y-m-d') : '',
             'toDateInput' => $to ? $to->format('Y-m-d') : '',
+        ]);
+    }
+
+    private function indexDoanhSo(Request $request, $user, string $period, Carbon $from, Carbon $to): View
+    {
+        $reportsDoanhSo = FoodSalesReport::query()
+            ->where('user_id', $user->id)
+            ->orderByDesc('report_date')
+            ->orderByDesc('uploaded_at')
+            ->get();
+
+        $chartDoanhSoDates = [];
+        $chartDoanhSoLoiNhuan = [];
+        $cursor = $from->copy()->startOfDay();
+        $end = $to->copy()->startOfDay();
+        while ($cursor->lte($end)) {
+            $dateStr = $cursor->format('Y-m-d');
+            $chartDoanhSoDates[] = $dateStr;
+            $dayReports = $reportsDoanhSo->filter(fn ($r) => $r->report_date && $r->report_date->format('Y-m-d') === $dateStr);
+            $tongDoanhSo = $dayReports->sum(fn ($r) => (float) ($r->doanh_so ?? 0));
+            $tongQuyetToan = $dayReports->sum(fn ($r) => (float) $r->quyet_toan);
+            $chartDoanhSoLoiNhuan[] = (int) round($tongDoanhSo - $tongQuyetToan);
+            $cursor->addDay();
+        }
+
+        $danhMucThu = UserCategory::where('user_id', $user->id)->where('type', 'income')->orderBy('name')->get();
+        $danhMucChi = UserCategory::where('user_id', $user->id)->where('type', 'expense')->orderBy('name')->get();
+
+        return view('pages.food', [
+            'title' => 'Food',
+            'tab' => 'doanh-so',
+            'danhMucThu' => $danhMucThu,
+            'danhMucChi' => $danhMucChi,
+            'period' => $period,
+            'periodLabel' => $this->getPeriodLabel($period),
+            'from' => $from,
+            'to' => $to,
+            'fromDateInput' => $from->format('Y-m-d'),
+            'toDateInput' => $to->format('Y-m-d'),
+            'reportsDoanhSo' => $reportsDoanhSo,
+            'chartDoanhSoDates' => $chartDoanhSoDates,
+            'chartDoanhSoLoiNhuan' => $chartDoanhSoLoiNhuan,
         ]);
     }
 

@@ -8,6 +8,7 @@
     $displayTienCong = $display_total_tien_cong ?? (float) $report->total_tien_cong;
     $displayBonus = (float) ($report->bonus ?? 0);
     $quyetToan = $displayTotalCost + $displayTienCong + $displayBonus;
+    $baseTienCong = $displayTienCong + $displayBonus;
 @endphp
 <div class="space-y-6">
     {{-- Header báo cáo --}}
@@ -32,9 +33,19 @@
         </div>
         <div class="flex items-center gap-2">
             @if($canManage ?? true)
-                <form action="{{ route('food.bao-cao-ban-hang.cong-no.store', $report) }}" method="POST" class="inline" x-data="{ open: false }">
+                @php
+                    $baseFull = $displayTotalCost + $displayTienCong + $displayBonus;
+                    $baseTienCong = $displayTienCong + $displayBonus;
+                @endphp
+                <form action="{{ route('food.bao-cao-ban-hang.cong-no.store', $report) }}" method="POST" class="inline" x-data="{
+                    open: false,
+                    onlyTienCong: false,
+                    deductionAmount: 0,
+                    get baseAmount() { return this.onlyTienCong ? {{ $baseTienCong }} : {{ $baseFull }}; },
+                    get remaining() { return Math.max(0, this.baseAmount - (parseFloat(this.deductionAmount) || 0)); }
+                }">
                     @csrf
-                    <button type="button" @click="open = true" class="rounded-lg border border-amber-300 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20">Xử lý công nợ</button>
+                    <button type="button" @click="open = true; deductionAmount = 0; onlyTienCong = false" class="rounded-lg border border-amber-300 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20">Xử lý công nợ</button>
                     <template x-teleport="body">
                         <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @keydown.escape.window="open = false">
                             <div x-show="open" x-transition class="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800" @click.stop>
@@ -52,9 +63,18 @@
                                     </div>
                                     <div class="mb-4">
                                         <label class="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                                            <input type="checkbox" name="only_tien_cong" value="1" class="rounded border-gray-300">
+                                            <input type="checkbox" name="only_tien_cong" value="1" class="rounded border-gray-300" x-model="onlyTienCong">
                                             Chỉ trả tiền công
                                         </label>
+                                    </div>
+                                    <div class="mb-4">
+                                        <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Trừ tiền công nợ (đ)</label>
+                                        <input type="number" name="deduction_amount" min="0" step="1000" placeholder="0" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" x-model.number="deductionAmount">
+                                        <p class="mt-2 rounded bg-gray-100 px-2 py-1.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400">
+                                            <span>Tổng quyết toán: <strong x-text="new Intl.NumberFormat('vi-VN').format(baseAmount) + ' đ'"></strong></span>
+                                            <span x-show="deductionAmount > 0"> — Trừ: <strong x-text="new Intl.NumberFormat('vi-VN').format(parseFloat(deductionAmount) || 0) + ' đ'"></strong></span>
+                                            <span x-show="deductionAmount > 0"> → Còn công nợ: <strong class="text-amber-600 dark:text-amber-400" x-text="new Intl.NumberFormat('vi-VN').format(remaining) + ' đ'"></strong></span>
+                                        </p>
                                     </div>
                                     <div class="flex gap-2">
                                         <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Tạo công nợ cho user đó</button>
@@ -78,19 +98,31 @@
     @if(($report->debts ?? collect())->isNotEmpty())
         <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
             <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-200">Công nợ</h3>
-            <ul class="space-y-2 text-sm">
+            <ul class="space-y-3 text-sm">
                 @foreach($report->debts as $d)
-                    <li class="flex flex-wrap items-center gap-2">
-                        <span class="text-gray-700 dark:text-gray-300">{{ $d->debtor?->name }}:</span>
-                        @if($d->payment)
-                            <span class="text-green-600 dark:text-green-400">Đã thanh toán</span>
-                        @else
-                            <span class="text-amber-600 dark:text-amber-400">Chưa thanh toán</span>
-                            <form action="{{ route('food.cong-no.thanh-toan-tien-mat', $d) }}" method="POST" class="inline" onsubmit="return confirm('Ghi nhận thanh toán tiền mặt {{ $fmtNguyen($d->debt_amount) }} đ?');">
-                                @csrf
-                                <button type="submit" class="text-emerald-600 hover:underline dark:text-emerald-400">Thanh toán tiền mặt</button>
-                            </form>
-                        @endif
+                    @php $detail = $d->debt_detail; @endphp
+                    <li class="rounded-lg border border-gray-100 p-3 dark:border-gray-700">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-medium text-gray-900 dark:text-white">{{ $d->debtor?->name }}:</span>
+                            @if($d->payment)
+                                <span class="text-green-600 dark:text-green-400">Đã thanh toán</span>
+                            @else
+                                <span class="text-amber-600 dark:text-amber-400">Chưa thanh toán</span>
+                                <form action="{{ route('food.cong-no.thanh-toan-tien-mat', $d) }}" method="POST" class="inline" onsubmit="return confirm('Ghi nhận thanh toán tiền mặt {{ $fmtNguyen($d->debt_amount) }} đ?');">
+                                    @csrf
+                                    <button type="submit" class="text-emerald-600 hover:underline dark:text-emerald-400">Thanh toán tiền mặt</button>
+                                </form>
+                            @endif
+                        </div>
+                        <div class="mt-1.5 text-xs text-gray-500 dark:text-gray-400">
+                            Tổng: {{ $fmtNguyen($detail['base']) }} đ
+                            @if((float)($detail['deduction'] ?? 0) > 0)
+                                — Trừ: {{ $fmtNguyen($detail['deduction']) }} đ
+                                → Còn công nợ: <strong class="text-amber-600 dark:text-amber-400">{{ $fmtNguyen($detail['debt']) }} đ</strong>
+                            @else
+                                → Còn công nợ: <strong>{{ $fmtNguyen($detail['debt']) }} đ</strong>
+                            @endif
+                        </div>
                     </li>
                 @endforeach
             </ul>

@@ -18,6 +18,7 @@ class FoodSalesReport extends Model
         'total_cost',
         'total_tien_cong',
         'bonus',
+        'doanh_so',
         'uploaded_at',
     ];
 
@@ -27,6 +28,7 @@ class FoodSalesReport extends Model
         'total_cost' => 'decimal:4',
         'total_tien_cong' => 'decimal:0',
         'bonus' => 'decimal:0',
+        'doanh_so' => 'decimal:0',
     ];
 
     public function user(): BelongsTo
@@ -48,5 +50,14 @@ class FoodSalesReport extends Model
     public function getQuyetToanAttribute(): float
     {
         return (float) $this->total_cost + (float) $this->total_tien_cong + (float) ($this->bonus ?? 0);
+    }
+
+    /** Lợi nhuận = doanh_so - quyet_toan (khi đã nhập doanh số) */
+    public function getLoiNhuanAttribute(): ?float
+    {
+        if ($this->doanh_so === null) {
+            return null;
+        }
+        return (float) $this->doanh_so - $this->quyet_toan;
     }
 }

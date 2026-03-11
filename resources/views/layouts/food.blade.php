@@ -10,11 +10,11 @@
         $isSanPham = $path === 'food/san-pham';
         $isBaoCao = str_starts_with($path, 'food/bao-cao-ban-hang');
         $isCongNo = $path === 'food/cong-no';
-        $validTabs = ['tong-quan', 'danh-sach'];
+        $validTabs = ['tong-quan', 'doanh-so'];
         $currentTab = $isCongNo ? 'cong-no' : ($isBaoCao ? 'bao-cao-ban-hang' : ($isSanPham ? 'san-pham' : (in_array(request('tab'), $validTabs) ? request('tab') : 'tong-quan')));
         $navItems = [
             ['id' => 'tong-quan', 'icon' => 'dashboard', 'label' => 'Tổng quan', 'path' => route('food')],
-            ['id' => 'danh-sach', 'icon' => 'list', 'label' => 'Danh sách', 'path' => route('food', ['tab' => 'danh-sach'])],
+            ['id' => 'doanh-so', 'icon' => 'chart-bar', 'label' => 'Doanh số', 'path' => route('food', ['tab' => 'doanh-so'])],
             ['id' => 'san-pham', 'icon' => 'ecommerce', 'label' => 'Sản phẩm', 'path' => route('food.san-pham')],
             ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang')],
             ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no')],

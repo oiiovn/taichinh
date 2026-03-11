@@ -2,8 +2,8 @@
 
 @section('foodContent')
 @php
-    $validTabs = ['tong-quan', 'danh-sach'];
-    $tab = in_array(request('tab'), $validTabs) ? request('tab') : 'tong-quan';
+    $validTabs = ['tong-quan', 'doanh-so'];
+    $tab = $tab ?? (in_array(request('tab'), $validTabs) ? request('tab') : 'tong-quan');
     $fmt = fn ($n) => \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($n);
     $periods = [
         'ngay' => 'Hôm nay',
@@ -172,8 +172,136 @@
         else window.addEventListener('load', run);
     })();
     </script>
+@elseif($tab === 'doanh-so')
+    <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Doanh số</h2>
+
+    <div class="mb-4 flex flex-wrap items-center gap-3">
+        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Bộ lọc:</span>
+        @foreach($periods as $val => $label)
+            <a href="{{ route('food', ['tab' => 'doanh-so', 'period' => $val]) }}" class="rounded-lg border px-3 py-1.5 text-sm {{ $period === $val ? 'border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700' }}">{{ $label }}</a>
+        @endforeach
+        <form method="get" action="{{ route('food') }}" class="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="tab" value="doanh-so">
+            <input type="hidden" name="period" value="{{ $period }}">
+            <input type="text" id="food-doanhso-from-date" name="from_date" value="{{ $fromDateInput ?? '' }}" placeholder="Từ ngày" readonly class="relative z-10 w-[90px] min-h-[38px] cursor-pointer rounded-lg border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" autocomplete="off">
+            <input type="text" id="food-doanhso-to-date" name="to_date" value="{{ $toDateInput ?? '' }}" placeholder="Đến ngày" readonly class="relative z-10 w-[90px] min-h-[38px] cursor-pointer rounded-lg border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" autocomplete="off">
+            <button type="submit" class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">Áp dụng</button>
+        </form>
+    </div>
+
+    @if(isset($from) && isset($to))
+        <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">Kỳ: {{ $from->format('d/m/Y') }} → {{ $to->format('d/m/Y') }}</p>
+    @endif
+
+    @php
+        $chartDoanhSoDates = $chartDoanhSoDates ?? [];
+        $chartDoanhSoLoiNhuan = $chartDoanhSoLoiNhuan ?? [];
+    @endphp
+    <div class="mb-8 rounded-xl border border-gray-200 bg-white p-4 pr-8 dark:border-gray-700 dark:bg-gray-800">
+        <p class="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Lợi nhuận theo ngày</p>
+        <div id="food-doanhso-chart" class="min-h-[280px] w-full" data-dates="{{ json_encode($chartDoanhSoDates) }}" data-loinhuan="{{ json_encode($chartDoanhSoLoiNhuan) }}"></div>
+    </div>
+
+    <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+        <table class="w-full min-w-[640px] text-left text-sm">
+            <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+                <tr>
+                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Mã báo cáo</th>
+                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Ngày báo cáo</th>
+                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Quyết toán</th>
+                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Doanh số</th>
+                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Lợi nhuận</th>
+                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Thao tác</th>
+                </tr>
+            </thead>
+            <tbody>
+                @forelse($reportsDoanhSo ?? [] as $r)
+                    <tr class="border-b border-gray-200 dark:border-gray-700" x-data="{
+                        doanhSo: {{ json_encode($r->doanh_so !== null ? (int)$r->doanh_so : '') }},
+                        quyetToan: {{ (int) round($r->quyet_toan) }},
+                        get loiNhuan() { var ds = parseInt(this.doanhSo, 10); if (isNaN(ds)) return null; return ds - this.quyetToan; },
+                        saving: false,
+                        async save() {
+                            this.saving = true;
+                            try {
+                                const res = await fetch('{{ route('food.bao-cao-ban-hang.update-doanh-so', $r->id) }}', {
+                                    method: 'PUT',
+                                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '', 'Accept': 'application/json' },
+                                    body: JSON.stringify({ doanh_so: this.doanhSo === '' ? null : parseInt(this.doanhSo, 10) })
+                                });
+                                const data = await res.json();
+                                if (data.success) { this.doanhSo = data.doanh_so ?? ''; }
+                                else { alert(data.message || 'Lưu thất bại'); }
+                            } catch (e) { alert('Lỗi kết nối'); }
+                            this.saving = false;
+                        }
+                    }">
+                        <td class="px-4 py-3 text-gray-900 dark:text-white">{{ $r->report_code ?? '—' }}</td>
+                        <td class="px-4 py-3 text-gray-900 dark:text-white">{{ $r->report_date ? $r->report_date->format('d/m/Y') : '—' }}</td>
+                        <td class="px-4 py-3 text-gray-900 dark:text-white">{{ $fmt($r->quyet_toan) }} đ</td>
+                        <td class="px-4 py-3">
+                            <input type="text" x-model="doanhSo" inputmode="numeric" placeholder="Nhập doanh số" class="w-full min-w-[100px] rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                        </td>
+                        <td class="px-4 py-3" x-text="loiNhuan !== null ? new Intl.NumberFormat('vi-VN').format(loiNhuan) + ' đ' : '—'"></td>
+                        <td class="px-4 py-3">
+                            <button type="button" @click="save()" :disabled="saving" class="rounded-lg bg-brand-600 px-3 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50">Lưu</button>
+                        </td>
+                    </tr>
+                @empty
+                    <tr><td colspan="6" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có báo cáo nào.</td></tr>
+                @endforelse
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+    (function renderDoanhSoChart() {
+        var el = document.getElementById('food-doanhso-chart');
+        if (!el) return;
+        if (el._chartRendered) return;
+        if (typeof window.ApexCharts === 'undefined') {
+            var s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.min.js';
+            s.onload = function() { el._chartRendered = false; renderDoanhSoChart(); };
+            document.head.appendChild(s);
+            return;
+        }
+        el._chartRendered = true;
+        var dates = JSON.parse(el.getAttribute('data-dates') || '[]');
+        var loiNhuan = JSON.parse(el.getAttribute('data-loinhuan') || '[]');
+        new window.ApexCharts(el, {
+            series: [{ name: 'Lợi nhuận', data: loiNhuan }],
+            chart: { type: 'line', height: 280, width: '100%', toolbar: { show: false }, zoom: { enabled: false } },
+            grid: { padding: { left: 24, right: 56, top: 16, bottom: 16 } },
+            stroke: { curve: 'smooth', width: 2 },
+            colors: ['#3b82f6'],
+            xaxis: { categories: dates, tickAmount: dates.length > 20 ? 12 : undefined, labels: { maxHeight: 40, rotate: -45 } },
+            yaxis: { labels: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' đ'; } } },
+            legend: { position: 'bottom', horizontalAlign: 'center' },
+            tooltip: { y: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' đ'; } } },
+            dataLabels: { enabled: false }
+        }).render();
+    })();
+    if (document.readyState === 'complete') setTimeout(renderDoanhSoChart, 0);
+    else window.addEventListener('load', function() { setTimeout(renderDoanhSoChart, 0); });
+
+    (function initDoanhSoDatePickers() {
+        function run() {
+            if (typeof window.flatpickr === 'undefined') return;
+            var fromEl = document.getElementById('food-doanhso-from-date');
+            var toEl = document.getElementById('food-doanhso-to-date');
+            if (!fromEl || !toEl) return;
+            var opts = { dateFormat: 'Y-m-d', allowInput: false, appendTo: document.body, static: false };
+            if (window.flatpickr.l10ns && window.flatpickr.l10ns.vn) opts.locale = 'vn';
+            window.flatpickr(fromEl, opts);
+            window.flatpickr(toEl, opts);
+        }
+        if (document.readyState === 'complete') run();
+        else window.addEventListener('load', run);
+    })();
+    </script>
 @else
-    <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Danh sách</h2>
-    <p class="text-sm text-gray-500 dark:text-gray-400">Nội dung Danh sách. Bạn có thể xây dựng tại đây.</p>
+    <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Tổng quan</h2>
+    <p class="text-sm text-gray-500 dark:text-gray-400">Chọn tab ở menu bên trái.</p>
 @endif
 @endsection

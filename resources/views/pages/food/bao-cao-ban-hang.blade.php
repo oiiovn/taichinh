@@ -1,7 +1,25 @@
 @extends('layouts.food')
 
 @section('foodContent')
-<div class="space-y-6" x-data="{ congNoOpen: false, congNoReportId: null }">
+@php
+    $reportsCollection = $reports instanceof \Illuminate\Pagination\AbstractPaginator ? $reports->getCollection() : collect($reports);
+    $reportsBase = $reportsCollection->keyBy('id')->map(fn($r) => [
+        'base_full' => (float) $r->total_cost + (float) $r->total_tien_cong + (float) ($r->bonus ?? 0),
+        'base_tien_cong' => (float) $r->total_tien_cong + (float) ($r->bonus ?? 0),
+    ])->toArray();
+@endphp
+<div class="space-y-6" x-data="{
+    congNoOpen: false,
+    congNoReportId: null,
+    reportsBase: @js($reportsBase),
+    onlyTienCong: false,
+    deductionAmount: 0,
+    get baseAmount() {
+        if (!this.congNoReportId || !this.reportsBase[this.congNoReportId]) return 0;
+        return this.onlyTienCong ? this.reportsBase[this.congNoReportId].base_tien_cong : this.reportsBase[this.congNoReportId].base_full;
+    },
+    get remaining() { return Math.max(0, this.baseAmount - (parseFloat(this.deductionAmount) || 0)); }
+}">
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Báo cáo bán hàng</h2>
 
     @if(session('success'))
@@ -59,16 +77,23 @@
                                 <span class="text-gray-400">—</span>
                             @else
                                 @foreach($r->debts as $d)
+                                    @php $det = $d->debt_detail; @endphp
                                     <span class="{{ $d->payment ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400' }}">
                                         {{ $d->debtor?->name }}: {{ $d->payment ? 'Đã thanh toán' : 'Chưa thanh toán' }}
-                                    </span>@if(!$loop->last)<br>@endif
+                                    </span>
+                                    @if((float)($det['deduction'] ?? 0) > 0)
+                                        <span class="block text-xs text-gray-500 dark:text-gray-400">Tổng {{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['base']) }} − Trừ {{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['deduction']) }} = {{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['debt']) }} đ</span>
+                                    @else
+                                        <span class="block text-xs text-gray-500 dark:text-gray-400">{{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['debt']) }} đ</span>
+                                    @endif
+                                    @if(!$loop->last)<br>@endif
                                 @endforeach
                             @endif
                         </td>
                         <td class="px-4 py-2">
                             <a href="{{ route('food.bao-cao-ban-hang.show', $r) }}" class="text-brand-600 hover:underline dark:text-brand-400">Chi tiết</a>
                             <span class="mx-1 text-gray-300 dark:text-gray-600">|</span>
-                            <button type="button" @click="congNoReportId = {{ $r->id }}; congNoOpen = true" class="text-amber-600 hover:underline dark:text-amber-400">Xử lý công nợ</button>
+                            <button type="button" @click="congNoReportId = {{ $r->id }}; congNoOpen = true; deductionAmount = 0; onlyTienCong = false" class="text-amber-600 hover:underline dark:text-amber-400">Xử lý công nợ</button>
                             <span class="mx-1 text-gray-300 dark:text-gray-600">|</span>
                             <form action="{{ route('food.bao-cao-ban-hang.destroy', $r) }}" method="POST" class="inline" onsubmit="return confirm('Xóa báo cáo {{ $r->report_code }}?');">
                                 @csrf
@@ -103,9 +128,18 @@
                 </div>
                 <div class="mb-4">
                     <label class="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <input type="checkbox" name="only_tien_cong" value="1" class="rounded border-gray-300">
+                        <input type="checkbox" name="only_tien_cong" value="1" class="rounded border-gray-300" x-model="onlyTienCong">
                         Chỉ trả tiền công
                     </label>
+                </div>
+                <div class="mb-4" x-show="congNoReportId && reportsBase[congNoReportId]">
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Trừ tiền công nợ (đ)</label>
+                    <input type="number" name="deduction_amount" min="0" step="1000" placeholder="0" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" x-model.number="deductionAmount">
+                    <p class="mt-2 rounded bg-gray-100 px-2 py-1.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400" x-show="baseAmount > 0">
+                        <span>Tổng quyết toán: <strong x-text="new Intl.NumberFormat('vi-VN').format(baseAmount) + ' đ'"></strong></span>
+                        <span x-show="deductionAmount > 0"> — Trừ: <strong x-text="new Intl.NumberFormat('vi-VN').format(parseFloat(deductionAmount) || 0) + ' đ'"></strong></span>
+                        <span x-show="deductionAmount > 0"> → Còn công nợ: <strong class="text-amber-600 dark:text-amber-400" x-text="new Intl.NumberFormat('vi-VN').format(remaining) + ' đ'"></strong></span>
+                    </p>
                 </div>
                 <div class="flex gap-2">
                     <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Tạo công nợ cho user đó</button>
