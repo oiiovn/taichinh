@@ -7,19 +7,57 @@
 @section('content')
     @php
         $path = request()->path();
-        $isSanPham = $path === 'food/san-pham';
+        $isSanPham = ($path === 'food/san-pham');
         $isBaoCao = str_starts_with($path, 'food/bao-cao-ban-hang');
-        $isCongNo = $path === 'food/cong-no';
-        $validTabs = ['tong-quan', 'doanh-so'];
-        $currentTab = $isCongNo ? 'cong-no' : ($isBaoCao ? 'bao-cao-ban-hang' : ($isSanPham ? 'san-pham' : (in_array(request('tab'), $validTabs) ? request('tab') : 'tong-quan')));
+        $isCongNo = ($path === 'food/cong-no');
+        $isNhanVien = str_starts_with($path, 'food/nhan-vien');
+        $isChamCong = str_starts_with($path, 'food/cham-cong');
+        $isXinNghi = str_starts_with($path, 'food/xin-nghi');
+        $isUngLuong = str_starts_with($path, 'food/ung-luong');
+        $isLuong = str_starts_with($path, 'food/luong') && $path !== 'food/luong-cua-toi';
+        $isLuongCuaToi = ($path === 'food/luong-cua-toi');
+        $validTabs = ['tong-quan', 'danh-sach'];
+        if ($isLuongCuaToi) {
+            $currentTab = 'luong-cua-toi';
+        } elseif ($isLuong) {
+            $currentTab = 'luong';
+        } elseif ($isUngLuong) {
+            $currentTab = 'ung-luong';
+        } elseif ($isXinNghi) {
+            $currentTab = 'xin-nghi';
+        } elseif ($isChamCong) {
+            $currentTab = 'cham-cong';
+        } elseif ($isNhanVien) {
+            $currentTab = 'nhan-vien';
+        } elseif ($isCongNo) {
+            $currentTab = 'cong-no';
+        } elseif ($isBaoCao) {
+            $currentTab = 'bao-cao-ban-hang';
+        } elseif ($isSanPham) {
+            $currentTab = 'san-pham';
+        } elseif (in_array(request('tab'), $validTabs)) {
+            $currentTab = request('tab');
+        } else {
+            $currentTab = 'tong-quan';
+        }
+        $user = auth()->user();
+        $canManage = $user?->canManageFoodEmployees();
+        $isEmployee = $user && $user->employee;
         $navItems = [
-            ['id' => 'tong-quan', 'icon' => 'dashboard', 'label' => 'Tổng quan', 'path' => route('food')],
-            ['id' => 'doanh-so', 'icon' => 'chart-bar', 'label' => 'Doanh số', 'path' => route('food', ['tab' => 'doanh-so'])],
-            ['id' => 'san-pham', 'icon' => 'ecommerce', 'label' => 'Sản phẩm', 'path' => route('food.san-pham')],
-            ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang')],
-            ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no')],
+            ['id' => 'tong-quan', 'icon' => 'dashboard', 'label' => 'Tổng quan', 'path' => route('food'), 'show' => $canManage],
+            ['id' => 'danh-sach', 'icon' => 'list', 'label' => 'Danh sách', 'path' => route('food', ['tab' => 'danh-sach']), 'show' => $canManage],
+            ['id' => 'san-pham', 'icon' => 'ecommerce', 'label' => 'Sản phẩm', 'path' => route('food.san-pham'), 'show' => $canManage],
+            ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManage],
+            ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no'), 'show' => !$isEmployee],
+            ['id' => 'nhan-vien', 'icon' => 'users', 'label' => 'Nhân viên', 'path' => route('food.nhan-vien'), 'show' => $canManage],
+            ['id' => 'cham-cong', 'icon' => 'check-circle', 'label' => 'Chấm công', 'path' => route('food.cham-cong'), 'show' => $canManage || $isEmployee],
+            ['id' => 'xin-nghi', 'icon' => 'calendar', 'label' => 'Xin nghỉ', 'path' => route('food.xin-nghi'), 'show' => $canManage || $isEmployee],
+            ['id' => 'ung-luong', 'icon' => 'card', 'label' => 'Ứng lương', 'path' => route('food.ung-luong'), 'show' => $canManage || $isEmployee],
+            ['id' => 'luong', 'icon' => 'chart-bar', 'label' => 'Bảng lương', 'path' => route('food.luong'), 'show' => $canManage],
+            ['id' => 'luong-cua-toi', 'icon' => 'chart-bar', 'label' => 'Lương của tôi', 'path' => route('food.luong-cua-toi'), 'show' => $isEmployee],
         ];
-        if (! auth()->user()?->is_admin) {
+        $navItems = array_values(array_filter($navItems, fn ($item) => $item['show'] ?? true));
+        if (!$canManage && !$isEmployee) {
             $navItems = array_values(array_filter($navItems, fn ($item) => $item['id'] === 'cong-no'));
         }
     @endphp

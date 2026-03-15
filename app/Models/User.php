@@ -25,6 +25,7 @@ class User extends Authenticatable
         'email',
         'password',
         'is_admin',
+        'can_manage_food_employees',
         'allowed_features',
         'behavior_events_consent',
         'low_balance_threshold',
@@ -83,6 +84,7 @@ class User extends Authenticatable
             'plan_expires_at' => 'datetime',
             'password' => 'hashed',
             'is_admin' => 'boolean',
+            'can_manage_food_employees' => 'boolean',
             'allowed_features' => 'array',
             'behavior_events_consent' => 'boolean',
             'low_balance_threshold' => 'integer',
@@ -94,6 +96,16 @@ class User extends Authenticatable
     public function isAdmin(): bool
     {
         return (bool) $this->is_admin;
+    }
+
+    public function canManageFoodEmployees(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_manage_food_employees;
+    }
+
+    public function employee(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(Employee::class);
     }
 
     /**

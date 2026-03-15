@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'feature' => \App\Http\Middleware\EnsureFeatureAllowed::class,
+            'food.employee.manager' => \App\Http\Middleware\EnsureUserCanManageFoodEmployees::class,
         ]);
         $middleware->validateCsrfTokens(except: []);
     })

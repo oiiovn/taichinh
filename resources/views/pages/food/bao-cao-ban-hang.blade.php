@@ -11,6 +11,9 @@
 <div class="space-y-6" x-data="{
     congNoOpen: false,
     congNoReportId: null,
+    noteOpen: false,
+    noteReportId: null,
+    noteText: '',
     reportsBase: @js($reportsBase),
     onlyTienCong: false,
     deductionAmount: 0,
@@ -56,6 +59,7 @@
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Quyết toán</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Ngày tải lên</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Trạng thái thanh toán</th>
+                    <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Ghi chú</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Thao tác</th>
                 </tr>
             </thead>
@@ -90,6 +94,14 @@
                                 @endforeach
                             @endif
                         </td>
+                        <td class="max-w-[160px] px-4 py-2 text-gray-600 dark:text-gray-400">
+                            @if($r->note)
+                                <span class="line-clamp-2" title="{{ e($r->note) }}">{{ Str::limit($r->note, 40) }}</span>
+                            @else
+                                <span class="text-gray-400">—</span>
+                            @endif
+                            <button type="button" @click="noteReportId = {{ $r->id }}; noteText = {{ json_encode($r->note ?? '') }}; noteOpen = true" class="mt-0.5 block text-xs text-brand-600 hover:underline dark:text-brand-400">Sửa ghi chú</button>
+                        </td>
                         <td class="px-4 py-2">
                             <a href="{{ route('food.bao-cao-ban-hang.show', $r) }}" class="text-brand-600 hover:underline dark:text-brand-400">Chi tiết</a>
                             <span class="mx-1 text-gray-300 dark:text-gray-600">|</span>
@@ -104,11 +116,27 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có báo cáo. Dán mẫu và nhấn "Tải báo cáo lên".</td>
+                        <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có báo cáo. Dán mẫu và nhấn "Tải báo cáo lên".</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
+    </div>
+
+    {{-- Modal Ghi chú --}}
+    <div x-show="noteOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @keydown.escape.window="noteOpen = false">
+        <div x-show="noteOpen" x-transition class="w-full max-w-lg rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800" @click.stop>
+            <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Ghi chú báo cáo</h3>
+            <form :action="`{{ url('/food/bao-cao-ban-hang') }}/${noteReportId}`" method="POST" @submit="noteOpen = false">
+                @csrf
+                @method('PUT')
+                <textarea name="note" x-model="noteText" rows="4" class="mb-4 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" placeholder="Nhập ghi chú..."></textarea>
+                <div class="flex gap-2">
+                    <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Lưu</button>
+                    <button type="button" @click="noteOpen = false" class="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Hủy</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     {{-- Modal Xử lý công nợ --}}

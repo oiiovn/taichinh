@@ -95,6 +95,26 @@
         </div>
     </div>
 
+    {{-- Ghi chú --}}
+    <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800" x-data="{ editing: false, note: {{ json_encode($report->note ?? '') }} }">
+        <div class="flex items-center justify-between gap-2">
+            <h3 class="text-sm font-semibold text-gray-800 dark:text-gray-200">Ghi chú</h3>
+            @if($canManage ?? true)
+                <button type="button" @click="editing = !editing" class="text-sm text-brand-600 hover:underline dark:text-brand-400" x-text="editing ? 'Hủy' : 'Sửa ghi chú'"></button>
+            @endif
+        </div>
+        <div x-show="!editing" class="mt-2 text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap" x-text="note || '—'"></div>
+        @if($canManage ?? true)
+            <form x-show="editing" x-cloak method="POST" action="{{ route('food.bao-cao-ban-hang.update', $report) }}" class="mt-2">
+                @csrf
+                @method('PUT')
+                <input type="hidden" name="from" value="show">
+                <textarea name="note" x-model="note" rows="3" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" placeholder="Nhập ghi chú..."></textarea>
+                <button type="submit" class="mt-2 rounded-lg bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700">Lưu</button>
+            </form>
+        @endif
+    </div>
+
     @if(($report->debts ?? collect())->isNotEmpty())
         <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
             <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-200">Công nợ</h3>

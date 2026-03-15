@@ -29,6 +29,9 @@ class FoodController extends Controller
             abort(401);
         }
         if (! $user->is_admin) {
+            if ($user->employee) {
+                return redirect()->route('food.cham-cong');
+            }
             return redirect()->route('food.cong-no');
         }
 

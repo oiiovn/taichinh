@@ -21,6 +21,9 @@ class CongNoController extends Controller
         if (! $user) {
             abort(401);
         }
+        if ($user->employee && ! $user->canManageFoodEmployees()) {
+            return redirect()->route('food.cham-cong');
+        }
 
         $isAdmin = $user->is_admin;
         $debtors = collect();

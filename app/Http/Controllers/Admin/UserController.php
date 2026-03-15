@@ -55,11 +55,13 @@ class UserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::defaults()],
             'is_admin' => ['boolean'],
+            'can_manage_food_employees' => ['boolean'],
             'plan' => ['nullable', 'string', Rule::in(array_merge([''], array_keys($plansList)))],
             'plan_expires_at' => ['nullable', 'date'],
         ]);
         $validated['password'] = Hash::make($validated['password']);
         $validated['is_admin'] = $request->boolean('is_admin');
+        $validated['can_manage_food_employees'] = $request->boolean('can_manage_food_employees');
         $features = array_values(array_keys($request->input('features', [])));
         $validated['allowed_features'] = $features !== [] ? $features : ['tai_chinh'];
         $validated['plan'] = $request->input('plan') ?: null;
@@ -87,6 +89,7 @@ class UserController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
             'is_admin' => ['boolean'],
+            'can_manage_food_employees' => ['boolean'],
             'plan' => ['nullable', 'string', Rule::in(array_merge([''], array_keys($plansList)))],
             'plan_expires_at' => ['nullable', 'date'],
         ];
@@ -98,6 +101,7 @@ class UserController extends Controller
             $validated['password'] = Hash::make($request->password);
         }
         $validated['is_admin'] = $request->boolean('is_admin');
+        $validated['can_manage_food_employees'] = $request->boolean('can_manage_food_employees');
         $validated['allowed_features'] = array_values(array_keys($request->input('features', [])));
         $validated['plan'] = $request->input('plan') ?: null;
         $validated['plan_expires_at'] = $request->filled('plan_expires_at')

@@ -20,6 +20,7 @@ class FoodSalesReport extends Model
         'bonus',
         'doanh_so',
         'uploaded_at',
+        'note',
     ];
 
     protected $casts = [

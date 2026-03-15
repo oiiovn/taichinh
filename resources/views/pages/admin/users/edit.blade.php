@@ -70,6 +70,12 @@
                         class="h-4 w-4 rounded border-gray-300 text-success-500 focus:ring-success-500">
                     <label for="is_admin" class="text-sm text-gray-700 dark:text-gray-300">Quyền admin</label>
                 </div>
+                <div class="flex items-center gap-2">
+                    <input type="hidden" name="can_manage_food_employees" value="0">
+                    <input type="checkbox" name="can_manage_food_employees" value="1" id="can_manage_food_employees" {{ old('can_manage_food_employees', $user->can_manage_food_employees) ? 'checked' : '' }}
+                        class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                    <label for="can_manage_food_employees" class="text-sm text-gray-700 dark:text-gray-300">Quản lý nhân viên (Food)</label>
+                </div>
                 @if(!empty($featureList))
                 <div class="border-t border-gray-200 pt-4 dark:border-gray-700">
                     <p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Quyền sử dụng tính năng</p>

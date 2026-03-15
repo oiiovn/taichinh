@@ -291,6 +291,28 @@ class BaoCaoBanHangController extends Controller
         return redirect()->route('food.bao-cao-ban-hang')->with('success', 'Đã xóa báo cáo '.$report->report_code);
     }
 
+    public function update(Request $request, int $id): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+
+        $report = FoodSalesReport::query()->where('user_id', $user->id)->find($id);
+        if (! $report) {
+            return redirect()->route('food.bao-cao-ban-hang')->with('error', 'Không tìm thấy báo cáo.');
+        }
+
+        $report->note = $request->input('note');
+        $report->save();
+
+        $redirect = $request->input('from') === 'show'
+            ? route('food.bao-cao-ban-hang.show', $report)
+            : route('food.bao-cao-ban-hang');
+
+        return redirect($redirect)->with('success', 'Đã lưu ghi chú.');
+    }
+
     public function storeCongNo(Request $request, int $id): RedirectResponse
     {
         $user = $request->user();
