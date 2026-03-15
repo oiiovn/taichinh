@@ -21,8 +21,12 @@ class CongNoController extends Controller
         if (! $user) {
             abort(401);
         }
-        if ($user->employee && ! $user->canManageFoodEmployees()) {
-            return redirect()->route('food.cham-cong');
+        $hasEmployee = class_exists(\App\Models\Employee::class);
+        if ($hasEmployee && $user->employee && method_exists($user, 'canManageFoodEmployees') && ! $user->canManageFoodEmployees()) {
+            if (\Illuminate\Support\Facades\Route::has('food.cham-cong')) {
+                return redirect()->route('food.cham-cong');
+            }
+            return redirect()->route('food');
         }
 
         $isAdmin = $user->is_admin;
