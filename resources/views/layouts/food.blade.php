@@ -41,21 +41,36 @@
             $currentTab = 'tong-quan';
         }
         $user = auth()->user();
-        $canManage = $user?->canManageFoodEmployees();
-        $isEmployee = $user && $user->employee;
+        $hasFoodEmployees = class_exists(\App\Models\Employee::class);
+        $canManage = $user && method_exists($user, 'canManageFoodEmployees') ? $user->canManageFoodEmployees() : false;
+        $isEmployee = $user && $hasFoodEmployees && $user->employee;
         $navItems = [
             ['id' => 'tong-quan', 'icon' => 'dashboard', 'label' => 'Tổng quan', 'path' => route('food'), 'show' => $canManage],
             ['id' => 'danh-sach', 'icon' => 'list', 'label' => 'Danh sách', 'path' => route('food', ['tab' => 'danh-sach']), 'show' => $canManage],
             ['id' => 'san-pham', 'icon' => 'ecommerce', 'label' => 'Sản phẩm', 'path' => route('food.san-pham'), 'show' => $canManage],
             ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManage],
             ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no'), 'show' => !$isEmployee],
-            ['id' => 'nhan-vien', 'icon' => 'users', 'label' => 'Nhân viên', 'path' => route('food.nhan-vien'), 'show' => $canManage],
-            ['id' => 'cham-cong', 'icon' => 'check-circle', 'label' => 'Chấm công', 'path' => route('food.cham-cong'), 'show' => $canManage || $isEmployee],
-            ['id' => 'xin-nghi', 'icon' => 'calendar', 'label' => 'Xin nghỉ', 'path' => route('food.xin-nghi'), 'show' => $canManage || $isEmployee],
-            ['id' => 'ung-luong', 'icon' => 'card', 'label' => 'Ứng lương', 'path' => route('food.ung-luong'), 'show' => $canManage || $isEmployee],
-            ['id' => 'luong', 'icon' => 'chart-bar', 'label' => 'Bảng lương', 'path' => route('food.luong'), 'show' => $canManage],
-            ['id' => 'luong-cua-toi', 'icon' => 'chart-bar', 'label' => 'Lương của tôi', 'path' => route('food.luong-cua-toi'), 'show' => $isEmployee],
         ];
+        if ($hasFoodEmployees) {
+            if (\Illuminate\Support\Facades\Route::has('food.nhan-vien')) {
+                $navItems[] = ['id' => 'nhan-vien', 'icon' => 'users', 'label' => 'Nhân viên', 'path' => route('food.nhan-vien'), 'show' => $canManage];
+            }
+            if (\Illuminate\Support\Facades\Route::has('food.cham-cong')) {
+                $navItems[] = ['id' => 'cham-cong', 'icon' => 'check-circle', 'label' => 'Chấm công', 'path' => route('food.cham-cong'), 'show' => $canManage || $isEmployee];
+            }
+            if (\Illuminate\Support\Facades\Route::has('food.xin-nghi')) {
+                $navItems[] = ['id' => 'xin-nghi', 'icon' => 'calendar', 'label' => 'Xin nghỉ', 'path' => route('food.xin-nghi'), 'show' => $canManage || $isEmployee];
+            }
+            if (\Illuminate\Support\Facades\Route::has('food.ung-luong')) {
+                $navItems[] = ['id' => 'ung-luong', 'icon' => 'card', 'label' => 'Ứng lương', 'path' => route('food.ung-luong'), 'show' => $canManage || $isEmployee];
+            }
+            if (\Illuminate\Support\Facades\Route::has('food.luong')) {
+                $navItems[] = ['id' => 'luong', 'icon' => 'chart-bar', 'label' => 'Bảng lương', 'path' => route('food.luong'), 'show' => $canManage];
+            }
+            if (\Illuminate\Support\Facades\Route::has('food.luong-cua-toi')) {
+                $navItems[] = ['id' => 'luong-cua-toi', 'icon' => 'chart-bar', 'label' => 'Lương của tôi', 'path' => route('food.luong-cua-toi'), 'show' => $isEmployee];
+            }
+        }
         $navItems = array_values(array_filter($navItems, fn ($item) => $item['show'] ?? true));
         if (!$canManage && !$isEmployee) {
             $navItems = array_values(array_filter($navItems, fn ($item) => $item['id'] === 'cong-no'));

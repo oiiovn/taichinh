@@ -202,28 +202,35 @@ Route::middleware('auth')->group(function () {
         Route::get('/food/cong-no', [\App\Http\Controllers\Food\CongNoController::class, 'index'])->name('food.cong-no');
         Route::post('/food/cong-no/debt/{debt}/thanh-toan-tien-mat', [\App\Http\Controllers\Food\CongNoController::class, 'storeThanhToanTienMat'])->name('food.cong-no.thanh-toan-tien-mat');
 
-        Route::get('/food/cham-cong', [\App\Http\Controllers\Food\ChamCongController::class, 'index'])->name('food.cham-cong');
-        Route::post('/food/cham-cong', [\App\Http\Controllers\Food\ChamCongController::class, 'store'])->name('food.cham-cong.store');
-        Route::get('/food/luong-cua-toi', [\App\Http\Controllers\Food\PayrollController::class, 'myPayroll'])->name('food.luong-cua-toi');
-        Route::get('/food/xin-nghi', [\App\Http\Controllers\Food\LeaveRequestController::class, 'index'])->name('food.xin-nghi');
-        Route::post('/food/xin-nghi', [\App\Http\Controllers\Food\LeaveRequestController::class, 'store'])->name('food.xin-nghi.store');
-        Route::post('/food/xin-nghi/{xinNghi}/approve', [\App\Http\Controllers\Food\LeaveRequestController::class, 'approve'])->name('food.xin-nghi.approve');
-        Route::post('/food/xin-nghi/{xinNghi}/reject', [\App\Http\Controllers\Food\LeaveRequestController::class, 'reject'])->name('food.xin-nghi.reject');
-        Route::get('/food/ung-luong', [\App\Http\Controllers\Food\SalaryAdvanceController::class, 'index'])->name('food.ung-luong');
-        Route::post('/food/ung-luong', [\App\Http\Controllers\Food\SalaryAdvanceController::class, 'store'])->name('food.ung-luong.store');
-        Route::post('/food/ung-luong/{ungLuong}/approve', [\App\Http\Controllers\Food\SalaryAdvanceController::class, 'approve'])->name('food.ung-luong.approve');
-        Route::post('/food/ung-luong/{ungLuong}/reject', [\App\Http\Controllers\Food\SalaryAdvanceController::class, 'reject'])->name('food.ung-luong.reject');
-        Route::post('/food/ung-luong/{ungLuong}/paid', [\App\Http\Controllers\Food\SalaryAdvanceController::class, 'markPaid'])->name('food.ung-luong.paid');
-
-        Route::middleware(['food.employee.manager'])->group(function () {
-            Route::get('/food/nhan-vien', [\App\Http\Controllers\Food\NhanVienController::class, 'index'])->name('food.nhan-vien');
-            Route::get('/food/nhan-vien/create', [\App\Http\Controllers\Food\NhanVienController::class, 'create'])->name('food.nhan-vien.create');
-            Route::post('/food/nhan-vien', [\App\Http\Controllers\Food\NhanVienController::class, 'store'])->name('food.nhan-vien.store');
-            Route::get('/food/nhan-vien/{nhanVien}/edit', [\App\Http\Controllers\Food\NhanVienController::class, 'edit'])->name('food.nhan-vien.edit');
-            Route::put('/food/nhan-vien/{nhanVien}', [\App\Http\Controllers\Food\NhanVienController::class, 'update'])->name('food.nhan-vien.update');
-            Route::delete('/food/nhan-vien/{nhanVien}', [\App\Http\Controllers\Food\NhanVienController::class, 'destroy'])->name('food.nhan-vien.destroy');
-            Route::get('/food/luong', [\App\Http\Controllers\Food\PayrollController::class, 'index'])->name('food.luong');
-        });
+        $hasFoodEmployeeControllers = class_exists(\App\Http\Controllers\Food\ChamCongController::class)
+            && class_exists(\App\Http\Controllers\Food\PayrollController::class)
+            && class_exists(\App\Http\Controllers\Food\LeaveRequestController::class)
+            && class_exists(\App\Http\Controllers\Food\SalaryAdvanceController::class);
+        if ($hasFoodEmployeeControllers) {
+            Route::get('/food/cham-cong', [\App\Http\Controllers\Food\ChamCongController::class, 'index'])->name('food.cham-cong');
+            Route::post('/food/cham-cong', [\App\Http\Controllers\Food\ChamCongController::class, 'store'])->name('food.cham-cong.store');
+            Route::get('/food/luong-cua-toi', [\App\Http\Controllers\Food\PayrollController::class, 'myPayroll'])->name('food.luong-cua-toi');
+            Route::get('/food/xin-nghi', [\App\Http\Controllers\Food\LeaveRequestController::class, 'index'])->name('food.xin-nghi');
+            Route::post('/food/xin-nghi', [\App\Http\Controllers\Food\LeaveRequestController::class, 'store'])->name('food.xin-nghi.store');
+            Route::post('/food/xin-nghi/{xinNghi}/approve', [\App\Http\Controllers\Food\LeaveRequestController::class, 'approve'])->name('food.xin-nghi.approve');
+            Route::post('/food/xin-nghi/{xinNghi}/reject', [\App\Http\Controllers\Food\LeaveRequestController::class, 'reject'])->name('food.xin-nghi.reject');
+            Route::get('/food/ung-luong', [\App\Http\Controllers\Food\SalaryAdvanceController::class, 'index'])->name('food.ung-luong');
+            Route::post('/food/ung-luong', [\App\Http\Controllers\Food\SalaryAdvanceController::class, 'store'])->name('food.ung-luong.store');
+            Route::post('/food/ung-luong/{ungLuong}/approve', [\App\Http\Controllers\Food\SalaryAdvanceController::class, 'approve'])->name('food.ung-luong.approve');
+            Route::post('/food/ung-luong/{ungLuong}/reject', [\App\Http\Controllers\Food\SalaryAdvanceController::class, 'reject'])->name('food.ung-luong.reject');
+            Route::post('/food/ung-luong/{ungLuong}/paid', [\App\Http\Controllers\Food\SalaryAdvanceController::class, 'markPaid'])->name('food.ung-luong.paid');
+        }
+        if ($hasFoodEmployeeControllers && class_exists(\App\Http\Controllers\Food\NhanVienController::class)) {
+            Route::middleware(['food.employee.manager'])->group(function () {
+                Route::get('/food/nhan-vien', [\App\Http\Controllers\Food\NhanVienController::class, 'index'])->name('food.nhan-vien');
+                Route::get('/food/nhan-vien/create', [\App\Http\Controllers\Food\NhanVienController::class, 'create'])->name('food.nhan-vien.create');
+                Route::post('/food/nhan-vien', [\App\Http\Controllers\Food\NhanVienController::class, 'store'])->name('food.nhan-vien.store');
+                Route::get('/food/nhan-vien/{nhanVien}/edit', [\App\Http\Controllers\Food\NhanVienController::class, 'edit'])->name('food.nhan-vien.edit');
+                Route::put('/food/nhan-vien/{nhanVien}', [\App\Http\Controllers\Food\NhanVienController::class, 'update'])->name('food.nhan-vien.update');
+                Route::delete('/food/nhan-vien/{nhanVien}', [\App\Http\Controllers\Food\NhanVienController::class, 'destroy'])->name('food.nhan-vien.destroy');
+                Route::get('/food/luong', [\App\Http\Controllers\Food\PayrollController::class, 'index'])->name('food.luong');
+            });
+        }
 
         Route::middleware(['admin'])->group(function () {
             Route::get('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'index'])->name('food.bao-cao-ban-hang');
