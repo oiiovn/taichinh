@@ -9,6 +9,7 @@
         $path = request()->path();
         $isSanPham = ($path === 'food/san-pham');
         $isBaoCao = str_starts_with($path, 'food/bao-cao-ban-hang');
+        $isKhachHang = ($path === 'food/khach-hang');
         $isCongNo = ($path === 'food/cong-no');
         $isNhanVien = str_starts_with($path, 'food/nhan-vien');
         $isChamCong = str_starts_with($path, 'food/cham-cong');
@@ -35,6 +36,8 @@
             $currentTab = 'nhan-vien';
         } elseif ($isDoanhSo) {
             $currentTab = 'doanh-so';
+        } elseif ($isKhachHang) {
+            $currentTab = 'khach-hang';
         } elseif ($isCongNo) {
             $currentTab = 'cong-no';
         } elseif ($isBaoCao) {
@@ -66,6 +69,7 @@
             ['id' => 'doanh-so', 'icon' => 'chart-bar', 'label' => 'Doanh số', 'path' => route('food', ['tab' => 'doanh-so']), 'show' => $canManageDoanhSo],
             ['id' => 'san-pham', 'icon' => 'ecommerce', 'label' => 'Sản phẩm', 'path' => route('food.san-pham'), 'show' => $canManageSanPham],
             ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManageBaoCao],
+            ['id' => 'khach-hang', 'icon' => 'users', 'label' => 'Khách hàng', 'path' => route('food.khach-hang'), 'show' => $canManageBaoCao],
             ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no'), 'show' => !$isEmployee],
         ];
         if ($hasFoodEmployees) {

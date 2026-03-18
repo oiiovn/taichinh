@@ -237,6 +237,7 @@ Route::middleware('auth')->group(function () {
         }
 
         Route::middleware(['food.bao_cao'])->group(function () {
+            Route::get('/food/khach-hang', [\App\Http\Controllers\Food\KhachHangController::class, 'index'])->name('food.khach-hang');
             Route::get('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'index'])->name('food.bao-cao-ban-hang');
             Route::post('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'store'])->name('food.bao-cao-ban-hang.store');
             Route::put('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'update'])->name('food.bao-cao-ban-hang.update');
