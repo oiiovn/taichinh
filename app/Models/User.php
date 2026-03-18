@@ -30,6 +30,10 @@ class User extends Authenticatable
         'can_manage_food_xin_nghi',
         'can_manage_food_ung_luong',
         'can_manage_food_luong',
+        'can_manage_food_tong_quan',
+        'can_manage_food_doanh_so',
+        'can_manage_food_san_pham',
+        'can_manage_food_bao_cao',
         'can_use_food_employee',
         'can_use_qr_cham_cong',
         'allowed_features',
@@ -95,6 +99,10 @@ class User extends Authenticatable
             'can_manage_food_xin_nghi' => 'boolean',
             'can_manage_food_ung_luong' => 'boolean',
             'can_manage_food_luong' => 'boolean',
+            'can_manage_food_tong_quan' => 'boolean',
+            'can_manage_food_doanh_so' => 'boolean',
+            'can_manage_food_san_pham' => 'boolean',
+            'can_manage_food_bao_cao' => 'boolean',
             'can_use_food_employee' => 'boolean',
             'can_use_qr_cham_cong' => 'boolean',
             'allowed_features' => 'array',
@@ -147,10 +155,34 @@ class User extends Authenticatable
         return (bool) $this->is_admin || (bool) $this->can_use_qr_cham_cong;
     }
 
-    /** Có ít nhất một quyền quản lý Food (để hiển thị menu Tổng quan, Doanh số, Sản phẩm, Báo cáo, v.v.). */
+    public function canManageFoodTongQuan(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_manage_food_tong_quan;
+    }
+
+    public function canManageFoodDoanhSo(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_manage_food_doanh_so;
+    }
+
+    public function canManageFoodSanPham(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_manage_food_san_pham;
+    }
+
+    public function canManageFoodBaoCao(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_manage_food_bao_cao;
+    }
+
+    /** Có ít nhất một quyền quản lý Food (để vào được khu Food và thấy menu). */
     public function canManageAnyFood(): bool
     {
         return (bool) $this->is_admin
+            || (bool) $this->can_manage_food_tong_quan
+            || (bool) $this->can_manage_food_doanh_so
+            || (bool) $this->can_manage_food_san_pham
+            || (bool) $this->can_manage_food_bao_cao
             || (bool) $this->can_manage_food_employees
             || (bool) $this->can_manage_food_cham_cong
             || (bool) $this->can_manage_food_xin_nghi

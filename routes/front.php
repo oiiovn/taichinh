@@ -199,8 +199,9 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['feature:food', 'food.restrict.qr.only'])->group(function () {
         Route::get('/food', [\App\Http\Controllers\Food\FoodController::class, 'index'])->name('food');
         Route::get('/food/qr-cham-cong', [\App\Http\Controllers\Food\QrChamCongController::class, 'show'])->name('food.qr-cham-cong');
+        Route::get('/food/qr-cham-cong/refresh', [\App\Http\Controllers\Food\QrChamCongController::class, 'refresh'])->name('food.qr-cham-cong.refresh');
         Route::get('/food/qr-cham-cong/do', [\App\Http\Controllers\Food\QrChamCongController::class, 'do'])->name('food.qr-cham-cong.do');
-        Route::get('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'show'])->name('food.bao-cao-ban-hang.show');
+        Route::get('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'show'])->middleware('food.bao_cao')->name('food.bao-cao-ban-hang.show');
         Route::get('/food/cong-no', [\App\Http\Controllers\Food\CongNoController::class, 'index'])->name('food.cong-no');
         Route::post('/food/cong-no/debt/{debt}/thanh-toan-tien-mat', [\App\Http\Controllers\Food\CongNoController::class, 'storeThanhToanTienMat'])->name('food.cong-no.thanh-toan-tien-mat');
 
@@ -235,13 +236,15 @@ Route::middleware('auth')->group(function () {
             });
         }
 
-        Route::middleware(['admin'])->group(function () {
+        Route::middleware(['food.bao_cao'])->group(function () {
             Route::get('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'index'])->name('food.bao-cao-ban-hang');
             Route::post('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'store'])->name('food.bao-cao-ban-hang.store');
             Route::put('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'update'])->name('food.bao-cao-ban-hang.update');
             Route::post('/food/bao-cao-ban-hang/{id}/cong-no', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'storeCongNo'])->name('food.bao-cao-ban-hang.cong-no.store');
             Route::delete('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'destroy'])->name('food.bao-cao-ban-hang.destroy');
             Route::put('/food/bao-cao-ban-hang/{id}/doanh-so', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'updateDoanhSo'])->name('food.bao-cao-ban-hang.update-doanh-so');
+        });
+        Route::middleware(['food.san_pham'])->group(function () {
             Route::get('/food/san-pham', [\App\Http\Controllers\Food\SanPhamController::class, 'index'])->name('food.san-pham');
             Route::post('/food/san-pham/paste', [\App\Http\Controllers\Food\SanPhamController::class, 'pasteFromSheet'])->name('food.san-pham.paste');
             Route::post('/food/san-pham', [\App\Http\Controllers\Food\SanPhamController::class, 'store'])->name('food.san-pham.store');

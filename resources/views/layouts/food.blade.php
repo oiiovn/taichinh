@@ -54,13 +54,18 @@
         $canManageXinNghi = $user && method_exists($user, 'canManageFoodXinNghi') ? $user->canManageFoodXinNghi() : false;
         $canManageUngLuong = $user && method_exists($user, 'canManageFoodUngLuong') ? $user->canManageFoodUngLuong() : false;
         $canManageLuong = $user && method_exists($user, 'canManageFoodLuong') ? $user->canManageFoodLuong() : false;
+        $canManageTongQuan = $user && method_exists($user, 'canManageFoodTongQuan') ? $user->canManageFoodTongQuan() : false;
+        $canManageDoanhSo = $user && method_exists($user, 'canManageFoodDoanhSo') ? $user->canManageFoodDoanhSo() : false;
+        $canManageSanPham = $user && method_exists($user, 'canManageFoodSanPham') ? $user->canManageFoodSanPham() : false;
+        $canManageBaoCao = $user && method_exists($user, 'canManageFoodBaoCao') ? $user->canManageFoodBaoCao() : false;
         $isEmployee = $user && $hasFoodEmployees && $user->employee && method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee();
         $canUseQrChamCong = $user && method_exists($user, 'canUseQrChamCong') && $user->canUseQrChamCong();
+        $isOnlyEmployee = $isEmployee && !$canManageAnyFood;
         $navItems = [
-            ['id' => 'tong-quan', 'icon' => 'dashboard', 'label' => 'Tổng quan', 'path' => route('food'), 'show' => $canManageAnyFood],
-            ['id' => 'doanh-so', 'icon' => 'chart-bar', 'label' => 'Doanh số', 'path' => route('food', ['tab' => 'doanh-so']), 'show' => $canManageAnyFood],
-            ['id' => 'san-pham', 'icon' => 'ecommerce', 'label' => 'Sản phẩm', 'path' => route('food.san-pham'), 'show' => $canManageAnyFood],
-            ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManageAnyFood],
+            ['id' => 'tong-quan', 'icon' => 'dashboard', 'label' => 'Tổng quan', 'path' => route('food'), 'show' => $canManageTongQuan],
+            ['id' => 'doanh-so', 'icon' => 'chart-bar', 'label' => 'Doanh số', 'path' => route('food', ['tab' => 'doanh-so']), 'show' => $canManageDoanhSo],
+            ['id' => 'san-pham', 'icon' => 'ecommerce', 'label' => 'Sản phẩm', 'path' => route('food.san-pham'), 'show' => $canManageSanPham],
+            ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManageBaoCao],
             ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no'), 'show' => !$isEmployee],
         ];
         if ($hasFoodEmployees) {
@@ -68,19 +73,19 @@
                 $navItems[] = ['id' => 'nhan-vien', 'icon' => 'users', 'label' => 'Nhân viên', 'path' => route('food.nhan-vien'), 'show' => $canManageNhanVien];
             }
             if (\Illuminate\Support\Facades\Route::has('food.cham-cong')) {
-                $navItems[] = ['id' => 'cham-cong', 'icon' => 'check-circle', 'label' => 'Chấm công', 'path' => route('food.cham-cong'), 'show' => $canManageChamCong || $isEmployee];
+                $navItems[] = ['id' => 'cham-cong', 'icon' => 'check-circle', 'label' => 'Chấm công', 'path' => route('food.cham-cong'), 'show' => $canManageChamCong || $isOnlyEmployee];
             }
             if (\Illuminate\Support\Facades\Route::has('food.xin-nghi')) {
-                $navItems[] = ['id' => 'xin-nghi', 'icon' => 'calendar', 'label' => 'Xin nghỉ', 'path' => route('food.xin-nghi'), 'show' => $canManageXinNghi || $isEmployee];
+                $navItems[] = ['id' => 'xin-nghi', 'icon' => 'calendar', 'label' => 'Xin nghỉ', 'path' => route('food.xin-nghi'), 'show' => $canManageXinNghi || $isOnlyEmployee];
             }
             if (\Illuminate\Support\Facades\Route::has('food.ung-luong')) {
-                $navItems[] = ['id' => 'ung-luong', 'icon' => 'card', 'label' => 'Ứng lương', 'path' => route('food.ung-luong'), 'show' => $canManageUngLuong || $isEmployee];
+                $navItems[] = ['id' => 'ung-luong', 'icon' => 'card', 'label' => 'Ứng lương', 'path' => route('food.ung-luong'), 'show' => $canManageUngLuong || $isOnlyEmployee];
             }
             if (\Illuminate\Support\Facades\Route::has('food.luong')) {
                 $navItems[] = ['id' => 'luong', 'icon' => 'chart-bar', 'label' => 'Bảng lương', 'path' => route('food.luong'), 'show' => $canManageLuong];
             }
             if (\Illuminate\Support\Facades\Route::has('food.luong-cua-toi')) {
-                $navItems[] = ['id' => 'luong-cua-toi', 'icon' => 'chart-bar', 'label' => 'Lương của tôi', 'path' => route('food.luong-cua-toi'), 'show' => $isEmployee];
+                $navItems[] = ['id' => 'luong-cua-toi', 'icon' => 'chart-bar', 'label' => 'Lương của tôi', 'path' => route('food.luong-cua-toi'), 'show' => $isOnlyEmployee];
             }
         }
         if ($canUseQrChamCong && \Illuminate\Support\Facades\Route::has('food.qr-cham-cong')) {

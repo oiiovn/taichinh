@@ -25,7 +25,7 @@ class RestrictQrChamCongOnlyUser
         }
 
         $path = $request->path();
-        $allowed = in_array($path, ['food', 'food/qr-cham-cong', 'food/qr-cham-cong/do'], true);
+        $allowed = in_array($path, ['food', 'food/qr-cham-cong', 'food/qr-cham-cong/do', 'food/qr-cham-cong/refresh'], true);
 
         if ($allowed) {
             return $next($request);

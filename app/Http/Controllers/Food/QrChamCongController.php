@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Food;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceLog;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -48,6 +49,27 @@ class QrChamCongController extends Controller
             'title' => 'QR chấm công',
             'scanUrl' => $scanUrl,
             'secondsUntilExpiry' => $secondsUntilExpiry,
+        ]);
+    }
+
+    /** Trả JSON để cập nhật QR không cần reload trang. */
+    public function refresh(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->canUseQrChamCong()) {
+            return response()->json(['ok' => false], 403);
+        }
+
+        $minuteKey = now()->format('Y-m-d-H-i');
+        $token = self::tokenForMinute($minuteKey);
+        $scanUrl = route('food.qr-cham-cong.do', ['t' => $token]);
+        $secondsUntilExpiry = (int) now()->diffInSeconds(now()->endOfMinute(), false);
+        $secondsUntilExpiry = max(1, min(60, $secondsUntilExpiry));
+
+        return response()->json([
+            'ok' => true,
+            'scan_url' => $scanUrl,
+            'seconds_until_expiry' => $secondsUntilExpiry,
         ]);
     }
 

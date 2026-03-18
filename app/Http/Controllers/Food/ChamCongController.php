@@ -67,6 +67,7 @@ class ChamCongController extends Controller
             'from' => $from,
             'to' => $to,
             'isManager' => $isManager,
+            'currentUserIsEmployee' => (bool) $user->employee,
             'employeesForSelect' => $employeesForSelect,
             'hasCheckedInToday' => $todayLog && $todayLog->check_in_at !== null,
             'hasCheckedOutToday' => $todayLog && $todayLog->check_out_at !== null,

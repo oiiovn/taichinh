@@ -38,6 +38,16 @@ class FoodController extends Controller
             return redirect()->route('food.cong-no');
         }
 
+        if (! $user->is_admin) {
+            $tab = $request->input('tab');
+            if ($tab === 'doanh-so' && ! $user->canManageFoodDoanhSo()) {
+                return $this->redirectToFirstAllowedFood($user);
+            }
+            if ($tab !== 'doanh-so' && ! $user->canManageFoodTongQuan()) {
+                return $this->redirectToFirstAllowedFood($user);
+            }
+        }
+
         $contextSvc = app(UserFinancialContextService::class);
         $contextSvc->ensureCategoriesAndGetContext($user);
         $danhMucThu = UserCategory::where('user_id', $user->id)->where('type', 'income')->orderBy('name')->get();
@@ -341,5 +351,38 @@ class FoodController extends Controller
             self::PERIOD_12MONTH => '12 tháng',
             default => 'Tháng',
         };
+    }
+
+    private function redirectToFirstAllowedFood($user): \Illuminate\Http\RedirectResponse
+    {
+        if ($user->canManageFoodTongQuan()) {
+            return redirect()->route('food');
+        }
+        if ($user->canManageFoodDoanhSo()) {
+            return redirect()->route('food', ['tab' => 'doanh-so']);
+        }
+        if ($user->canManageFoodSanPham()) {
+            return redirect()->route('food.san-pham');
+        }
+        if ($user->canManageFoodBaoCao()) {
+            return redirect()->route('food.bao-cao-ban-hang');
+        }
+        if ($user->canManageFoodEmployees()) {
+            return redirect()->route('food.nhan-vien');
+        }
+        if ($user->canManageFoodChamCong()) {
+            return redirect()->route('food.cham-cong');
+        }
+        if ($user->canManageFoodXinNghi()) {
+            return redirect()->route('food.xin-nghi');
+        }
+        if ($user->canManageFoodUngLuong()) {
+            return redirect()->route('food.ung-luong');
+        }
+        if ($user->canManageFoodLuong()) {
+            return redirect()->route('food.luong');
+        }
+
+        return redirect()->route('food.cong-no');
     }
 }

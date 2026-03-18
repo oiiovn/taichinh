@@ -69,8 +69,29 @@
                 </div>
                 <div class="border-t border-gray-200 pt-4 dark:border-gray-700">
                     <p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Quyền Food (quản lý)</p>
+                    <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">Chỉ hiển thị các mục được tích chọn.</p>
                     <div class="space-y-2">
                         <label class="flex items-center gap-2">
+                            <input type="hidden" name="can_manage_food_tong_quan" value="0">
+                            <input type="checkbox" name="can_manage_food_tong_quan" value="1" {{ old('can_manage_food_tong_quan') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Tổng quan</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="can_manage_food_doanh_so" value="0">
+                            <input type="checkbox" name="can_manage_food_doanh_so" value="1" {{ old('can_manage_food_doanh_so') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Doanh số</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="can_manage_food_san_pham" value="0">
+                            <input type="checkbox" name="can_manage_food_san_pham" value="1" {{ old('can_manage_food_san_pham') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Sản phẩm</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="can_manage_food_bao_cao" value="0">
+                            <input type="checkbox" name="can_manage_food_bao_cao" value="1" {{ old('can_manage_food_bao_cao') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Báo cáo bán hàng</span>
+                        </label>
+                        <label class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                             <input type="hidden" name="can_manage_food_employees" value="0">
                             <input type="checkbox" name="can_manage_food_employees" value="1" {{ old('can_manage_food_employees') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
                             <span class="text-sm text-gray-700 dark:text-gray-300">Quản lý nhân viên</span>
