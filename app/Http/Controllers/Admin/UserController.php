@@ -9,6 +9,7 @@ use App\Models\PlanConfig;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules\Password;
 
@@ -88,6 +89,7 @@ class UserController extends Controller
         $validated['plan_expires_at'] = $request->filled('plan_expires_at')
             ? \Carbon\Carbon::parse($request->plan_expires_at)->startOfDay()
             : null;
+        $validated = $this->filterValidatedForUserTable($validated);
         User::create($validated);
         return redirect()->route('admin.users.index')->with('success', 'Đã thêm user.');
     }
@@ -147,9 +149,27 @@ class UserController extends Controller
         $validated['plan_expires_at'] = $request->filled('plan_expires_at')
             ? \Carbon\Carbon::parse($request->plan_expires_at)->startOfDay()
             : null;
+        $validated = $this->filterValidatedForUserTable($validated);
         $user->update($validated);
         TaiChinhViewCache::forget($user->id);
         return redirect()->route('admin.users.index')->with('success', 'Đã cập nhật user.');
+    }
+
+    /** Chỉ giữ lại các key tồn tại trên bảng users để tránh lỗi khi migration chưa chạy. */
+    private function filterValidatedForUserTable(array $validated): array
+    {
+        $optionalColumns = [
+            'can_manage_food_tong_quan',
+            'can_manage_food_doanh_so',
+            'can_manage_food_san_pham',
+            'can_manage_food_bao_cao',
+        ];
+        foreach ($optionalColumns as $col) {
+            if (array_key_exists($col, $validated) && ! Schema::hasColumn('users', $col)) {
+                unset($validated[$col]);
+            }
+        }
+        return $validated;
     }
 
     public function destroy(User $user)

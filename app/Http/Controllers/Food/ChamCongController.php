@@ -28,6 +28,9 @@ class ChamCongController extends Controller
             return redirect()->route('food')->with('error', 'Bạn chưa được cấp quyền dùng phần nhân viên.');
         }
 
+        $from = $request->input('from_date') ? Carbon::parse($request->from_date)->startOfDay() : now()->startOfMonth();
+        $to = $request->input('to_date') ? Carbon::parse($request->to_date)->endOfDay() : now()->endOfDay();
+
         $employeeId = $request->input('employee_id');
         if ($isManager && $employeeId) {
             $target = Employee::find($employeeId);
@@ -35,12 +38,22 @@ class ChamCongController extends Controller
                 $employee = $target;
             }
         }
+        if (! $employee && $isManager) {
+            $first = Employee::where('active', true)->orderBy('id')->first();
+            if ($first) {
+                $employee = $first;
+                if (! $employeeId) {
+                    return redirect()->route('food.cham-cong', [
+                        'employee_id' => $first->id,
+                        'from_date' => $from->format('Y-m-d'),
+                        'to_date' => $to->format('Y-m-d'),
+                    ]);
+                }
+            }
+        }
         if (! $employee) {
             $employee = $user->employee;
         }
-
-        $from = $request->input('from_date') ? Carbon::parse($request->from_date)->startOfDay() : now()->startOfMonth();
-        $to = $request->input('to_date') ? Carbon::parse($request->to_date)->endOfDay() : now()->endOfDay();
 
         $logs = collect();
         if ($employee) {

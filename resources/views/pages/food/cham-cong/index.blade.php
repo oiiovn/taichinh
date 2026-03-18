@@ -56,12 +56,12 @@ $dailySalary = function ($log, $emp) {
         @endif
 
         @if($employee)
-        <div class="flex flex-wrap items-center gap-2">
-            <form action="{{ route('food.cham-cong') }}" method="get" class="flex gap-2">
+        <div class="flex flex-wrap items-center gap-2 pr-2 sm:pr-0">
+            <form action="{{ route('food.cham-cong') }}" method="get" class="flex flex-wrap items-center gap-2 min-w-0">
                 <input type="hidden" name="employee_id" value="{{ $employee->id }}">
-                <input type="date" name="from_date" value="{{ $from->format('Y-m-d') }}" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                <input type="date" name="to_date" value="{{ $to->format('Y-m-d') }}" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                <button type="submit" class="rounded-lg bg-brand-600 px-3 py-2 text-sm text-white hover:bg-brand-700">Xem</button>
+                <input type="date" name="from_date" value="{{ $from->format('Y-m-d') }}" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white min-w-0">
+                <input type="date" name="to_date" value="{{ $to->format('Y-m-d') }}" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white min-w-0">
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm text-white hover:bg-brand-700 shrink-0">Xem</button>
             </form>
         </div>
         {{-- Mobile: card từng hàng --}}
@@ -188,12 +188,12 @@ $dailySalary = function ($log, $emp) {
         <p class="rounded-lg border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">Chọn nhân viên bên trên để xem chấm công.</p>
         @endif
     @elseif($employee)
-        <div class="flex flex-wrap items-center gap-2">
-            <form action="{{ route('food.cham-cong') }}" method="get" class="flex gap-2">
+        <div class="flex flex-wrap items-center gap-2 pr-2 sm:pr-0">
+            <form action="{{ route('food.cham-cong') }}" method="get" class="flex flex-wrap items-center gap-2 min-w-0">
                 <input type="hidden" name="employee_id" value="{{ $employee->id }}">
-                <input type="date" name="from_date" value="{{ $from->format('Y-m-d') }}" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                <input type="date" name="to_date" value="{{ $to->format('Y-m-d') }}" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                <button type="submit" class="rounded-lg bg-brand-600 px-3 py-2 text-sm text-white hover:bg-brand-700">Xem</button>
+                <input type="date" name="from_date" value="{{ $from->format('Y-m-d') }}" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white min-w-0">
+                <input type="date" name="to_date" value="{{ $to->format('Y-m-d') }}" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white min-w-0">
+                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm text-white hover:bg-brand-700 shrink-0">Xem</button>
             </form>
         </div>
         <div class="space-y-3 md:hidden">
