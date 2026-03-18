@@ -22,7 +22,7 @@ class CongNoController extends Controller
             abort(401);
         }
         $hasEmployee = class_exists(\App\Models\Employee::class);
-        if ($hasEmployee && $user->employee && method_exists($user, 'canManageFoodEmployees') && ! $user->canManageFoodEmployees()) {
+        if ($hasEmployee && $user->employee && method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee() && method_exists($user, 'canManageAnyFood') && ! $user->canManageAnyFood()) {
             if (\Illuminate\Support\Facades\Route::has('food.cham-cong')) {
                 return redirect()->route('food.cham-cong');
             }

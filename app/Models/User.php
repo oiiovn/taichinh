@@ -26,6 +26,12 @@ class User extends Authenticatable
         'password',
         'is_admin',
         'can_manage_food_employees',
+        'can_manage_food_cham_cong',
+        'can_manage_food_xin_nghi',
+        'can_manage_food_ung_luong',
+        'can_manage_food_luong',
+        'can_use_food_employee',
+        'can_use_qr_cham_cong',
         'allowed_features',
         'behavior_events_consent',
         'low_balance_threshold',
@@ -85,6 +91,12 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_admin' => 'boolean',
             'can_manage_food_employees' => 'boolean',
+            'can_manage_food_cham_cong' => 'boolean',
+            'can_manage_food_xin_nghi' => 'boolean',
+            'can_manage_food_ung_luong' => 'boolean',
+            'can_manage_food_luong' => 'boolean',
+            'can_use_food_employee' => 'boolean',
+            'can_use_qr_cham_cong' => 'boolean',
             'allowed_features' => 'array',
             'behavior_events_consent' => 'boolean',
             'low_balance_threshold' => 'integer',
@@ -101,6 +113,49 @@ class User extends Authenticatable
     public function canManageFoodEmployees(): bool
     {
         return (bool) $this->is_admin || (bool) $this->can_manage_food_employees;
+    }
+
+    public function canManageFoodChamCong(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_manage_food_cham_cong;
+    }
+
+    public function canManageFoodXinNghi(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_manage_food_xin_nghi;
+    }
+
+    public function canManageFoodUngLuong(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_manage_food_ung_luong;
+    }
+
+    public function canManageFoodLuong(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_manage_food_luong;
+    }
+
+    /** Được dùng phần nhân viên (chấm công, xin nghỉ, ứng lương, lương của tôi). Cần có bản ghi Employee + quyền này. */
+    public function canUseFoodEmployee(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_use_food_employee;
+    }
+
+    /** Chỉ được mở trang QR chấm công (hiển thị mã QR cho nhân viên quét). */
+    public function canUseQrChamCong(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_use_qr_cham_cong;
+    }
+
+    /** Có ít nhất một quyền quản lý Food (để hiển thị menu Tổng quan, Doanh số, Sản phẩm, Báo cáo, v.v.). */
+    public function canManageAnyFood(): bool
+    {
+        return (bool) $this->is_admin
+            || (bool) $this->can_manage_food_employees
+            || (bool) $this->can_manage_food_cham_cong
+            || (bool) $this->can_manage_food_xin_nghi
+            || (bool) $this->can_manage_food_ung_luong
+            || (bool) $this->can_manage_food_luong;
     }
 
     public function employee(): \Illuminate\Database\Eloquent\Relations\HasOne

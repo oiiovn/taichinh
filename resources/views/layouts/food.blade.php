@@ -16,8 +16,12 @@
         $isUngLuong = str_starts_with($path, 'food/ung-luong');
         $isLuong = str_starts_with($path, 'food/luong') && $path !== 'food/luong-cua-toi';
         $isLuongCuaToi = ($path === 'food/luong-cua-toi');
-        $validTabs = ['tong-quan', 'danh-sach'];
-        if ($isLuongCuaToi) {
+        $isDoanhSo = ($path === 'food' && request('tab') === 'doanh-so');
+        $isQrChamCong = ($path === 'food/qr-cham-cong');
+        $validTabs = ['tong-quan', 'doanh-so'];
+        if ($isQrChamCong) {
+            $currentTab = 'qr-cham-cong';
+        } elseif ($isLuongCuaToi) {
             $currentTab = 'luong-cua-toi';
         } elseif ($isLuong) {
             $currentTab = 'luong';
@@ -29,6 +33,8 @@
             $currentTab = 'cham-cong';
         } elseif ($isNhanVien) {
             $currentTab = 'nhan-vien';
+        } elseif ($isDoanhSo) {
+            $currentTab = 'doanh-so';
         } elseif ($isCongNo) {
             $currentTab = 'cong-no';
         } elseif ($isBaoCao) {
@@ -42,56 +48,108 @@
         }
         $user = auth()->user();
         $hasFoodEmployees = class_exists(\App\Models\Employee::class);
-        $canManage = $user && method_exists($user, 'canManageFoodEmployees') ? $user->canManageFoodEmployees() : false;
-        $isEmployee = $user && $hasFoodEmployees && $user->employee;
+        $canManageAnyFood = $user && method_exists($user, 'canManageAnyFood') ? $user->canManageAnyFood() : false;
+        $canManageNhanVien = $user && method_exists($user, 'canManageFoodEmployees') ? $user->canManageFoodEmployees() : false;
+        $canManageChamCong = $user && method_exists($user, 'canManageFoodChamCong') ? $user->canManageFoodChamCong() : false;
+        $canManageXinNghi = $user && method_exists($user, 'canManageFoodXinNghi') ? $user->canManageFoodXinNghi() : false;
+        $canManageUngLuong = $user && method_exists($user, 'canManageFoodUngLuong') ? $user->canManageFoodUngLuong() : false;
+        $canManageLuong = $user && method_exists($user, 'canManageFoodLuong') ? $user->canManageFoodLuong() : false;
+        $isEmployee = $user && $hasFoodEmployees && $user->employee && method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee();
+        $canUseQrChamCong = $user && method_exists($user, 'canUseQrChamCong') && $user->canUseQrChamCong();
         $navItems = [
-            ['id' => 'tong-quan', 'icon' => 'dashboard', 'label' => 'Tổng quan', 'path' => route('food'), 'show' => $canManage],
-            ['id' => 'danh-sach', 'icon' => 'list', 'label' => 'Danh sách', 'path' => route('food', ['tab' => 'danh-sach']), 'show' => $canManage],
-            ['id' => 'san-pham', 'icon' => 'ecommerce', 'label' => 'Sản phẩm', 'path' => route('food.san-pham'), 'show' => $canManage],
-            ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManage],
+            ['id' => 'tong-quan', 'icon' => 'dashboard', 'label' => 'Tổng quan', 'path' => route('food'), 'show' => $canManageAnyFood],
+            ['id' => 'doanh-so', 'icon' => 'chart-bar', 'label' => 'Doanh số', 'path' => route('food', ['tab' => 'doanh-so']), 'show' => $canManageAnyFood],
+            ['id' => 'san-pham', 'icon' => 'ecommerce', 'label' => 'Sản phẩm', 'path' => route('food.san-pham'), 'show' => $canManageAnyFood],
+            ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManageAnyFood],
             ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no'), 'show' => !$isEmployee],
         ];
         if ($hasFoodEmployees) {
             if (\Illuminate\Support\Facades\Route::has('food.nhan-vien')) {
-                $navItems[] = ['id' => 'nhan-vien', 'icon' => 'users', 'label' => 'Nhân viên', 'path' => route('food.nhan-vien'), 'show' => $canManage];
+                $navItems[] = ['id' => 'nhan-vien', 'icon' => 'users', 'label' => 'Nhân viên', 'path' => route('food.nhan-vien'), 'show' => $canManageNhanVien];
             }
             if (\Illuminate\Support\Facades\Route::has('food.cham-cong')) {
-                $navItems[] = ['id' => 'cham-cong', 'icon' => 'check-circle', 'label' => 'Chấm công', 'path' => route('food.cham-cong'), 'show' => $canManage || $isEmployee];
+                $navItems[] = ['id' => 'cham-cong', 'icon' => 'check-circle', 'label' => 'Chấm công', 'path' => route('food.cham-cong'), 'show' => $canManageChamCong || $isEmployee];
             }
             if (\Illuminate\Support\Facades\Route::has('food.xin-nghi')) {
-                $navItems[] = ['id' => 'xin-nghi', 'icon' => 'calendar', 'label' => 'Xin nghỉ', 'path' => route('food.xin-nghi'), 'show' => $canManage || $isEmployee];
+                $navItems[] = ['id' => 'xin-nghi', 'icon' => 'calendar', 'label' => 'Xin nghỉ', 'path' => route('food.xin-nghi'), 'show' => $canManageXinNghi || $isEmployee];
             }
             if (\Illuminate\Support\Facades\Route::has('food.ung-luong')) {
-                $navItems[] = ['id' => 'ung-luong', 'icon' => 'card', 'label' => 'Ứng lương', 'path' => route('food.ung-luong'), 'show' => $canManage || $isEmployee];
+                $navItems[] = ['id' => 'ung-luong', 'icon' => 'card', 'label' => 'Ứng lương', 'path' => route('food.ung-luong'), 'show' => $canManageUngLuong || $isEmployee];
             }
             if (\Illuminate\Support\Facades\Route::has('food.luong')) {
-                $navItems[] = ['id' => 'luong', 'icon' => 'chart-bar', 'label' => 'Bảng lương', 'path' => route('food.luong'), 'show' => $canManage];
+                $navItems[] = ['id' => 'luong', 'icon' => 'chart-bar', 'label' => 'Bảng lương', 'path' => route('food.luong'), 'show' => $canManageLuong];
             }
             if (\Illuminate\Support\Facades\Route::has('food.luong-cua-toi')) {
                 $navItems[] = ['id' => 'luong-cua-toi', 'icon' => 'chart-bar', 'label' => 'Lương của tôi', 'path' => route('food.luong-cua-toi'), 'show' => $isEmployee];
             }
         }
+        if ($canUseQrChamCong && \Illuminate\Support\Facades\Route::has('food.qr-cham-cong')) {
+            $navItems[] = ['id' => 'qr-cham-cong', 'icon' => 'check-circle', 'label' => 'QR chấm công', 'path' => route('food.qr-cham-cong'), 'show' => true];
+        }
         $navItems = array_values(array_filter($navItems, fn ($item) => $item['show'] ?? true));
-        if (!$canManage && !$isEmployee) {
-            $navItems = array_values(array_filter($navItems, fn ($item) => $item['id'] === 'cong-no'));
+        if (!$canManageAnyFood && !$isEmployee) {
+            if ($canUseQrChamCong) {
+                $navItems = array_values(array_filter($navItems, fn ($item) => $item['id'] === 'qr-cham-cong'));
+            } else {
+                $navItems = array_values(array_filter($navItems, fn ($item) => $item['id'] === 'cong-no'));
+            }
         }
     @endphp
-    <div class="flex flex-col xl:flex-row gap-4 xl:gap-6">
+    <div class="flex flex-col xl:flex-row gap-4 xl:gap-6" x-data="{ menuOpen: false }">
         {{-- Cột menu con --}}
-        <nav class="xl:w-72 shrink-0 rounded-xl border border-gray-200 bg-white text-gray-900 shadow-theme-sm dark:border-gray-800 dark:bg-gray-900 dark:text-white px-4 py-5 xl:px-5 xl:py-6 min-h-[60vh]">
-            <ul class="space-y-0.5">
-                @foreach($navItems as $item)
-                    @php $isActive = $currentTab === $item['id']; @endphp
-                    <li>
-                        <a href="{{ $item['path'] }}"
-                            class="menu-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors {{ $isActive ? 'menu-item-active bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400' : 'menu-item-inactive text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5' }}">
-                            <span class="flex shrink-0 w-6 h-6 [&_svg]:w-6 [&_svg]:h-6">{!! \App\Helpers\MenuHelper::getIconSvg($item['icon']) !!}</span>
-                            <span>{{ $item['label'] }}</span>
-                        </a>
-                    </li>
-                @endforeach
-            </ul>
-        </nav>
+        <div class="xl:w-72 shrink-0 relative">
+            {{-- Mobile: nút 3 gạch, nhấn vào xổ menu --}}
+            <div class="xl:hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                <button type="button" @click="menuOpen = !menuOpen" class="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-left text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
+                    <span class="flex shrink-0 text-gray-500 dark:text-gray-400" aria-hidden="true">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                    </span>
+                    <span class="text-sm font-medium">Menu</span>
+                </button>
+            </div>
+            {{-- Mobile: menu xổ ra (Alpine x-show) --}}
+            <div class="xl:hidden absolute left-0 right-0 top-full z-50 mt-1"
+                x-show="menuOpen"
+                x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 -translate-y-2"
+                x-transition:enter-end="opacity-100 translate-y-0"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100 translate-y-0"
+                x-transition:leave-end="opacity-0 -translate-y-2"
+                @click.outside="menuOpen = false"
+                style="display: none;">
+                <nav class="rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900 px-4 py-3 text-gray-900 dark:text-white">
+                    <ul class="space-y-0.5">
+                        @foreach($navItems as $item)
+                            @php $isActive = $currentTab === $item['id']; @endphp
+                            <li>
+                                <a href="{{ $item['path'] }}"
+                                    @click="menuOpen = false"
+                                    class="menu-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors {{ $isActive ? 'menu-item-active bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400' : 'menu-item-inactive text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5' }}">
+                                    <span class="flex shrink-0 w-6 h-6 [&_svg]:w-6 [&_svg]:h-6">{!! \App\Helpers\MenuHelper::getIconSvg($item['icon']) !!}</span>
+                                    <span>{{ $item['label'] }}</span>
+                                </a>
+                            </li>
+                        @endforeach
+                    </ul>
+                </nav>
+            </div>
+            {{-- Desktop: menu luôn hiện --}}
+            <nav class="hidden xl:block rounded-xl border border-gray-200 bg-white text-gray-900 shadow-theme-sm dark:border-gray-800 dark:bg-gray-900 dark:text-white px-4 py-5 xl:px-5 xl:py-6 min-h-[60vh] xl:min-h-0">
+                <ul class="space-y-0.5">
+                    @foreach($navItems as $item)
+                        @php $isActive = $currentTab === $item['id']; @endphp
+                        <li>
+                            <a href="{{ $item['path'] }}"
+                                class="menu-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors {{ $isActive ? 'menu-item-active bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400' : 'menu-item-inactive text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5' }}">
+                                <span class="flex shrink-0 w-6 h-6 [&_svg]:w-6 [&_svg]:h-6">{!! \App\Helpers\MenuHelper::getIconSvg($item['icon']) !!}</span>
+                                <span>{{ $item['label'] }}</span>
+                            </a>
+                        </li>
+                    @endforeach
+                </ul>
+            </nav>
+        </div>
 
         {{-- Nội dung (không cột phải) --}}
         <div class="flex-1 min-w-0 flex flex-col rounded-xl border border-gray-200 bg-white text-gray-900 shadow-theme-sm dark:border-gray-800 dark:bg-gray-900 dark:text-white min-h-[60vh] overflow-hidden">

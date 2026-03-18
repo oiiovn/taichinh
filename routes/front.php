@@ -196,8 +196,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/cong-viec/programs/{id}', [\App\Http\Controllers\CongViec\BehaviorProgramController::class, 'show'])->name('cong-viec.programs.show');
     });
 
-    Route::middleware(['feature:food'])->group(function () {
+    Route::middleware(['feature:food', 'food.restrict.qr.only'])->group(function () {
         Route::get('/food', [\App\Http\Controllers\Food\FoodController::class, 'index'])->name('food');
+        Route::get('/food/qr-cham-cong', [\App\Http\Controllers\Food\QrChamCongController::class, 'show'])->name('food.qr-cham-cong');
+        Route::get('/food/qr-cham-cong/do', [\App\Http\Controllers\Food\QrChamCongController::class, 'do'])->name('food.qr-cham-cong.do');
         Route::get('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'show'])->name('food.bao-cao-ban-hang.show');
         Route::get('/food/cong-no', [\App\Http\Controllers\Food\CongNoController::class, 'index'])->name('food.cong-no');
         Route::post('/food/cong-no/debt/{debt}/thanh-toan-tien-mat', [\App\Http\Controllers\Food\CongNoController::class, 'storeThanhToanTienMat'])->name('food.cong-no.thanh-toan-tien-mat');
@@ -209,6 +211,7 @@ Route::middleware('auth')->group(function () {
         if ($hasFoodEmployeeControllers) {
             Route::get('/food/cham-cong', [\App\Http\Controllers\Food\ChamCongController::class, 'index'])->name('food.cham-cong');
             Route::post('/food/cham-cong', [\App\Http\Controllers\Food\ChamCongController::class, 'store'])->name('food.cham-cong.store');
+            Route::put('/food/cham-cong/{log}', [\App\Http\Controllers\Food\ChamCongController::class, 'update'])->name('food.cham-cong.update');
             Route::get('/food/luong-cua-toi', [\App\Http\Controllers\Food\PayrollController::class, 'myPayroll'])->name('food.luong-cua-toi');
             Route::get('/food/xin-nghi', [\App\Http\Controllers\Food\LeaveRequestController::class, 'index'])->name('food.xin-nghi');
             Route::post('/food/xin-nghi', [\App\Http\Controllers\Food\LeaveRequestController::class, 'store'])->name('food.xin-nghi.store');

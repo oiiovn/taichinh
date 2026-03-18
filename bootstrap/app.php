@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'feature' => \App\Http\Middleware\EnsureFeatureAllowed::class,
             'food.employee.manager' => \App\Http\Middleware\EnsureUserCanManageFoodEmployees::class,
+            'food.restrict.qr.only' => \App\Http\Middleware\RestrictQrChamCongOnlyUser::class,
         ]);
         $middleware->validateCsrfTokens(except: []);
     })

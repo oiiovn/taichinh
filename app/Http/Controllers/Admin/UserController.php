@@ -56,12 +56,24 @@ class UserController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
             'is_admin' => ['boolean'],
             'can_manage_food_employees' => ['boolean'],
+            'can_manage_food_cham_cong' => ['boolean'],
+            'can_manage_food_xin_nghi' => ['boolean'],
+            'can_manage_food_ung_luong' => ['boolean'],
+            'can_manage_food_luong' => ['boolean'],
+            'can_use_food_employee' => ['boolean'],
+            'can_use_qr_cham_cong' => ['boolean'],
             'plan' => ['nullable', 'string', Rule::in(array_merge([''], array_keys($plansList)))],
             'plan_expires_at' => ['nullable', 'date'],
         ]);
         $validated['password'] = Hash::make($validated['password']);
         $validated['is_admin'] = $request->boolean('is_admin');
         $validated['can_manage_food_employees'] = $request->boolean('can_manage_food_employees');
+        $validated['can_manage_food_cham_cong'] = $request->boolean('can_manage_food_cham_cong');
+        $validated['can_manage_food_xin_nghi'] = $request->boolean('can_manage_food_xin_nghi');
+        $validated['can_manage_food_ung_luong'] = $request->boolean('can_manage_food_ung_luong');
+        $validated['can_manage_food_luong'] = $request->boolean('can_manage_food_luong');
+        $validated['can_use_food_employee'] = $request->boolean('can_use_food_employee');
+        $validated['can_use_qr_cham_cong'] = $request->boolean('can_use_qr_cham_cong');
         $features = array_values(array_keys($request->input('features', [])));
         $validated['allowed_features'] = $features !== [] ? $features : ['tai_chinh'];
         $validated['plan'] = $request->input('plan') ?: null;
@@ -90,6 +102,12 @@ class UserController extends Controller
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email,' . $user->id],
             'is_admin' => ['boolean'],
             'can_manage_food_employees' => ['boolean'],
+            'can_manage_food_cham_cong' => ['boolean'],
+            'can_manage_food_xin_nghi' => ['boolean'],
+            'can_manage_food_ung_luong' => ['boolean'],
+            'can_manage_food_luong' => ['boolean'],
+            'can_use_food_employee' => ['boolean'],
+            'can_use_qr_cham_cong' => ['boolean'],
             'plan' => ['nullable', 'string', Rule::in(array_merge([''], array_keys($plansList)))],
             'plan_expires_at' => ['nullable', 'date'],
         ];
@@ -102,6 +120,12 @@ class UserController extends Controller
         }
         $validated['is_admin'] = $request->boolean('is_admin');
         $validated['can_manage_food_employees'] = $request->boolean('can_manage_food_employees');
+        $validated['can_manage_food_cham_cong'] = $request->boolean('can_manage_food_cham_cong');
+        $validated['can_manage_food_xin_nghi'] = $request->boolean('can_manage_food_xin_nghi');
+        $validated['can_manage_food_ung_luong'] = $request->boolean('can_manage_food_ung_luong');
+        $validated['can_manage_food_luong'] = $request->boolean('can_manage_food_luong');
+        $validated['can_use_food_employee'] = $request->boolean('can_use_food_employee');
+        $validated['can_use_qr_cham_cong'] = $request->boolean('can_use_qr_cham_cong');
         $validated['allowed_features'] = array_values(array_keys($request->input('features', [])));
         $validated['plan'] = $request->input('plan') ?: null;
         $validated['plan_expires_at'] = $request->filled('plan_expires_at')

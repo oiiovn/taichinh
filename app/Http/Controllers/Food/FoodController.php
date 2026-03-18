@@ -28,8 +28,11 @@ class FoodController extends Controller
         if (! $user) {
             abort(401);
         }
-        if (! $user->is_admin) {
-            if ($user->employee) {
+        if (! $user->is_admin && ! $user->canManageAnyFood()) {
+            if (method_exists($user, 'canUseQrChamCong') && $user->canUseQrChamCong()) {
+                return redirect()->route('food.qr-cham-cong');
+            }
+            if ($user->employee && $user->canUseFoodEmployee()) {
                 return redirect()->route('food.cham-cong');
             }
             return redirect()->route('food.cong-no');
@@ -91,6 +94,9 @@ class FoodController extends Controller
             [$from, $to] = $this->getDateRange($period);
         }
 
+        if ($request->input('tab') === 'danh-sach') {
+            return redirect()->route('food', $request->only(['period', 'from_date', 'to_date']));
+        }
         if ($request->input('tab') === 'doanh-so') {
             return $this->indexDoanhSo($request, $user, $period, $from, $to);
         }

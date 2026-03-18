@@ -67,11 +67,45 @@
                         class="h-4 w-4 rounded border-gray-300 text-success-500 focus:ring-success-500">
                     <label for="is_admin" class="text-sm text-gray-700 dark:text-gray-300">Quyền admin</label>
                 </div>
-                <div class="flex items-center gap-2">
-                    <input type="hidden" name="can_manage_food_employees" value="0">
-                    <input type="checkbox" name="can_manage_food_employees" value="1" id="can_manage_food_employees" {{ old('can_manage_food_employees') ? 'checked' : '' }}
-                        class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
-                    <label for="can_manage_food_employees" class="text-sm text-gray-700 dark:text-gray-300">Quản lý nhân viên (Food)</label>
+                <div class="border-t border-gray-200 pt-4 dark:border-gray-700">
+                    <p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Quyền Food (quản lý)</p>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="can_manage_food_employees" value="0">
+                            <input type="checkbox" name="can_manage_food_employees" value="1" {{ old('can_manage_food_employees') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Quản lý nhân viên</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="can_manage_food_cham_cong" value="0">
+                            <input type="checkbox" name="can_manage_food_cham_cong" value="1" {{ old('can_manage_food_cham_cong') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Quản lý chấm công</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="can_manage_food_xin_nghi" value="0">
+                            <input type="checkbox" name="can_manage_food_xin_nghi" value="1" {{ old('can_manage_food_xin_nghi') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Quản lý xin nghỉ</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="can_manage_food_ung_luong" value="0">
+                            <input type="checkbox" name="can_manage_food_ung_luong" value="1" {{ old('can_manage_food_ung_luong') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Quản lý ứng lương</span>
+                        </label>
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="can_manage_food_luong" value="0">
+                            <input type="checkbox" name="can_manage_food_luong" value="1" {{ old('can_manage_food_luong') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Quản lý bảng lương</span>
+                        </label>
+                        <label class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
+                            <input type="hidden" name="can_use_food_employee" value="0">
+                            <input type="checkbox" name="can_use_food_employee" value="1" {{ old('can_use_food_employee') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Được dùng phần nhân viên (chấm công, xin nghỉ, ứng lương, lương của tôi)</span>
+                        </label>
+                        <label class="flex items-center gap-2 mt-2">
+                            <input type="hidden" name="can_use_qr_cham_cong" value="0">
+                            <input type="checkbox" name="can_use_qr_cham_cong" value="1" {{ old('can_use_qr_cham_cong') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">QR chấm công (chỉ truy cập trang hiển thị mã QR)</span>
+                        </label>
+                    </div>
                 </div>
                 @if(!empty($featureList))
                 <div class="border-t border-gray-200 pt-4 dark:border-gray-700">
