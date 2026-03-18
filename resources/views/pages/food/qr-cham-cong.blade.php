@@ -2,22 +2,15 @@
 
 @section('foodContent')
 <div class="space-y-6" x-data="{
-    expiresAt: {{ $expiresAt }},
-    secondsLeft: 60,
-    hasCountedDown: false,
+    secondsLeft: {{ $secondsUntilExpiry ?? 60 }},
     init() {
-        const update = () => {
-            const now = Math.floor(Date.now() / 1000);
-            const left = Math.max(0, this.expiresAt - now);
-            if (left > 0) this.hasCountedDown = true;
-            this.secondsLeft = left;
-            if (left <= 0 && this.hasCountedDown) {
-                if (this.$interval) clearInterval(this.$interval);
+        this.$interval = setInterval(() => {
+            this.secondsLeft = Math.max(0, this.secondsLeft - 1);
+            if (this.secondsLeft <= 0) {
+                clearInterval(this.$interval);
                 window.location.reload();
             }
-        };
-        update();
-        this.$interval = setInterval(update, 1000);
+        }, 1000);
     },
     destroy() {
         if (this.$interval) clearInterval(this.$interval);

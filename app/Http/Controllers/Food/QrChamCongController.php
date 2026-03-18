@@ -41,12 +41,13 @@ class QrChamCongController extends Controller
         $minuteKey = now()->format('Y-m-d-H-i');
         $token = self::tokenForMinute($minuteKey);
         $scanUrl = route('food.qr-cham-cong.do', ['t' => $token]);
-        $expiresAt = now()->endOfMinute()->timestamp;
+        $secondsUntilExpiry = (int) now()->diffInSeconds(now()->endOfMinute(), false);
+        $secondsUntilExpiry = max(1, min(60, $secondsUntilExpiry));
 
         return view('pages.food.qr-cham-cong', [
             'title' => 'QR chấm công',
             'scanUrl' => $scanUrl,
-            'expiresAt' => $expiresAt,
+            'secondsUntilExpiry' => $secondsUntilExpiry,
         ]);
     }
 
