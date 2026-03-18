@@ -4,12 +4,17 @@
 <div class="space-y-6" x-data="{
     expiresAt: {{ $expiresAt }},
     secondsLeft: 60,
+    hasCountedDown: false,
     init() {
         const update = () => {
             const now = Math.floor(Date.now() / 1000);
             const left = Math.max(0, this.expiresAt - now);
+            if (left > 0) this.hasCountedDown = true;
             this.secondsLeft = left;
-            if (left <= 0) window.location.reload();
+            if (left <= 0 && this.hasCountedDown) {
+                if (this.$interval) clearInterval(this.$interval);
+                window.location.reload();
+            }
         };
         update();
         this.$interval = setInterval(update, 1000);
