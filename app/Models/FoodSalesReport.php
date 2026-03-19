@@ -12,6 +12,7 @@ class FoodSalesReport extends Model
 
     protected $fillable = [
         'user_id',
+        'food_branch_id',
         'report_code',
         'report_date',
         'total_orders',
@@ -37,6 +38,11 @@ class FoodSalesReport extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function branch(): BelongsTo
+    {
+        return $this->belongsTo(FoodBranch::class, 'food_branch_id');
+    }
+
     public function items(): HasMany
     {
         return $this->hasMany(FoodSalesReportItem::class, 'food_sales_report_id');
@@ -59,6 +65,7 @@ class FoodSalesReport extends Model
         if ($this->doanh_so === null) {
             return null;
         }
+
         return (float) $this->doanh_so - $this->quyet_toan;
     }
 }

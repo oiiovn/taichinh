@@ -21,6 +21,11 @@
             @endif
         </h2>
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">Ngày {{ $report->report_date->format('d/m/Y') }}</p>
+            @if($report->branch)
+                <p class="mt-1 text-sm text-gray-700 dark:text-gray-300">Chi nhánh: <span class="font-medium">{{ $report->branch->name }}</span>@if($report->branch->address)<span class="text-gray-500 dark:text-gray-400"> — {{ $report->branch->address }}</span>@endif</p>
+            @else
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Chi nhánh: —</p>
+            @endif
             <p class="mt-1 text-sm text-gray-700 dark:text-gray-300">{{ $report->total_orders }} đơn hàng</p>
             <div class="mt-3 space-y-1 text-sm">
                 <p class="text-gray-700 dark:text-gray-300">Tổng vốn: <span class="font-medium">{{ $fmtNguyen($displayTotalCost) }} đ</span></p>
@@ -31,7 +36,25 @@
                 <p class="text-gray-700 dark:text-gray-300">Quyết toán: <span class="font-medium">{{ $fmtNguyen($quyetToan) }} đ</span></p>
             </div>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-col items-stretch gap-3 sm:items-end">
+            @if($canManage ?? true)
+                @if(($branches ?? collect())->isNotEmpty())
+                    <form method="POST" action="{{ route('food.bao-cao-ban-hang.update', $report) }}" class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="from" value="show">
+                        <label class="text-sm text-gray-600 dark:text-gray-400">Đổi chi nhánh</label>
+                        <select name="food_branch_id" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                            <option value="">— Không chọn —</option>
+                            @foreach($branches as $br)
+                                <option value="{{ $br->id }}" @selected((int) $report->food_branch_id === (int) $br->id)>{{ $br->name }}</option>
+                            @endforeach
+                        </select>
+                        <button type="submit" class="rounded-lg bg-gray-100 px-3 py-2 text-sm font-medium text-gray-800 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600">Lưu chi nhánh</button>
+                    </form>
+                @endif
+            @endif
+        <div class="flex flex-wrap items-center gap-2">
             @if($canManage ?? true)
                 @php
                     $baseFull = $displayTotalCost + $displayTienCong + $displayBonus;
@@ -92,6 +115,7 @@
                 </form>
             @endif
             <a href="{{ ($canManage ?? true) ? route('food.bao-cao-ban-hang') : route('food.cong-no') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">Đóng</a>
+        </div>
         </div>
     </div>
 

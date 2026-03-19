@@ -1,7 +1,7 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +37,7 @@ Route::middleware('auth')->group(function () {
         if ($user) {
             $user->refresh();
         }
+
         return view('pages.goi-hien-tai', [
             'title' => 'Gói hiện tại',
             'plans' => \App\Models\PlanConfig::getList(),
@@ -76,6 +77,7 @@ Route::middleware('auth')->group(function () {
                     'currentFilter' => $filter,
                 ]);
             }
+
             return view('pages.tribeos.index', ['title' => 'TribeOS', 'feedPosts' => $feedPosts, 'tribeosGroups' => $tribeosGroups]);
         })->name('tribeos');
 
@@ -236,6 +238,10 @@ Route::middleware('auth')->group(function () {
         }
 
         Route::middleware(['food.bao_cao'])->group(function () {
+            Route::get('/food/chi-nhanh', [\App\Http\Controllers\Food\FoodChiNhanhController::class, 'index'])->name('food.chi-nhanh');
+            Route::post('/food/chi-nhanh', [\App\Http\Controllers\Food\FoodChiNhanhController::class, 'store'])->name('food.chi-nhanh.store');
+            Route::put('/food/chi-nhanh/{branch}', [\App\Http\Controllers\Food\FoodChiNhanhController::class, 'update'])->name('food.chi-nhanh.update');
+            Route::delete('/food/chi-nhanh/{branch}', [\App\Http\Controllers\Food\FoodChiNhanhController::class, 'destroy'])->name('food.chi-nhanh.destroy');
             Route::get('/food/khach-hang', [\App\Http\Controllers\Food\KhachHangController::class, 'index'])->name('food.khach-hang');
             Route::get('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'index'])->name('food.bao-cao-ban-hang');
             Route::post('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'store'])->name('food.bao-cao-ban-hang.store');

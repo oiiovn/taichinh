@@ -41,6 +41,18 @@
         <p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Dán mẫu báo cáo (copy từ sheet, dòng đầu là header)</p>
         <form action="{{ route('food.bao-cao-ban-hang.store') }}" method="POST">
             @csrf
+            <div class="mb-3">
+                <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Chi nhánh (tùy chọn)</label>
+                <select name="food_branch_id" class="w-full max-w-md rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                    <option value="">— Không chọn / chung —</option>
+                    @foreach($branches ?? [] as $br)
+                        <option value="{{ $br->id }}">{{ $br->name }}@if($br->address) — {{ Str::limit($br->address, 40) }}@endif</option>
+                    @endforeach
+                </select>
+                @if(($branches ?? collect())->isEmpty())
+                    <p class="mt-1 text-xs text-amber-700 dark:text-amber-300">Chưa có chi nhánh. <a href="{{ route('food.chi-nhanh') }}" class="font-medium underline">Tạo chi nhánh</a> để gán báo cáo.</p>
+                @endif
+            </div>
             <textarea name="data" placeholder="Dán nội dung có các cột: Nhóm hàng, Mã hàng, Tên hàng, ..., Mã hóa đơn, Thời gian, SL, ..." class="mb-2 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" rows="6"></textarea>
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
                 Tải báo cáo lên
@@ -54,6 +66,7 @@
             <thead class="border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800">
                 <tr>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Mã báo cáo</th>
+                    <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Chi nhánh</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Ngày báo cáo</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Tổng đơn</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Quyết toán</th>
@@ -72,6 +85,7 @@
                                 <span class="ml-1.5 inline-flex rounded-full bg-emerald-500 px-1.5 py-0.5 text-xs font-medium text-white dark:bg-emerald-600" title="Thưởng">+{{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($r->bonus) }} đ</span>
                             @endif
                         </td>
+                        <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $r->branch?->name ?? '—' }}</td>
                         <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $r->report_date->format('d/m/Y') }}</td>
                         <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $r->total_orders }}</td>
                         <td class="px-4 py-2 text-gray-900 dark:text-white">{{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($r->quyet_toan) }} đ</td>
@@ -116,7 +130,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có báo cáo. Dán mẫu và nhấn "Tải báo cáo lên".</td>
+                        <td colspan="9" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có báo cáo. Dán mẫu và nhấn "Tải báo cáo lên".</td>
                     </tr>
                 @endforelse
             </tbody>

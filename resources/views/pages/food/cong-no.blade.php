@@ -58,6 +58,7 @@
                     <thead class="sticky top-0 z-10 border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800">
                         <tr>
                             <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Mã báo cáo</th>
+                            <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Chi nhánh</th>
                             <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Ngày báo cáo</th>
                             <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Tổng đơn</th>
                             <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Quyết toán</th>
@@ -76,6 +77,7 @@
                                         <span class="ml-1.5 inline-flex rounded-full bg-emerald-500 px-1.5 py-0.5 text-xs font-medium text-white dark:bg-emerald-600" title="Thưởng">+{{ $fmt($r->bonus) }} đ</span>
                                     @endif
                                 </td>
+                                <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $r->branch?->name ?? '—' }}</td>
                                 <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $r->report_date->format('d/m/Y') }}</td>
                                 <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $r->total_orders }}</td>
                                 <td class="px-4 py-2 text-gray-900 dark:text-white">
@@ -105,7 +107,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="7" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Không có báo cáo nào.</td>
+                                <td colspan="8" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Không có báo cáo nào.</td>
                             </tr>
                         @endforelse
                     </tbody>

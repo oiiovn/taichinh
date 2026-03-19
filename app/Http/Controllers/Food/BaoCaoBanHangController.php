@@ -2,18 +2,19 @@
 
 namespace App\Http\Controllers\Food;
 
+use App\Helpers\VndHelper;
 use App\Http\Controllers\Controller;
+use App\Models\FoodBranch;
 use App\Models\FoodProduct;
 use App\Models\FoodReportBonusTier;
 use App\Models\FoodReportDebt;
 use App\Models\FoodSalesReport;
-use App\Models\FoodSalesReportItem;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use App\Helpers\VndHelper;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class BaoCaoBanHangController extends Controller
@@ -60,7 +61,7 @@ class BaoCaoBanHangController extends Controller
         }
 
         $reports = FoodSalesReport::query()
-            ->with(['debts.debtor', 'debts.payment'])
+            ->with(['debts.debtor', 'debts.payment', 'branch'])
             ->where('user_id', $user->id)
             ->orderByDesc('report_date')
             ->orderByDesc('uploaded_at')
@@ -68,10 +69,16 @@ class BaoCaoBanHangController extends Controller
 
         $users = \App\Models\User::query()->orderBy('name')->get()->filter(fn ($u) => $u->canUseFeature('food'))->values()->map(fn ($u) => (object) ['id' => $u->id, 'name' => $u->name, 'email' => $u->email]);
 
+        $branches = FoodBranch::query()
+            ->where('user_id', $user->id)
+            ->orderBy('name')
+            ->get();
+
         return view('pages.food.bao-cao-ban-hang', [
             'title' => 'Báo cáo bán hàng',
             'reports' => $reports,
             'users' => $users,
+            'branches' => $branches,
         ]);
     }
 
@@ -84,9 +91,14 @@ class BaoCaoBanHangController extends Controller
 
         $v = Validator::make($request->all(), [
             'data' => 'required|string',
+            'food_branch_id' => [
+                'nullable',
+                'integer',
+                Rule::exists('food_branches', 'id')->where(fn ($q) => $q->where('user_id', $user->id)),
+            ],
         ]);
         if ($v->fails()) {
-            return redirect()->route('food.bao-cao-ban-hang')->with('error', 'Thiếu dữ liệu dán.');
+            return redirect()->route('food.bao-cao-ban-hang')->with('error', 'Thiếu dữ liệu dán hoặc chi nhánh không hợp lệ.');
         }
 
         $raw = trim((string) $request->input('data'));
@@ -165,8 +177,12 @@ class BaoCaoBanHangController extends Controller
 
         $nextCode = $this->nextReportCode($user->id);
 
+        $branchId = $request->input('food_branch_id');
+        $branchId = $branchId !== null && $branchId !== '' ? (int) $branchId : null;
+
         $report = FoodSalesReport::query()->create([
             'user_id' => $user->id,
+            'food_branch_id' => $branchId,
             'report_code' => $nextCode,
             'report_date' => $reportDate,
             'total_orders' => $totalOrders,
@@ -192,7 +208,7 @@ class BaoCaoBanHangController extends Controller
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
         }
 
-        $report = FoodSalesReport::query()->with('items')->find($id);
+        $report = FoodSalesReport::query()->with(['items', 'branch', 'debts.debtor', 'debts.payment'])->find($id);
         if (! $report) {
             abort(404);
         }
@@ -263,6 +279,10 @@ class BaoCaoBanHangController extends Controller
             : collect();
         $canManage = $isAdmin || $isOwner;
 
+        $branches = $canManage
+            ? FoodBranch::query()->where('user_id', $report->user_id)->orderBy('name')->get()
+            : collect();
+
         return view('pages.food.bao-cao-ban-hang-show', [
             'title' => 'Chi tiết báo cáo '.$report->report_code,
             'report' => $report,
@@ -271,6 +291,7 @@ class BaoCaoBanHangController extends Controller
             'display_total_tien_cong' => $recalculatedTienCong,
             'users' => $users,
             'canManage' => $canManage,
+            'branches' => $branches,
         ]);
     }
 
@@ -303,14 +324,41 @@ class BaoCaoBanHangController extends Controller
             return redirect()->route('food.bao-cao-ban-hang')->with('error', 'Không tìm thấy báo cáo.');
         }
 
-        $report->note = $request->input('note');
+        if ($request->exists('note')) {
+            $report->note = $request->input('note');
+        }
+
+        if ($request->exists('food_branch_id')) {
+            $v = Validator::make($request->only('food_branch_id'), [
+                'food_branch_id' => [
+                    'nullable',
+                    'integer',
+                    Rule::exists('food_branches', 'id')->where(fn ($q) => $q->where('user_id', $user->id)),
+                ],
+            ]);
+            if ($v->fails()) {
+                return redirect()->back()->with('error', 'Chi nhánh không hợp lệ.');
+            }
+            $bid = $request->input('food_branch_id');
+            $report->food_branch_id = ($bid === null || $bid === '') ? null : (int) $bid;
+        }
+
         $report->save();
 
         $redirect = $request->input('from') === 'show'
             ? route('food.bao-cao-ban-hang.show', $report)
             : route('food.bao-cao-ban-hang');
 
-        return redirect($redirect)->with('success', 'Đã lưu ghi chú.');
+        $saved = [];
+        if ($request->exists('note')) {
+            $saved[] = 'ghi chú';
+        }
+        if ($request->exists('food_branch_id')) {
+            $saved[] = 'chi nhánh';
+        }
+        $msg = $saved !== [] ? 'Đã lưu '.implode(' và ', $saved).'.' : 'Đã lưu.';
+
+        return redirect($redirect)->with('success', $msg);
     }
 
     public function storeCongNo(Request $request, int $id): RedirectResponse

@@ -208,6 +208,7 @@
             <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
                 <tr>
                     <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Mã báo cáo</th>
+                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Chi nhánh</th>
                     <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Ngày báo cáo</th>
                     <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Quyết toán</th>
                     <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Doanh số</th>
@@ -238,6 +239,7 @@
                         }
                     }">
                         <td class="px-4 py-3 text-gray-900 dark:text-white">{{ $r->report_code ?? '—' }}</td>
+                        <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ $r->branch?->name ?? '—' }}</td>
                         <td class="px-4 py-3 text-gray-900 dark:text-white">{{ $r->report_date ? $r->report_date->format('d/m/Y') : '—' }}</td>
                         <td class="px-4 py-3 text-gray-900 dark:text-white">{{ $fmt($r->quyet_toan) }} đ</td>
                         <td class="px-4 py-3">
@@ -249,7 +251,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có báo cáo nào.</td></tr>
+                    <tr><td colspan="7" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có báo cáo nào.</td></tr>
                 @endforelse
             </tbody>
         </table>

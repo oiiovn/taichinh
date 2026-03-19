@@ -6,7 +6,6 @@ use App\Http\Controllers\Controller;
 use App\Models\FoodSalesReport;
 use App\Models\TransactionHistory;
 use App\Models\UserCategory;
-use App\Helpers\BaoCaoHelper;
 use App\Services\UserFinancialContextService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -16,10 +15,15 @@ use Illuminate\View\View;
 class FoodController extends Controller
 {
     public const PERIOD_DAY = 'ngay';
+
     public const PERIOD_WEEK = 'tuan';
+
     public const PERIOD_MONTH = 'thang';
+
     public const PERIOD_3MONTH = '3-thang';
+
     public const PERIOD_6MONTH = '6-thang';
+
     public const PERIOD_12MONTH = '12-thang';
 
     public function index(Request $request): View|\Illuminate\Http\RedirectResponse
@@ -35,6 +39,7 @@ class FoodController extends Controller
             if ($user->employee && $user->canUseFoodEmployee()) {
                 return redirect()->route('food.cham-cong');
             }
+
             return redirect()->route('food.cong-no');
         }
 
@@ -243,6 +248,7 @@ class FoodController extends Controller
     private function indexDoanhSo(Request $request, $user, string $period, Carbon $from, Carbon $to): View
     {
         $reportsDoanhSo = FoodSalesReport::query()
+            ->with('branch')
             ->where('user_id', $user->id)
             ->orderByDesc('report_date')
             ->orderByDesc('uploaded_at')

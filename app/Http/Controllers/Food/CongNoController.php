@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Food;
 use App\Http\Controllers\Controller;
 use App\Models\FoodReportDebt;
 use App\Models\FoodReportDebtPayment;
-use App\Models\FoodSalesReport;
 use App\Models\TransactionHistory;
 use App\Models\User;
 use App\Models\UserCategory;
@@ -26,6 +25,7 @@ class CongNoController extends Controller
             if (\Illuminate\Support\Facades\Route::has('food.cham-cong')) {
                 return redirect()->route('food.cham-cong');
             }
+
             return redirect()->route('food');
         }
 
@@ -61,7 +61,7 @@ class CongNoController extends Controller
 
         if ($debtorUserId) {
             $debts = FoodReportDebt::query()
-                ->with(['report', 'payment.transaction'])
+                ->with(['report.branch', 'payment.transaction'])
                 ->where('debtor_user_id', $debtorUserId);
             if ($isAdmin) {
                 $debts = $debts->whereHas('report', fn ($q) => $q->where('user_id', $user->id));
@@ -71,7 +71,7 @@ class CongNoController extends Controller
             $this->matchPayments($debts, $user);
 
             $debts = FoodReportDebt::query()
-                ->with(['report', 'payment.transaction'])
+                ->with(['report.branch', 'payment.transaction'])
                 ->whereIn('id', $debts->pluck('id'))
                 ->get()
                 ->sortByDesc(fn ($d) => $d->report?->report_date)
@@ -135,13 +135,13 @@ class CongNoController extends Controller
         $tx = null;
         if ($adminUser && $foodCategory) {
             $tx = TransactionHistory::create([
-                'external_id' => 'TIEN_MAT_' . $debt->id . '_' . now()->format('YmdHis'),
+                'external_id' => 'TIEN_MAT_'.$debt->id.'_'.now()->format('YmdHis'),
                 'user_id' => $adminUser->id,
                 'pay2s_bank_account_id' => null,
                 'account_number' => TransactionHistory::ACCOUNT_TIEN_MAT,
                 'type' => 'OUT',
                 'amount' => $amount,
-                'description' => 'Thanh toán tiền mặt - ' . ($report->report_code ?? ''),
+                'description' => 'Thanh toán tiền mặt - '.($report->report_code ?? ''),
                 'transaction_date' => now(),
                 'user_category_id' => $foodCategory->id,
                 'classification_status' => TransactionHistory::CLASSIFICATION_STATUS_USER_CONFIRMED,
@@ -152,6 +152,7 @@ class CongNoController extends Controller
             'transaction_history_id' => $tx?->id,
             'amount_paid' => $amount,
         ]);
+
         return redirect()->route('food.cong-no', ['debtor_user_id' => $debt->debtor_user_id])->with('success', 'Đã ghi nhận thanh toán tiền mặt.');
     }
 
@@ -170,6 +171,7 @@ class CongNoController extends Controller
         if ($foodCategory) {
             return $foodCategory;
         }
+
         return $q->orderBy('name')->first();
     }
 
