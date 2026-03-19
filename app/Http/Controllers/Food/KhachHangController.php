@@ -183,6 +183,8 @@ class KhachHangController extends Controller
             }
         }
 
+        unset($byCustomer[FoodCustomer::EXCLUDED_CUSTOMER_KEY]);
+
         $result = [];
         foreach ($byCustomer as $key => $c) {
             sort($c['order_dates']);

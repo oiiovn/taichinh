@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class FoodCustomer extends Model
 {
+    /** Khách lẻ không tính là khách hàng (bỏ khỏi phân tích và bảng). */
+    public const EXCLUDED_CUSTOMER_KEY = 'khách lẻ';
+
     protected $table = 'food_customers';
 
     protected $fillable = [
@@ -64,6 +67,9 @@ class FoodCustomer extends Model
                     $name = '— Không tên —';
                 }
                 $key = mb_strtolower($name);
+                if ($key === self::EXCLUDED_CUSTOMER_KEY) {
+                    continue;
+                }
                 if (! isset($byCustomer[$key])) {
                     $byCustomer[$key] = [
                         'name' => $name,
