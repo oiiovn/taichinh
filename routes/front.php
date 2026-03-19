@@ -199,7 +199,8 @@ Route::middleware('auth')->group(function () {
     Route::middleware(['feature:food', 'food.restrict.qr.only'])->group(function () {
         Route::get('/food', [\App\Http\Controllers\Food\FoodController::class, 'index'])->name('food');
         Route::get('/food/qr-cham-cong/do', [\App\Http\Controllers\Food\QrChamCongController::class, 'do'])->name('food.qr-cham-cong.do');
-        Route::get('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'show'])->middleware('food.bao_cao')->name('food.bao-cao-ban-hang.show');
+        // Không dùng food.bao_cao: người được gán công nợ (debtor) vẫn xem được; quyền kiểm tra trong controller.
+        Route::get('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'show'])->name('food.bao-cao-ban-hang.show');
         Route::get('/food/cong-no', [\App\Http\Controllers\Food\CongNoController::class, 'index'])->name('food.cong-no');
         Route::post('/food/cong-no/debt/{debt}/thanh-toan-tien-mat', [\App\Http\Controllers\Food\CongNoController::class, 'storeThanhToanTienMat'])->name('food.cong-no.thanh-toan-tien-mat');
 
