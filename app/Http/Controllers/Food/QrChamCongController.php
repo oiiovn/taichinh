@@ -32,10 +32,7 @@ class QrChamCongController extends Controller
     public function show(Request $request): View|RedirectResponse
     {
         $user = $request->user();
-        if (! $user) {
-            abort(401);
-        }
-        if (! $user->canUseQrChamCong()) {
+        if ($user && ! $user->canUseQrChamCong()) {
             abort(403, 'Bạn không có quyền hiển thị QR chấm công.');
         }
 
@@ -49,6 +46,7 @@ class QrChamCongController extends Controller
             'title' => 'QR chấm công',
             'scanUrl' => $scanUrl,
             'secondsUntilExpiry' => $secondsUntilExpiry,
+            'embedPublic' => ! $user,
         ]);
     }
 
@@ -56,7 +54,7 @@ class QrChamCongController extends Controller
     public function refresh(Request $request): JsonResponse
     {
         $user = $request->user();
-        if (! $user || ! $user->canUseQrChamCong()) {
+        if ($user && ! $user->canUseQrChamCong()) {
             return response()->json(['ok' => false], 403);
         }
 

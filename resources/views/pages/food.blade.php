@@ -196,10 +196,11 @@
     @php
         $chartDoanhSoDates = $chartDoanhSoDates ?? [];
         $chartDoanhSoLoiNhuan = $chartDoanhSoLoiNhuan ?? [];
+        $chartDoanhSoQuyetToan = $chartDoanhSoQuyetToan ?? [];
     @endphp
     <div class="mb-8 rounded-xl border border-gray-200 bg-white p-4 pr-8 dark:border-gray-700 dark:bg-gray-800">
-        <p class="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Lợi nhuận theo ngày</p>
-        <div id="food-doanhso-chart" class="min-h-[280px] w-full" data-dates="{{ json_encode($chartDoanhSoDates) }}" data-loinhuan="{{ json_encode($chartDoanhSoLoiNhuan) }}"></div>
+        <p class="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Quyết toán &amp; lợi nhuận theo ngày</p>
+        <div id="food-doanhso-chart" class="min-h-[280px] w-full" data-dates="{{ json_encode($chartDoanhSoDates) }}" data-quyettoan="{{ json_encode($chartDoanhSoQuyetToan) }}" data-loinhuan="{{ json_encode($chartDoanhSoLoiNhuan) }}"></div>
     </div>
 
     <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
@@ -268,13 +269,17 @@
         }
         el._chartRendered = true;
         var dates = JSON.parse(el.getAttribute('data-dates') || '[]');
+        var quyetToan = JSON.parse(el.getAttribute('data-quyettoan') || '[]');
         var loiNhuan = JSON.parse(el.getAttribute('data-loinhuan') || '[]');
         new window.ApexCharts(el, {
-            series: [{ name: 'Lợi nhuận', data: loiNhuan }],
+            series: [
+                { name: 'Quyết toán', data: quyetToan },
+                { name: 'Lợi nhuận', data: loiNhuan }
+            ],
             chart: { type: 'line', height: 280, width: '100%', toolbar: { show: false }, zoom: { enabled: false } },
             grid: { padding: { left: 24, right: 56, top: 16, bottom: 16 } },
             stroke: { curve: 'smooth', width: 2 },
-            colors: ['#3b82f6'],
+            colors: ['#f59e0b', '#3b82f6'],
             xaxis: { categories: dates, tickAmount: dates.length > 20 ? 12 : undefined, labels: { maxHeight: 40, rotate: -45 } },
             yaxis: { labels: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' đ'; } } },
             legend: { position: 'bottom', horizontalAlign: 'center' },

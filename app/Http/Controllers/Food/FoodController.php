@@ -250,6 +250,7 @@ class FoodController extends Controller
 
         $chartDoanhSoDates = [];
         $chartDoanhSoLoiNhuan = [];
+        $chartDoanhSoQuyetToan = [];
         $cursor = $from->copy()->startOfDay();
         $end = $to->copy()->startOfDay();
         if ($cursor->lte($end)) {
@@ -266,6 +267,7 @@ class FoodController extends Controller
                 $tongDoanhSo = $dayReports->sum(fn ($r) => (float) ($r->doanh_so ?? 0));
                 $tongQuyetToan = $dayReports->sum(fn ($r) => (float) $r->quyet_toan);
                 $chartDoanhSoLoiNhuan[] = (int) round($tongDoanhSo - $tongQuyetToan);
+                $chartDoanhSoQuyetToan[] = (int) round($tongQuyetToan);
                 $cursor->addDay();
             }
         }
@@ -287,6 +289,7 @@ class FoodController extends Controller
             'reportsDoanhSo' => $reportsDoanhSo,
             'chartDoanhSoDates' => $chartDoanhSoDates,
             'chartDoanhSoLoiNhuan' => $chartDoanhSoLoiNhuan,
+            'chartDoanhSoQuyetToan' => $chartDoanhSoQuyetToan,
         ]);
     }
 

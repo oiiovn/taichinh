@@ -198,8 +198,6 @@ Route::middleware('auth')->group(function () {
 
     Route::middleware(['feature:food', 'food.restrict.qr.only'])->group(function () {
         Route::get('/food', [\App\Http\Controllers\Food\FoodController::class, 'index'])->name('food');
-        Route::get('/food/qr-cham-cong', [\App\Http\Controllers\Food\QrChamCongController::class, 'show'])->name('food.qr-cham-cong');
-        Route::get('/food/qr-cham-cong/refresh', [\App\Http\Controllers\Food\QrChamCongController::class, 'refresh'])->name('food.qr-cham-cong.refresh');
         Route::get('/food/qr-cham-cong/do', [\App\Http\Controllers\Food\QrChamCongController::class, 'do'])->name('food.qr-cham-cong.do');
         Route::get('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'show'])->middleware('food.bao_cao')->name('food.bao-cao-ban-hang.show');
         Route::get('/food/cong-no', [\App\Http\Controllers\Food\CongNoController::class, 'index'])->name('food.cong-no');

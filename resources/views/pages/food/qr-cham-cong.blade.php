@@ -1,6 +1,6 @@
-@extends('layouts.food')
+@extends(($embedPublic ?? false) ? 'layouts.fullscreen-layout' : 'layouts.food')
 
-@section('foodContent')
+@section(($embedPublic ?? false) ? 'content' : 'foodContent')
 @php
     $scanUrlSafe = $scanUrl ?? '';
     $qrInitialUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' . rawurlencode($scanUrlSafe) . '&margin=10';

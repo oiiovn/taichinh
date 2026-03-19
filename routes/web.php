@@ -23,4 +23,9 @@ Route::get('/storage/avatars/{filename}', function (string $filename) {
 
 require __DIR__.'/auth.php';
 require __DIR__.'/admin.php';
+
+// QR chấm công hiển thị mã: công khai (máy tính bảng/kiosk không cần đăng nhập). Quét → /food/qr-cham-cong/do vẫn cần đăng nhập.
+Route::get('/food/qr-cham-cong', [\App\Http\Controllers\Food\QrChamCongController::class, 'show'])->name('food.qr-cham-cong');
+Route::get('/food/qr-cham-cong/refresh', [\App\Http\Controllers\Food\QrChamCongController::class, 'refresh'])->name('food.qr-cham-cong.refresh');
+
 require __DIR__.'/front.php';
