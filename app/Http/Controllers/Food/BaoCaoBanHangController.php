@@ -115,8 +115,7 @@ class BaoCaoBanHangController extends Controller
             ->keyBy('ma_hang');
 
         $rows = [];
-        $reportDate = null;
-        $maHoaDonSet = [];
+        $excludedInvoices = [];
 
         foreach ($lines as $line) {
             $cells = $this->parseRow($line);
@@ -140,18 +139,30 @@ class BaoCaoBanHangController extends Controller
             if (empty($row['ma_hoa_don'])) {
                 continue;
             }
+            if ($this->isExcludedItemName($row['ten_hang'] ?? null)) {
+                $excludedInvoices[(string) $row['ma_hoa_don']] = true;
+            }
             $rows[] = $row;
-            $maHoaDonSet[$row['ma_hoa_don']] = true;
+        }
+
+        if ($excludedInvoices !== []) {
+            $rows = array_values(array_filter($rows, fn ($row) => ! isset($excludedInvoices[(string) ($row['ma_hoa_don'] ?? '')])));
+        }
+
+        if (count($rows) === 0) {
+            return redirect()->route('food.bao-cao-ban-hang')->with('error', 'Không có dòng dữ liệu hợp lệ sau khi loại các đơn chứa tên hàng Quán Ship Bù.');
+        }
+
+        $reportDate = null;
+        $maHoaDonSet = [];
+        foreach ($rows as $row) {
+            $maHoaDonSet[(string) $row['ma_hoa_don']] = true;
             if (! empty($row['thoi_gian'])) {
                 $dt = $this->parseThoiGian($row['thoi_gian']);
                 if ($dt && ($reportDate === null || $dt->gt($reportDate))) {
                     $reportDate = $dt;
                 }
             }
-        }
-
-        if (count($rows) === 0) {
-            return redirect()->route('food.bao-cao-ban-hang')->with('error', 'Không có dòng dữ liệu hợp lệ (cần Mã hóa đơn).');
         }
 
         $reportDate = $reportDate ? $reportDate->toDateString() : now()->toDateString();
@@ -439,6 +450,17 @@ class BaoCaoBanHangController extends Controller
     private function parseRow(string $line): array
     {
         return array_map('trim', explode("\t", $line));
+    }
+
+    private function isExcludedItemName(?string $tenHang): bool
+    {
+        if (! is_string($tenHang)) {
+            return false;
+        }
+
+        $normalized = mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $tenHang)));
+
+        return $normalized === 'quán ship bù' || $normalized === 'quan ship bu';
     }
 
     private function parseThoiGian(string $s): ?Carbon
