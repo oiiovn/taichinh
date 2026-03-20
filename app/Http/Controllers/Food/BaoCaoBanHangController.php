@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Food;
 use App\Helpers\VndHelper;
 use App\Http\Controllers\Controller;
 use App\Models\FoodBranch;
+use App\Models\FoodBuffOrder;
 use App\Models\FoodProduct;
 use App\Models\FoodReportBonusTier;
 use App\Models\FoodReportDebt;
@@ -145,11 +146,22 @@ class BaoCaoBanHangController extends Controller
             $rows[] = $row;
         }
 
+        $rowsBuff = [];
         if ($excludedInvoices !== []) {
+            $rowsBuff = array_values(array_filter($rows, fn ($row) => isset($excludedInvoices[(string) ($row['ma_hoa_don'] ?? '')])));
             $rows = array_values(array_filter($rows, fn ($row) => ! isset($excludedInvoices[(string) ($row['ma_hoa_don'] ?? '')])));
         }
 
+        $branchId = $request->input('food_branch_id');
+        $branchId = $branchId !== null && $branchId !== '' ? (int) $branchId : null;
+
+        $buffCount = $this->saveBuffOrders($user->id, $branchId, $rowsBuff);
+
         if (count($rows) === 0) {
+            if ($buffCount > 0) {
+                return redirect()->route('food.bao-cao-ban-hang')->with('success', 'Đã ghi nhận '.$buffCount.' đơn Quán Ship Bù. Không có dữ liệu báo cáo thường để tạo báo cáo bán hàng.');
+            }
+
             return redirect()->route('food.bao-cao-ban-hang')->with('error', 'Không có dòng dữ liệu hợp lệ sau khi loại các đơn chứa tên hàng Quán Ship Bù.');
         }
 
@@ -187,9 +199,6 @@ class BaoCaoBanHangController extends Controller
         $bonus = FoodReportBonusTier::getBonusForTotalCost($totalCost);
 
         $nextCode = $this->nextReportCode($user->id);
-
-        $branchId = $request->input('food_branch_id');
-        $branchId = $branchId !== null && $branchId !== '' ? (int) $branchId : null;
 
         $report = FoodSalesReport::query()->create([
             'user_id' => $user->id,
@@ -445,6 +454,67 @@ class BaoCaoBanHangController extends Controller
             'doanh_so' => $report->doanh_so,
             'loi_nhuan' => $report->loi_nhuan,
         ]);
+    }
+
+    private function saveBuffOrders(int $userId, ?int $branchId, array $rowsBuff): int
+    {
+        if ($rowsBuff === []) {
+            return 0;
+        }
+
+        $byInvoice = [];
+        foreach ($rowsBuff as $row) {
+            $invoice = trim((string) ($row['ma_hoa_don'] ?? ''));
+            if ($invoice === '') {
+                continue;
+            }
+            if (! isset($byInvoice[$invoice])) {
+                $byInvoice[$invoice] = [
+                    'invoice_code' => $invoice,
+                    'order_time_text' => (string) ($row['thoi_gian'] ?? ''),
+                    'receiver_name' => (string) ($row['nguoi_nhan_don'] ?? ''),
+                    'customer_name' => (string) ($row['khach_hang'] ?? ''),
+                    'order_date' => null,
+                ];
+            }
+            $d = null;
+            if (! empty($row['thoi_gian'])) {
+                $d = $this->parseThoiGian((string) $row['thoi_gian']);
+            }
+            if ($d && (! $byInvoice[$invoice]['order_date'] || $d->gt($byInvoice[$invoice]['order_date']))) {
+                $byInvoice[$invoice]['order_date'] = $d;
+                $byInvoice[$invoice]['order_time_text'] = (string) ($row['thoi_gian'] ?? '');
+            }
+            if ($byInvoice[$invoice]['receiver_name'] === '' && ! empty($row['nguoi_nhan_don'])) {
+                $byInvoice[$invoice]['receiver_name'] = (string) $row['nguoi_nhan_don'];
+            }
+            if ($byInvoice[$invoice]['customer_name'] === '' && ! empty($row['khach_hang'])) {
+                $byInvoice[$invoice]['customer_name'] = (string) $row['khach_hang'];
+            }
+        }
+
+        $count = 0;
+        foreach ($byInvoice as $invoice => $it) {
+            $date = $it['order_date'] ? $it['order_date']->toDateString() : now()->toDateString();
+            FoodBuffOrder::query()->updateOrCreate(
+                [
+                    'user_id' => $userId,
+                    'invoice_code' => $invoice,
+                    'order_date' => $date,
+                ],
+                [
+                    'food_branch_id' => $branchId,
+                    'order_time_text' => $it['order_time_text'] !== '' ? $it['order_time_text'] : null,
+                    'receiver_name' => $it['receiver_name'] !== '' ? $it['receiver_name'] : null,
+                    'customer_name' => $it['customer_name'] !== '' ? $it['customer_name'] : null,
+                    'buff_amount' => 20000,
+                    'labor_amount' => 10000,
+                ]
+            );
+            $count++;
+        }
+
+        return $count;
     }
 
     private function parseRow(string $line): array

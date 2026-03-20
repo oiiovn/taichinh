@@ -9,6 +9,7 @@
         $path = request()->path();
         $isSanPham = ($path === 'food/san-pham');
         $isChiNhanh = ($path === 'food/chi-nhanh');
+        $isThongKeBuff = ($path === 'food/thong-ke-buff');
         $isBaoCao = str_starts_with($path, 'food/bao-cao-ban-hang');
         $isKhachHang = ($path === 'food/khach-hang');
         $isCongNo = ($path === 'food/cong-no');
@@ -25,6 +26,8 @@
             $currentTab = 'qr-cham-cong';
         } elseif ($isChiNhanh) {
             $currentTab = 'chi-nhanh';
+        } elseif ($isThongKeBuff) {
+            $currentTab = 'thong-ke-buff';
         } elseif ($isLuongCuaToi) {
             $currentTab = 'luong-cua-toi';
         } elseif ($isLuong) {
@@ -73,6 +76,7 @@
             ['id' => 'san-pham', 'icon' => 'ecommerce', 'label' => 'Sản phẩm', 'path' => route('food.san-pham'), 'show' => $canManageSanPham],
             ['id' => 'chi-nhanh', 'icon' => 'tables', 'label' => 'Chi nhánh', 'path' => route('food.chi-nhanh'), 'show' => $canManageBaoCao && \Illuminate\Support\Facades\Route::has('food.chi-nhanh')],
             ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManageBaoCao],
+            ['id' => 'thong-ke-buff', 'icon' => 'charts', 'label' => 'Thống kê Buff', 'path' => route('food.thong-ke-buff'), 'show' => $canManageBaoCao && \Illuminate\Support\Facades\Route::has('food.thong-ke-buff')],
             ['id' => 'khach-hang', 'icon' => 'users', 'label' => 'Khách hàng', 'path' => route('food.khach-hang'), 'show' => $canManageBaoCao],
             ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no'), 'show' => !$isEmployee],
         ];
