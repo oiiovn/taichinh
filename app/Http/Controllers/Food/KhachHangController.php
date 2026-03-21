@@ -194,19 +194,41 @@ class KhachHangController extends Controller
             $isLoyalInPeriod = $orderCount >= 4;
 
             $orderDates = $c['order_dates'];
-            $n = count($orderDates);
-            $daysDiff = 0;
-            if ($n >= 1) {
-                $first = Carbon::parse($orderDates[0]);
-                $last = Carbon::parse($orderDates[$n - 1]);
-                $daysDiff = max(1, $first->diffInDays($last));
+            $uniqueOrderDays = count($orderDates);
+            $n = $uniqueOrderDays;
+            $firstDate = $n >= 1 ? Carbon::parse($orderDates[0])->startOfDay() : null;
+            $lastDate = $n >= 1 ? Carbon::parse($orderDates[$n - 1])->startOfDay() : null;
+            $today = now()->startOfDay();
+
+            // Khoảng cách giữa ngày đơn đầu và ngày đơn cuối (chỉ các ngày có đơn, unique)
+            $daysSpanFirstToLast = 0;
+            if ($n >= 2 && $firstDate && $lastDate) {
+                $daysSpanFirstToLast = max(1, (int) $firstDate->diffInDays($lastDate));
+            } elseif ($n === 1) {
+                $daysSpanFirstToLast = 1;
             }
-            $ordersPerMonth = $orderCount > 0 && $daysDiff > 0 ? round(($orderCount / $daysDiff) * 30, 1) : ($orderCount > 0 ? (float) $orderCount : 0);
-            $avgDaysBetween = $n >= 2 ? round($daysDiff / ($n - 1), 0) : null;
+
+            // Recency: số ngày từ đơn gần nhất đến hôm nay (0 = hôm nay)
+            $recencyDays = null;
+            if ($c['last_order_date']) {
+                $lastOrderDay = $c['last_order_date']->copy()->startOfDay();
+                $recencyDays = $lastOrderDay->gt($today) ? 0 : (int) $lastOrderDay->diffInDays($today);
+            }
+
+            // Nhịp độ theo ngày có đơn (không dùng tổng số đơn — tránh same-day inflation)
+            // Công thức: unique_order_days / (hôm nay − đơn đầu) × 30; chỉ khi ≥2 ngày có đơn
+            $ordersPerMonth = null;
+            if ($uniqueOrderDays >= 2 && $firstDate) {
+                $spanToToday = max(1, (int) $firstDate->diffInDays($today));
+                $ordersPerMonth = round(($uniqueOrderDays / $spanToToday) * 30, 1);
+            }
+
+            $avgDaysBetween = $n >= 2 ? round($daysSpanFirstToLast / ($n - 1), 0) : null;
 
             $result[] = [
                 'name' => $c['name'],
                 'order_count' => $c['order_count'],
+                'unique_order_days' => $uniqueOrderDays,
                 'total_revenue' => $c['total_revenue'],
                 'first_order_date' => $c['first_order_date'],
                 'last_order_date' => $c['last_order_date'],
@@ -215,6 +237,7 @@ class KhachHangController extends Controller
                 'is_returning_in_period' => $isReturningInPeriod,
                 'is_loyal_in_period' => $isLoyalInPeriod,
                 'orders_per_month' => $ordersPerMonth,
+                'recency_days' => $recencyDays,
                 'avg_days_between_orders' => $avgDaysBetween,
             ];
         }

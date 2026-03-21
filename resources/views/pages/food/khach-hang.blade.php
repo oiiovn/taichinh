@@ -88,16 +88,18 @@
     <div>
         <h3 class="mb-2 text-sm font-semibold text-gray-700 dark:text-gray-300">Top khách hàng (sắp xếp theo số đơn, doanh thu)</h3>
         <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
-            <table class="w-full min-w-[720px] text-left text-sm">
+            <table class="w-full min-w-[920px] text-left text-sm">
                 <thead class="border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800">
                     <tr>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">#</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Khách hàng</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Số đơn</th>
+                        <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300" title="Số ngày khác nhau có đơn (không nhân đôi cùng ngày)">Ngày có đơn</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Tổng doanh thu</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Đơn đầu</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Đơn gần nhất</th>
-                        <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Nhịp độ (đơn/tháng)</th>
+                        <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300" title="Số ngày từ đơn gần nhất đến hôm nay">Recency (ngày)</th>
+                        <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300" title="Ngày có đơn / (hôm nay − đơn đầu) × 30; chỉ khi ≥2 ngày có đơn">Nhịp độ ngày (ước/tháng)</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Khoảng cách TB (ngày)</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Phân loại</th>
                     </tr>
@@ -109,10 +111,12 @@
                             <td class="px-4 py-2 text-gray-500 dark:text-gray-400">{{ $i + 1 }}</td>
                             <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $c['name'] }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $c['order_count'] }}</td>
+                            <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $c['unique_order_days'] ?? '—' }}</td>
                             <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $fmt($c['total_revenue']) }} đ</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $c['first_order_date'] ? $c['first_order_date']->format('d/m/Y') : '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $c['last_order_date'] ? $c['last_order_date']->format('d/m/Y') : '—' }}</td>
-                            <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $c['orders_per_month'] > 0 ? $c['orders_per_month'] : '—' }}</td>
+                            <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ isset($c['recency_days']) && $c['recency_days'] !== null ? $c['recency_days'] : '—' }}</td>
+                            <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $c['orders_per_month'] !== null ? $c['orders_per_month'] : '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $c['avg_days_between_orders'] !== null ? $c['avg_days_between_orders'] . ' ngày' : '—' }}</td>
                             <td class="px-4 py-2">
                                 @if($c['is_loyal_in_period'] ?? false)
@@ -126,7 +130,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="9" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có dữ liệu đơn hàng trong khoảng thời gian này.</td>
+                            <td colspan="11" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có dữ liệu đơn hàng trong khoảng thời gian này.</td>
                         </tr>
                     @endforelse
                 </tbody>
