@@ -4,10 +4,13 @@ namespace App\Http\Controllers\Food;
 
 use App\Http\Controllers\Controller;
 use App\Models\FoodBranch;
+use App\Models\FoodBuffLaborPayment;
 use App\Models\FoodBuffOrder;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
 class FoodBuffController extends Controller
@@ -18,8 +21,8 @@ class FoodBuffController extends Controller
         if (! $user) {
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
         }
-        if (! $user->is_admin && ! $user->canManageFoodBaoCao()) {
-            abort(403, 'Bạn không có quyền xem thống kê Buff.');
+        if (! $user->is_admin && ! $user->canManageFoodThongKeBuff()) {
+            abort(403, 'Bạn không có quyền xem thống kê seeding.');
         }
 
         $from = $request->input('from_date')
@@ -32,10 +35,29 @@ class FoodBuffController extends Controller
         $branchId = $request->input('food_branch_id');
         $branchId = $branchId !== null && $branchId !== '' ? (int) $branchId : null;
 
+        $isOnlyThongKeBuffUser = $this->isOnlyThongKeBuffUser($user);
+
         $query = FoodBuffOrder::query()
             ->with('branch')
-            ->where('user_id', $user->id)
             ->whereBetween('order_date', [$from->toDateString(), $to->toDateString()]);
+
+        if (! $isOnlyThongKeBuffUser) {
+            $query->where('user_id', $user->id);
+        }
+
+        if (! $user->is_admin) {
+            $assignedEmployees = $user->getFoodBuffAssignedEmployees();
+            if ($assignedEmployees !== []) {
+                $normalizedNames = array_map(
+                    fn ($name) => mb_strtolower(trim((string) $name)),
+                    $assignedEmployees
+                );
+                $normalizedNames = array_values(array_unique(array_filter($normalizedNames, fn ($name) => $name !== '')));
+                if ($normalizedNames !== []) {
+                    $query->whereRaw('LOWER(TRIM(customer_name)) IN ('.implode(',', array_fill(0, count($normalizedNames), '?')).')', $normalizedNames);
+                }
+            }
+        }
 
         if ($branchId) {
             $query->where('food_branch_id', $branchId);
@@ -51,10 +73,33 @@ class FoodBuffController extends Controller
         $tongTienCong = (float) $orders->sum('labor_amount');
         $tongChi = $tongBuff + $tongTienCong;
 
-        $branches = FoodBranch::query()->where('user_id', $user->id)->orderBy('name')->get();
+        if ($isOnlyThongKeBuffUser) {
+            $branchIds = $orders->pluck('food_branch_id')->filter()->unique()->values();
+            $branches = $branchIds->isNotEmpty()
+                ? FoodBranch::query()->whereIn('id', $branchIds)->orderBy('name')->get()
+                : collect();
+        } else {
+            $branches = FoodBranch::query()->where('user_id', $user->id)->orderBy('name')->get();
+        }
+
+        $payableUsers = User::query()
+            ->orderBy('name')
+            ->get()
+            ->map(fn ($u) => (object) ['id' => $u->id, 'name' => $u->name, 'email' => $u->email]);
+
+        $paymentHistoryQuery = FoodBuffLaborPayment::query()
+            ->with(['paidUser', 'payer', 'creator']);
+        if ($isOnlyThongKeBuffUser) {
+            $paymentHistoryQuery->where('paid_user_id', $user->id);
+        } else {
+            $paymentHistoryQuery->where('payer_user_id', $user->id);
+        }
+        $paymentHistory = $paymentHistoryQuery->orderByDesc('paid_at')->orderByDesc('id')->limit(100)->get();
+        $tongDaTra = (float) $paymentHistory->sum('amount');
+        $tongConLai = $tongTienCong - $tongDaTra;
 
         return view('pages.food.thong-ke-buff', [
-            'title' => 'Thống kê Buff',
+            'title' => 'Thống kê seeding',
             'from' => $from,
             'to' => $to,
             'branchId' => $branchId,
@@ -64,6 +109,65 @@ class FoodBuffController extends Controller
             'tongBuff' => $tongBuff,
             'tongTienCong' => $tongTienCong,
             'tongChi' => $tongChi,
+            'isOnlyThongKeBuffUser' => $isOnlyThongKeBuffUser,
+            'payableUsers' => $payableUsers,
+            'paymentHistory' => $paymentHistory,
+            'tongDaTra' => $tongDaTra,
+            'tongConLai' => $tongConLai,
         ]);
+    }
+
+    public function storeLaborCashPayment(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+        if (! $user->is_admin && ! $user->canManageFoodThongKeBuff()) {
+            abort(403, 'Bạn không có quyền thanh toán tiền công.');
+        }
+        if ($this->isOnlyThongKeBuffUser($user)) {
+            abort(403, 'Tài khoản này chỉ được xem thống kê.');
+        }
+
+        $validated = $request->validate([
+            'paid_user_id' => ['required', 'integer', Rule::exists('users', 'id')],
+            'amount' => ['required', 'numeric', 'min:1'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $amount = (int) round((float) $validated['amount']);
+        if ($amount <= 0) {
+            return redirect()->route('food.thong-ke-buff')->with('error', 'Số tiền không hợp lệ.');
+        }
+
+        FoodBuffLaborPayment::query()->create([
+            'payer_user_id' => $user->id,
+            'paid_user_id' => (int) $validated['paid_user_id'],
+            'amount' => $amount,
+            'payment_method' => FoodBuffLaborPayment::METHOD_CASH,
+            'note' => $validated['note'] ?? null,
+            'paid_at' => now(),
+            'created_by_user_id' => $user->id,
+        ]);
+
+        return redirect()->route('food.thong-ke-buff')->with('success', 'Đã ghi nhận thanh toán tiền công.');
+    }
+
+    private function isOnlyThongKeBuffUser(User $user): bool
+    {
+        return ! $user->is_admin
+            && $user->canManageFoodThongKeBuff()
+            && ! $user->canManageFoodTongQuan()
+            && ! $user->canManageFoodDoanhSo()
+            && ! $user->canManageFoodSanPham()
+            && ! $user->canManageFoodBaoCao()
+            && ! $user->canManageFoodEmployees()
+            && ! $user->canManageFoodChamCong()
+            && ! $user->canManageFoodXinNghi()
+            && ! $user->canManageFoodUngLuong()
+            && ! $user->canManageFoodLuong()
+            && ! $user->canUseFoodEmployee()
+            && ! $user->canUseQrChamCong();
     }
 }

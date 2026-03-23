@@ -34,6 +34,7 @@ class User extends Authenticatable
         'can_manage_food_doanh_so',
         'can_manage_food_san_pham',
         'can_manage_food_bao_cao',
+        'can_manage_food_thong_ke_buff',
         'can_use_food_employee',
         'can_use_qr_cham_cong',
         'allowed_features',
@@ -51,6 +52,7 @@ class User extends Authenticatable
         'plan',
         'plan_expires_at',
         'food_tongquan_settings',
+        'food_buff_assigned_employees',
         'phone',
         'bio',
         'facebook_url',
@@ -103,6 +105,7 @@ class User extends Authenticatable
             'can_manage_food_doanh_so' => 'boolean',
             'can_manage_food_san_pham' => 'boolean',
             'can_manage_food_bao_cao' => 'boolean',
+            'can_manage_food_thong_ke_buff' => 'boolean',
             'can_use_food_employee' => 'boolean',
             'can_use_qr_cham_cong' => 'boolean',
             'allowed_features' => 'array',
@@ -110,6 +113,7 @@ class User extends Authenticatable
             'low_balance_threshold' => 'integer',
             'threshold_metrics_computed_at' => 'datetime',
             'food_tongquan_settings' => 'array',
+            'food_buff_assigned_employees' => 'array',
         ];
     }
 
@@ -175,6 +179,33 @@ class User extends Authenticatable
         return (bool) $this->is_admin || (bool) $this->can_manage_food_bao_cao;
     }
 
+    public function canManageFoodThongKeBuff(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_manage_food_thong_ke_buff;
+    }
+
+    public function getFoodBuffAssignedEmployees(): array
+    {
+        $raw = $this->food_buff_assigned_employees;
+        if (! is_array($raw)) {
+            return [];
+        }
+
+        $result = [];
+        foreach ($raw as $name) {
+            if (! is_string($name)) {
+                continue;
+            }
+            $name = trim($name);
+            if ($name === '') {
+                continue;
+            }
+            $result[] = $name;
+        }
+
+        return array_values(array_unique($result));
+    }
+
     /** Có ít nhất một quyền quản lý Food (để vào được khu Food và thấy menu). */
     public function canManageAnyFood(): bool
     {
@@ -183,6 +214,7 @@ class User extends Authenticatable
             || (bool) $this->can_manage_food_doanh_so
             || (bool) $this->can_manage_food_san_pham
             || (bool) $this->can_manage_food_bao_cao
+            || (bool) $this->can_manage_food_thong_ke_buff
             || (bool) $this->can_manage_food_employees
             || (bool) $this->can_manage_food_cham_cong
             || (bool) $this->can_manage_food_xin_nghi

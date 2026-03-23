@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\PlanConfig;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
@@ -65,6 +66,8 @@ class UserController extends Controller
             'can_manage_food_doanh_so' => ['boolean'],
             'can_manage_food_san_pham' => ['boolean'],
             'can_manage_food_bao_cao' => ['boolean'],
+            'can_manage_food_thong_ke_buff' => ['boolean'],
+            'food_buff_assigned_employees' => ['nullable', 'string'],
             'can_use_food_employee' => ['boolean'],
             'can_use_qr_cham_cong' => ['boolean'],
             'plan' => ['nullable', 'string', Rule::in(array_merge([''], array_keys($plansList)))],
@@ -81,6 +84,8 @@ class UserController extends Controller
         $validated['can_manage_food_doanh_so'] = $request->boolean('can_manage_food_doanh_so');
         $validated['can_manage_food_san_pham'] = $request->boolean('can_manage_food_san_pham');
         $validated['can_manage_food_bao_cao'] = $request->boolean('can_manage_food_bao_cao');
+        $validated['can_manage_food_thong_ke_buff'] = $request->boolean('can_manage_food_thong_ke_buff');
+        $validated['food_buff_assigned_employees'] = $this->parseFoodBuffAssignedEmployees($request->input('food_buff_assigned_employees'));
         $validated['can_use_food_employee'] = $request->boolean('can_use_food_employee');
         $validated['can_use_qr_cham_cong'] = $request->boolean('can_use_qr_cham_cong');
         $features = array_values(array_keys($request->input('features', [])));
@@ -120,6 +125,8 @@ class UserController extends Controller
             'can_manage_food_doanh_so' => ['boolean'],
             'can_manage_food_san_pham' => ['boolean'],
             'can_manage_food_bao_cao' => ['boolean'],
+            'can_manage_food_thong_ke_buff' => ['boolean'],
+            'food_buff_assigned_employees' => ['nullable', 'string'],
             'can_use_food_employee' => ['boolean'],
             'can_use_qr_cham_cong' => ['boolean'],
             'plan' => ['nullable', 'string', Rule::in(array_merge([''], array_keys($plansList)))],
@@ -142,6 +149,8 @@ class UserController extends Controller
         $validated['can_manage_food_doanh_so'] = $request->boolean('can_manage_food_doanh_so');
         $validated['can_manage_food_san_pham'] = $request->boolean('can_manage_food_san_pham');
         $validated['can_manage_food_bao_cao'] = $request->boolean('can_manage_food_bao_cao');
+        $validated['can_manage_food_thong_ke_buff'] = $request->boolean('can_manage_food_thong_ke_buff');
+        $validated['food_buff_assigned_employees'] = $this->parseFoodBuffAssignedEmployees($request->input('food_buff_assigned_employees'));
         $validated['can_use_food_employee'] = $request->boolean('can_use_food_employee');
         $validated['can_use_qr_cham_cong'] = $request->boolean('can_use_qr_cham_cong');
         $validated['allowed_features'] = array_values(array_keys($request->input('features', [])));
@@ -163,6 +172,8 @@ class UserController extends Controller
             'can_manage_food_doanh_so',
             'can_manage_food_san_pham',
             'can_manage_food_bao_cao',
+            'can_manage_food_thong_ke_buff',
+            'food_buff_assigned_employees',
         ];
         foreach ($optionalColumns as $col) {
             if (array_key_exists($col, $validated) && ! Schema::hasColumn('users', $col)) {
@@ -172,9 +183,29 @@ class UserController extends Controller
         return $validated;
     }
 
+    private function parseFoodBuffAssignedEmployees(mixed $value): array
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return [];
+        }
+
+        $parts = preg_split('/[\r\n,;]+/u', $value) ?: [];
+        $names = [];
+        foreach ($parts as $item) {
+            $name = trim((string) $item);
+            if ($name === '') {
+                continue;
+            }
+            $names[] = $name;
+        }
+
+        return array_values(array_unique($names));
+    }
+
     public function destroy(User $user)
     {
-        if ($user->id === auth()->id()) {
+        $authUserId = Auth::id();
+        if ($authUserId !== null && $user->id === $authUserId) {
             return back()->with('error', 'Không thể xóa chính mình.');
         }
         $user->delete();

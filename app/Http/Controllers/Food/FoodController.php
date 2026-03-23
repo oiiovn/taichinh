@@ -376,6 +376,9 @@ class FoodController extends Controller
         if ($user->canManageFoodBaoCao()) {
             return redirect()->route('food.bao-cao-ban-hang');
         }
+        if (method_exists($user, 'canManageFoodThongKeBuff') && $user->canManageFoodThongKeBuff()) {
+            return redirect()->route('food.thong-ke-buff');
+        }
         if ($user->canManageFoodEmployees()) {
             return redirect()->route('food.nhan-vien');
         }

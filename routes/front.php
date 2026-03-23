@@ -237,12 +237,16 @@ Route::middleware('auth')->group(function () {
             });
         }
 
+        Route::middleware(['food.thong_ke_buff'])->group(function () {
+            Route::get('/food/thong-ke-buff', [\App\Http\Controllers\Food\FoodBuffController::class, 'index'])->name('food.thong-ke-buff');
+            Route::post('/food/thong-ke-buff/thanh-toan-tien-cong', [\App\Http\Controllers\Food\FoodBuffController::class, 'storeLaborCashPayment'])->name('food.thong-ke-buff.thanh-toan-tien-cong');
+        });
+
         Route::middleware(['food.bao_cao'])->group(function () {
             Route::get('/food/chi-nhanh', [\App\Http\Controllers\Food\FoodChiNhanhController::class, 'index'])->name('food.chi-nhanh');
             Route::post('/food/chi-nhanh', [\App\Http\Controllers\Food\FoodChiNhanhController::class, 'store'])->name('food.chi-nhanh.store');
             Route::put('/food/chi-nhanh/{branch}', [\App\Http\Controllers\Food\FoodChiNhanhController::class, 'update'])->name('food.chi-nhanh.update');
             Route::delete('/food/chi-nhanh/{branch}', [\App\Http\Controllers\Food\FoodChiNhanhController::class, 'destroy'])->name('food.chi-nhanh.destroy');
-            Route::get('/food/thong-ke-buff', [\App\Http\Controllers\Food\FoodBuffController::class, 'index'])->name('food.thong-ke-buff');
             Route::get('/food/khach-hang', [\App\Http\Controllers\Food\KhachHangController::class, 'index'])->name('food.khach-hang');
             Route::get('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'index'])->name('food.bao-cao-ban-hang');
             Route::post('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'store'])->name('food.bao-cao-ban-hang.store');

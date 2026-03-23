@@ -19,12 +19,35 @@ class RestrictQrChamCongOnlyUser
             && ! $user->is_admin
             && ! (method_exists($user, 'canManageAnyFood') && $user->canManageAnyFood())
             && ! (method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee());
+        $hasOnlyThongKeBuff = ! $user->is_admin
+            && method_exists($user, 'canManageFoodThongKeBuff')
+            && $user->canManageFoodThongKeBuff()
+            && ! (method_exists($user, 'canManageFoodTongQuan') && $user->canManageFoodTongQuan())
+            && ! (method_exists($user, 'canManageFoodDoanhSo') && $user->canManageFoodDoanhSo())
+            && ! (method_exists($user, 'canManageFoodSanPham') && $user->canManageFoodSanPham())
+            && ! (method_exists($user, 'canManageFoodBaoCao') && $user->canManageFoodBaoCao())
+            && ! (method_exists($user, 'canManageFoodEmployees') && $user->canManageFoodEmployees())
+            && ! (method_exists($user, 'canManageFoodChamCong') && $user->canManageFoodChamCong())
+            && ! (method_exists($user, 'canManageFoodXinNghi') && $user->canManageFoodXinNghi())
+            && ! (method_exists($user, 'canManageFoodUngLuong') && $user->canManageFoodUngLuong())
+            && ! (method_exists($user, 'canManageFoodLuong') && $user->canManageFoodLuong())
+            && ! (method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee())
+            && ! (method_exists($user, 'canUseQrChamCong') && $user->canUseQrChamCong());
 
-        if (! $hasOnlyQr) {
+        if (! $hasOnlyQr && ! $hasOnlyThongKeBuff) {
             return $next($request);
         }
 
         $path = $request->path();
+        if ($hasOnlyThongKeBuff) {
+            $allowed = in_array($path, ['food', 'food/thong-ke-buff'], true);
+            if ($allowed) {
+                return $next($request);
+            }
+
+            return redirect()->route('food.thong-ke-buff');
+        }
+
         $allowed = in_array($path, ['food', 'food/qr-cham-cong', 'food/qr-cham-cong/do', 'food/qr-cham-cong/refresh'], true);
 
         if ($allowed) {

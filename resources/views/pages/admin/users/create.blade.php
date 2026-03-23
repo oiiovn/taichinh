@@ -91,6 +91,17 @@
                             <input type="checkbox" name="can_manage_food_bao_cao" value="1" {{ old('can_manage_food_bao_cao') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
                             <span class="text-sm text-gray-700 dark:text-gray-300">Báo cáo bán hàng</span>
                         </label>
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="can_manage_food_thong_ke_buff" value="0">
+                            <input type="checkbox" name="can_manage_food_thong_ke_buff" value="1" {{ old('can_manage_food_thong_ke_buff') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Thống kê seeding</span>
+                        </label>
+                        <div class="pl-6">
+                            <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nhân viên được xem ở thống kê seeding (mỗi dòng hoặc dấu phẩy)</label>
+                            <textarea name="food_buff_assigned_employees" rows="3" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="Ví dụ: Nguyễn Văn A, Trần Thị B">{{ old('food_buff_assigned_employees') }}</textarea>
+                            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Để trống: xem tất cả nhân viên.</p>
+                            @error('food_buff_assigned_employees')<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
+                        </div>
                         <label class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                             <input type="hidden" name="can_manage_food_employees" value="0">
                             <input type="checkbox" name="can_manage_food_employees" value="1" {{ old('can_manage_food_employees') ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">

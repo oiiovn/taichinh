@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('contentWrapperClass')
-    w-full p-4 md:p-6
+    w-full p-3 sm:p-4 md:p-5
 @endsection
 
 @section('content')
@@ -67,16 +67,31 @@
         $canManageDoanhSo = $user && method_exists($user, 'canManageFoodDoanhSo') ? $user->canManageFoodDoanhSo() : false;
         $canManageSanPham = $user && method_exists($user, 'canManageFoodSanPham') ? $user->canManageFoodSanPham() : false;
         $canManageBaoCao = $user && method_exists($user, 'canManageFoodBaoCao') ? $user->canManageFoodBaoCao() : false;
+        $canManageThongKeBuff = $user && method_exists($user, 'canManageFoodThongKeBuff') ? $user->canManageFoodThongKeBuff() : false;
         $isEmployee = $user && $hasFoodEmployees && $user->employee && method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee();
         $canUseQrChamCong = $user && method_exists($user, 'canUseQrChamCong') && $user->canUseQrChamCong();
         $isOnlyEmployee = $isEmployee && !$canManageAnyFood;
+        $isOnlyThongKeBuff = $user
+            && !$user->is_admin
+            && $canManageThongKeBuff
+            && !$canManageTongQuan
+            && !$canManageDoanhSo
+            && !$canManageSanPham
+            && !$canManageBaoCao
+            && !$canManageNhanVien
+            && !$canManageChamCong
+            && !$canManageXinNghi
+            && !$canManageUngLuong
+            && !$canManageLuong
+            && !$isEmployee
+            && !$canUseQrChamCong;
         $navItems = [
             ['id' => 'tong-quan', 'icon' => 'dashboard', 'label' => 'Tổng quan', 'path' => route('food'), 'show' => $canManageTongQuan],
             ['id' => 'doanh-so', 'icon' => 'chart-bar', 'label' => 'Doanh số', 'path' => route('food', ['tab' => 'doanh-so']), 'show' => $canManageDoanhSo],
             ['id' => 'san-pham', 'icon' => 'ecommerce', 'label' => 'Sản phẩm', 'path' => route('food.san-pham'), 'show' => $canManageSanPham],
             ['id' => 'chi-nhanh', 'icon' => 'tables', 'label' => 'Chi nhánh', 'path' => route('food.chi-nhanh'), 'show' => $canManageBaoCao && \Illuminate\Support\Facades\Route::has('food.chi-nhanh')],
             ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManageBaoCao],
-            ['id' => 'thong-ke-buff', 'icon' => 'charts', 'label' => 'Thống kê Buff', 'path' => route('food.thong-ke-buff'), 'show' => $canManageBaoCao && \Illuminate\Support\Facades\Route::has('food.thong-ke-buff')],
+            ['id' => 'thong-ke-buff', 'icon' => 'charts', 'label' => 'Thống kê seeding', 'path' => route('food.thong-ke-buff'), 'show' => $canManageThongKeBuff && \Illuminate\Support\Facades\Route::has('food.thong-ke-buff')],
             ['id' => 'khach-hang', 'icon' => 'users', 'label' => 'Khách hàng', 'path' => route('food.khach-hang'), 'show' => $canManageBaoCao],
             ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no'), 'show' => !$isEmployee],
         ];
@@ -111,9 +126,14 @@
                 $navItems = array_values(array_filter($navItems, fn ($item) => $item['id'] === 'cong-no'));
             }
         }
+        if ($isOnlyThongKeBuff) {
+            $navItems = array_values(array_filter($navItems, fn ($item) => $item['id'] === 'thong-ke-buff'));
+        }
+        $showFoodMenu = count($navItems) > 1;
     @endphp
     <div class="flex flex-col xl:flex-row gap-4 xl:gap-6" x-data="{ menuOpen: false }">
         {{-- Cột menu con --}}
+        @if($showFoodMenu)
         <div class="xl:w-72 shrink-0 relative">
             {{-- Mobile: nút 3 gạch, nhấn vào xổ menu --}}
             <div class="xl:hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
@@ -167,12 +187,11 @@
                 </ul>
             </nav>
         </div>
+        @endif
 
-        {{-- Nội dung (không cột phải) --}}
-        <div class="flex-1 min-w-0 flex flex-col rounded-xl border border-gray-200 bg-white text-gray-900 shadow-theme-sm dark:border-gray-800 dark:bg-gray-900 dark:text-white min-h-[60vh] overflow-hidden">
-            <div class="flex-1 overflow-auto overflow-x-hidden px-5 pr-8 py-7 xl:pl-10 xl:pr-10 xl:py-12">
-                @yield('foodContent')
-            </div>
+        {{-- Nội dung --}}
+        <div class="flex-1 min-w-0 min-h-[60vh] overflow-auto overflow-x-hidden text-gray-900 dark:text-white">
+            @yield('foodContent')
         </div>
     </div>
 @endsection
