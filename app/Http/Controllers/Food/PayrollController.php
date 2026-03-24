@@ -23,10 +23,10 @@ class PayrollController extends Controller
         }
 
         $month = $request->input('month', now()->format('Y-m'));
-        $from = Carbon::parse($month . '-01')->startOfDay();
+        $from = Carbon::parse($month.'-01')->startOfDay();
         $to = $from->copy()->endOfMonth();
 
-        $employees = Employee::with('user')->where('active', true)->orderBy('id')->get();
+        $employees = Employee::with(['user', 'salaryRates'])->where('active', true)->orderBy('id')->get();
         $rows = [];
         foreach ($employees as $emp) {
             $rows[] = [
@@ -51,7 +51,7 @@ class PayrollController extends Controller
         if (! $user) {
             abort(401);
         }
-        $employee = $user->employee;
+        $employee = $user->employee?->load('salaryRates');
         if (! $employee) {
             return redirect()->route('food.cong-no')->with('info', 'Bạn chưa được thêm vào danh sách nhân viên.');
         }
@@ -60,7 +60,7 @@ class PayrollController extends Controller
         }
 
         $month = $request->input('month', now()->format('Y-m'));
-        $from = Carbon::parse($month . '-01')->startOfDay();
+        $from = Carbon::parse($month.'-01')->startOfDay();
         $to = $from->copy()->endOfMonth();
         $payroll = $this->payrollService->calculateForPeriod($employee, $from, $to);
 

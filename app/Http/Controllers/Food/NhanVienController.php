@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Food;
 
 use App\Http\Controllers\Controller;
 use App\Models\Employee;
+use App\Models\EmployeeSalaryRate;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -55,7 +57,13 @@ class NhanVienController extends Controller
             'start_date' => ['nullable', 'date'],
         ]);
         $validated['active'] = true;
-        Employee::create($validated);
+        $employee = Employee::create($validated);
+        EmployeeSalaryRate::query()->create([
+            'employee_id' => $employee->id,
+            'effective_from' => $employee->start_date?->toDateString() ?? now()->toDateString(),
+            'salary_rate' => $employee->salary_rate,
+            'salary_type' => $employee->salary_type,
+        ]);
 
         return redirect()->route('food.nhan-vien')->with('success', 'Đã thêm nhân viên.');
     }
@@ -85,9 +93,56 @@ class NhanVienController extends Controller
             'salary_rate' => ['required', 'numeric', 'min:0'],
             'start_date' => ['nullable', 'date'],
             'active' => ['boolean'],
+            'salary_effective_from' => ['nullable', 'date'],
         ]);
         $validated['active'] = $request->boolean('active');
+
+        $oldRate = round((float) $nhanVien->salary_rate, 2);
+        $oldType = (string) $nhanVien->salary_type;
+        $newRate = round((float) $validated['salary_rate'], 2);
+        $newType = (string) $validated['salary_type'];
+        $salaryChanged = $newRate !== $oldRate || $newType !== $oldType;
+
+        if ($salaryChanged) {
+            $request->validate([
+                'salary_effective_from' => ['required', 'date'],
+            ]);
+        }
+
+        $eff = $salaryChanged ? Carbon::parse((string) $request->input('salary_effective_from'))->toDateString() : null;
+
+        if ($salaryChanged && $eff !== null) {
+            $baselineStr = $nhanVien->start_date?->toDateString()
+                ?? $nhanVien->created_at?->toDateString()
+                ?? $eff;
+            if ($eff > $baselineStr) {
+                EmployeeSalaryRate::query()->updateOrCreate(
+                    [
+                        'employee_id' => $nhanVien->id,
+                        'effective_from' => $baselineStr,
+                    ],
+                    [
+                        'salary_rate' => $oldRate,
+                        'salary_type' => $oldType,
+                    ]
+                );
+            }
+        }
+
         $nhanVien->update($validated);
+
+        if ($salaryChanged && $eff !== null) {
+            EmployeeSalaryRate::query()->updateOrCreate(
+                [
+                    'employee_id' => $nhanVien->id,
+                    'effective_from' => $eff,
+                ],
+                [
+                    'salary_rate' => (float) $validated['salary_rate'],
+                    'salary_type' => $validated['salary_type'],
+                ]
+            );
+        }
 
         return redirect()->route('food.nhan-vien')->with('success', 'Đã cập nhật nhân viên.');
     }

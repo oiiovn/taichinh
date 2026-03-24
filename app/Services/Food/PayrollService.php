@@ -10,6 +10,7 @@ class PayrollService
 {
     /**
      * Tính lương cho nhân viên trong khoảng thời gian.
+     * Mức lương theo từng ngày lấy từ lịch sử (employee_salary_rates); nếu không có thì dùng mức trên employees.
      *
      * @return array{work_days: int, work_minutes: int, leave_days_approved: int, gross_salary: float, salary_type: string, salary_rate: float}
      */
@@ -23,6 +24,7 @@ class PayrollService
             ->whereBetween('work_date', [$from, $to])
             ->whereNotNull('check_in_at')
             ->whereNotNull('check_out_at')
+            ->orderBy('work_date')
             ->get();
 
         $workMinutes = $logs->sum(fn ($log) => $log->work_minutes ?? 0);
@@ -38,30 +40,38 @@ class PayrollService
             ->get()
             ->sum(fn ($lr) => $this->countLeaveDaysInRange($lr->from_date, $lr->to_date, $from, $to));
 
-        $rate = (float) $employee->salary_rate;
-        $type = $employee->salary_type;
         $grossSalary = 0.0;
 
-        switch ($type) {
-            case Employee::SALARY_TYPE_HOUR:
-                $grossSalary = ($workMinutes / 60) * $rate;
-                break;
-            case Employee::SALARY_TYPE_DAY:
-                $grossSalary = $workDays * $rate;
-                break;
-            case Employee::SALARY_TYPE_MONTH:
-                $days = $from->copy()->startOfDay()->diffInDays($to->copy()->endOfDay()) + 1;
-                $grossSalary = ($days / 30) * $rate;
-                break;
+        $cursor = $from->copy()->startOfDay();
+        $endDay = $to->copy()->startOfDay();
+        while ($cursor->lte($endDay)) {
+            $r = $employee->applicableRateForDate($cursor);
+            if ($r['type'] === Employee::SALARY_TYPE_MONTH) {
+                $grossSalary += $r['rate'] / 30;
+            }
+            $cursor->addDay();
         }
+
+        foreach ($logs as $log) {
+            $wd = Carbon::parse($log->work_date)->startOfDay();
+            $r = $employee->applicableRateForDate($wd);
+            if ($r['type'] === Employee::SALARY_TYPE_HOUR) {
+                $mins = $log->work_minutes ?? 0;
+                $grossSalary += ($mins / 60) * $r['rate'];
+            } elseif ($r['type'] === Employee::SALARY_TYPE_DAY) {
+                $grossSalary += $r['rate'];
+            }
+        }
+
+        $firstRate = $employee->applicableRateForDate($from);
 
         return [
             'work_days' => $workDays,
             'work_minutes' => $workMinutes,
             'leave_days_approved' => $leaveDaysApproved,
             'gross_salary' => round($grossSalary, 2),
-            'salary_type' => $type,
-            'salary_rate' => $rate,
+            'salary_type' => $firstRate['type'],
+            'salary_rate' => $firstRate['rate'],
         ];
     }
 

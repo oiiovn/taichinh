@@ -28,6 +28,12 @@
             <input type="number" id="salary_rate" name="salary_rate" value="{{ old('salary_rate', $employee->salary_rate) }}" min="0" step="1000" required class="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
         </div>
         <div>
+            <label for="salary_effective_from" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Ngày áp dụng mức mới</label>
+            <input type="date" id="salary_effective_from" name="salary_effective_from" value="{{ old('salary_effective_from', now()->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Bắt buộc khi đổi mức lương hoặc hình thức lương. Bảng lương theo tháng sẽ tính theo từng mức trong kỳ.</p>
+            @error('salary_effective_from')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
+        </div>
+        <div>
             <label for="start_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Ngày bắt đầu</label>
             <input type="date" id="start_date" name="start_date" value="{{ old('start_date', $employee->start_date?->format('Y-m-d')) }}" class="mt-1 w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
         </div>
