@@ -235,7 +235,26 @@
                             <div class="flex items-start justify-between gap-3 border-b border-gray-100 pb-2 dark:border-gray-600">
                                 <div class="min-w-0">
                                     <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Mã đơn hàng</p>
-                                    <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ $o->invoice_code }}</p>
+                                    <div class="mt-0.5 flex flex-wrap items-center gap-2">
+                                        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $o->invoice_code }}</p>
+                                        @if(auth()->user()?->is_admin)
+                                            <form
+                                                method="POST"
+                                                action="{{ route('food.thong-ke-buff.order.destroy', $o) }}"
+                                                class="inline"
+                                                onsubmit="return confirm('Xóa đơn {{ $o->invoice_code }}?');"
+                                            >
+                                                @csrf
+                                                @method('DELETE')
+                                                <input type="hidden" name="from_date" value="{{ $from->format('Y-m-d') }}">
+                                                <input type="hidden" name="to_date" value="{{ $to->format('Y-m-d') }}">
+                                                @if($branchId)
+                                                    <input type="hidden" name="food_branch_id" value="{{ $branchId }}">
+                                                @endif
+                                                <button type="submit" class="text-xs font-medium text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </div>
                                 <div class="shrink-0 text-right">
                                     <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tiền công</p>

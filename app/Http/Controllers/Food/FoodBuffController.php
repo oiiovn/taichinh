@@ -154,6 +154,31 @@ class FoodBuffController extends Controller
         return redirect()->route('food.thong-ke-buff')->with('success', 'Đã ghi nhận thanh toán tiền công.');
     }
 
+    public function destroyBuffOrder(Request $request, FoodBuffOrder $foodBuffOrder): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+        if (! $user->is_admin) {
+            abort(403, 'Chỉ quản trị viên mới được xóa đơn.');
+        }
+        if ((int) $foodBuffOrder->user_id !== (int) $user->id) {
+            abort(403, 'Bạn không có quyền xóa đơn này.');
+        }
+
+        $code = (string) ($foodBuffOrder->invoice_code ?? '');
+        $foodBuffOrder->delete();
+
+        return redirect()->route(
+            'food.thong-ke-buff',
+            array_filter(
+                $request->only(['from_date', 'to_date', 'food_branch_id']),
+                fn ($v) => $v !== null && $v !== ''
+            )
+        )->with('success', 'Đã xóa đơn '.$code.'.');
+    }
+
     private function isOnlyThongKeBuffUser(User $user): bool
     {
         return ! $user->is_admin

@@ -240,6 +240,7 @@ Route::middleware('auth')->group(function () {
         Route::middleware(['food.thong_ke_buff'])->group(function () {
             Route::get('/food/thong-ke-buff', [\App\Http\Controllers\Food\FoodBuffController::class, 'index'])->name('food.thong-ke-buff');
             Route::post('/food/thong-ke-buff/thanh-toan-tien-cong', [\App\Http\Controllers\Food\FoodBuffController::class, 'storeLaborCashPayment'])->name('food.thong-ke-buff.thanh-toan-tien-cong');
+            Route::delete('/food/thong-ke-buff/don/{foodBuffOrder}', [\App\Http\Controllers\Food\FoodBuffController::class, 'destroyBuffOrder'])->name('food.thong-ke-buff.order.destroy');
         });
 
         Route::middleware(['food.bao_cao'])->group(function () {
