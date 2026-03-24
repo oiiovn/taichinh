@@ -83,7 +83,13 @@
                                 <td class="px-4 py-2 text-gray-900 dark:text-white">
                                     <span>{{ $fmt($d->debt_amount) }} đ</span>
                                     @if((float)($det['deduction'] ?? 0) > 0)
-                                        <span class="block text-xs text-gray-500 dark:text-gray-400" title="Tổng − Trừ = Còn">Tổng {{ $fmt($det['base']) }} − Trừ {{ $fmt($det['deduction']) }}</span>
+                                        <span class="block text-xs text-gray-500 dark:text-gray-400" title="Tổng − Trừ + Cộng = Còn">
+                                            Tổng {{ $fmt($det['base']) }}
+                                            @if((float)($det['deduction'] ?? 0) > 0) − Trừ {{ $fmt($det['deduction']) }}@endif
+                                            @if((float)($det['addition'] ?? 0) > 0) + Cộng {{ $fmt($det['addition']) }}@endif
+                                        </span>
+                                    @elseif((float)($det['addition'] ?? 0) > 0)
+                                        <span class="block text-xs text-gray-500 dark:text-gray-400" title="Tổng + Cộng = Còn">Tổng {{ $fmt($det['base']) }} + Cộng {{ $fmt($det['addition']) }}</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2 text-gray-600 dark:text-gray-400">{{ $r->uploaded_at->format('d/m/Y H:i') }}</td>

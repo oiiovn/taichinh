@@ -414,6 +414,11 @@ class BaoCaoBanHangController extends Controller
             return redirect()->back()->with('error', 'Số tiền trừ công nợ phải từ 0 đến '.number_format($baseAmount, 0, ',', '.').' đ.');
         }
         $deductionAmount = (int) round($deductionAmount);
+        $additionAmount = (float) $request->input('addition_amount', 0);
+        if ($additionAmount < 0) {
+            return redirect()->back()->with('error', 'Số tiền cộng công nợ phải lớn hơn hoặc bằng 0.');
+        }
+        $additionAmount = (int) round($additionAmount);
 
         FoodReportDebt::query()->updateOrCreate(
             [
@@ -423,6 +428,7 @@ class BaoCaoBanHangController extends Controller
             [
                 'only_tien_cong' => $onlyTienCong,
                 'deduction_amount' => $deductionAmount,
+                'addition_amount' => $additionAmount,
             ]
         );
 

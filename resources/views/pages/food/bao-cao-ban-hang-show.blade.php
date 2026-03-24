@@ -64,11 +64,12 @@
                     open: false,
                     onlyTienCong: false,
                     deductionAmount: 0,
+                    additionAmount: 0,
                     get baseAmount() { return this.onlyTienCong ? {{ $baseTienCong }} : {{ $baseFull }}; },
-                    get remaining() { return Math.max(0, this.baseAmount - (parseFloat(this.deductionAmount) || 0)); }
+                    get remaining() { return Math.max(0, this.baseAmount - (parseFloat(this.deductionAmount) || 0) + (parseFloat(this.additionAmount) || 0)); }
                 }">
                     @csrf
-                    <button type="button" @click="open = true; deductionAmount = 0; onlyTienCong = false" class="rounded-lg border border-amber-300 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20">Xử lý công nợ</button>
+                    <button type="button" @click="open = true; deductionAmount = 0; additionAmount = 0; onlyTienCong = false" class="rounded-lg border border-amber-300 px-4 py-2 text-sm font-medium text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20">Xử lý công nợ</button>
                     <template x-teleport="body">
                         <div x-show="open" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" @keydown.escape.window="open = false">
                             <div x-show="open" x-transition class="w-full max-w-md rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800" @click.stop>
@@ -93,10 +94,13 @@
                                     <div class="mb-4">
                                         <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Trừ tiền công nợ (đ)</label>
                                         <input type="number" name="deduction_amount" min="0" step="1000" placeholder="0" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" x-model.number="deductionAmount">
+                                        <label class="mb-1 mt-3 block text-sm font-medium text-gray-700 dark:text-gray-300">Cộng tiền công nợ (đ)</label>
+                                        <input type="number" name="addition_amount" min="0" step="1000" placeholder="0" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" x-model.number="additionAmount">
                                         <p class="mt-2 rounded bg-gray-100 px-2 py-1.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400">
                                             <span>Tổng quyết toán: <strong x-text="new Intl.NumberFormat('vi-VN').format(baseAmount) + ' đ'"></strong></span>
                                             <span x-show="deductionAmount > 0"> — Trừ: <strong x-text="new Intl.NumberFormat('vi-VN').format(parseFloat(deductionAmount) || 0) + ' đ'"></strong></span>
-                                            <span x-show="deductionAmount > 0"> → Còn công nợ: <strong class="text-amber-600 dark:text-amber-400" x-text="new Intl.NumberFormat('vi-VN').format(remaining) + ' đ'"></strong></span>
+                                            <span x-show="additionAmount > 0"> + Cộng: <strong x-text="new Intl.NumberFormat('vi-VN').format(parseFloat(additionAmount) || 0) + ' đ'"></strong></span>
+                                            <span x-show="deductionAmount > 0 || additionAmount > 0"> → Còn công nợ: <strong class="text-amber-600 dark:text-amber-400" x-text="new Intl.NumberFormat('vi-VN').format(remaining) + ' đ'"></strong></span>
                                         </p>
                                     </div>
                                     <div class="flex gap-2">

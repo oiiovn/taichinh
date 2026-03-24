@@ -15,11 +15,13 @@ class FoodReportDebt extends Model
         'debtor_user_id',
         'only_tien_cong',
         'deduction_amount',
+        'addition_amount',
     ];
 
     protected $casts = [
         'only_tien_cong' => 'boolean',
         'deduction_amount' => 'decimal:0',
+        'addition_amount' => 'decimal:0',
     ];
 
     /** Tổng trước khi trừ (tiền công+thưởng nếu only_tien_cong, else tổng quyết toán). */
@@ -41,18 +43,25 @@ class FoodReportDebt extends Model
         return (float) ($this->attributes['deduction_amount'] ?? 0);
     }
 
-    /** Số tiền công nợ thực: base - deduction (tối thiểu 0). */
-    public function getDebtAmountAttribute(): float
+    /** Số tiền cộng thêm công nợ (đã nhập khi tạo). */
+    public function getAdditionAmountValueAttribute(): float
     {
-        return max(0.0, $this->base_amount - $this->deduction_amount_value);
+        return (float) ($this->attributes['addition_amount'] ?? 0);
     }
 
-    /** Chi tiết để hiển thị: ['base' => ..., 'deduction' => ..., 'debt' => ...] */
+    /** Số tiền công nợ thực: base - deduction + addition (tối thiểu 0). */
+    public function getDebtAmountAttribute(): float
+    {
+        return max(0.0, $this->base_amount - $this->deduction_amount_value + $this->addition_amount_value);
+    }
+
+    /** Chi tiết để hiển thị: ['base' => ..., 'deduction' => ..., 'addition' => ..., 'debt' => ...] */
     public function getDebtDetailAttribute(): array
     {
         return [
             'base' => $this->base_amount,
             'deduction' => $this->deduction_amount_value,
+            'addition' => $this->addition_amount_value,
             'debt' => $this->debt_amount,
         ];
     }
