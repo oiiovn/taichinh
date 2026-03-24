@@ -202,7 +202,7 @@
         </p>
         @forelse($ordersByDate as $group)
             <div
-                class="rounded-xl border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-800/50"
+                class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-800"
             >
                 <button
                     type="button"
@@ -223,7 +223,7 @@
                 <div
                     x-show="openDate === '{{ $group['date_key'] }}'"
                     x-cloak
-                    class="space-y-2 border-t border-gray-100 px-3 py-2.5 dark:border-gray-700"
+                    class="space-y-2 border-t border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-600 dark:bg-gray-900/40"
                 >
                     @foreach($group['items'] as $o)
                         @php
@@ -231,8 +231,8 @@
                             $customerKey = mb_strtolower($customerRaw);
                             $customerDisplay = $customerRaw !== '' ? ($foodUserNameMap[$customerKey] ?? $customerRaw) : '—';
                         @endphp
-                        <div class="rounded-lg border border-gray-200 bg-white px-2.5 py-2 dark:border-gray-700 dark:bg-gray-900/20">
-                            <div class="flex items-start justify-between gap-3 border-b border-gray-100 pb-2 dark:border-gray-700">
+                        <div class="rounded-lg border border-gray-200 bg-white px-2.5 py-2 shadow-sm dark:border-gray-600 dark:bg-gray-800">
+                            <div class="flex items-start justify-between gap-3 border-b border-gray-100 pb-2 dark:border-gray-600">
                                 <div class="min-w-0">
                                     <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Mã đơn hàng</p>
                                     <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ $o->invoice_code }}</p>
@@ -242,14 +242,14 @@
                                     <p class="mt-0.5 text-sm font-semibold tabular-nums text-green-600 dark:text-green-400">+ {{ $fmt($o->labor_amount) }} đ</p>
                                 </div>
                             </div>
-                            <div class="mt-2 space-y-2 text-xs">
+                            <div class="mt-2 space-y-2 text-xs text-gray-700 dark:text-gray-200">
                                 <div>
                                     <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Chi nhánh</p>
                                     <p class="mt-0.5 font-medium text-gray-900 dark:text-gray-100">{{ $o->branch?->name ?? '—' }}</p>
                                 </div>
                                 <div>
                                     <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Thời gian đặt</p>
-                                    <p class="mt-0.5 text-gray-700 dark:text-gray-300">{{ $formatBuffOrderDateTime($o) }}</p>
+                                    <p class="mt-0.5 text-gray-800 dark:text-gray-200">{{ $formatBuffOrderDateTime($o) }}</p>
                                 </div>
                                 <div>
                                     <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tài khoản Shopeefood</p>
@@ -257,7 +257,7 @@
                                 </div>
                             </div>
                             @if(!($isOnlyThongKeBuffUser ?? false))
-                                <div class="mt-2 border-t border-gray-100 pt-2 text-xs font-medium text-amber-600 dark:border-gray-700 dark:text-amber-400">Buff: {{ $fmt($o->buff_amount) }} đ</div>
+                                <div class="mt-2 border-t border-gray-100 pt-2 text-xs font-medium text-amber-600 dark:border-gray-600 dark:text-amber-300">Buff: {{ $fmt($o->buff_amount) }} đ</div>
                             @endif
                         </div>
                     @endforeach
