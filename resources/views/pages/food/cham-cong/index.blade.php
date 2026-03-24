@@ -4,15 +4,25 @@
 @php
 $fmt = fn ($n) => \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($n);
 $dailySalary = function ($log, $emp) {
-    if (!$emp) return null;
-    $r = (float) $emp->salary_rate;
-    $t = $emp->salary_type ?? 'hour';
-    if ($t === 'hour') {
+    if (! $emp) {
+        return null;
+    }
+    $d = \Carbon\Carbon::parse($log->work_date)->startOfDay();
+    $ar = $emp->applicableRateForDate($d);
+    $r = (float) $ar['rate'];
+    $t = $ar['type'] ?? \App\Models\Employee::SALARY_TYPE_HOUR;
+    if ($t === \App\Models\Employee::SALARY_TYPE_HOUR) {
         $mins = $log->work_minutes ?? null;
+
         return $mins !== null ? ($mins / 60) * $r : null;
     }
-    if ($t === 'day') return $log->check_in_at && $log->check_out_at ? $r : null;
-    if ($t === 'month') return $log->check_in_at && $log->check_out_at ? $r / 30 : null;
+    if ($t === \App\Models\Employee::SALARY_TYPE_DAY) {
+        return $log->check_in_at && $log->check_out_at ? $r : null;
+    }
+    if ($t === \App\Models\Employee::SALARY_TYPE_MONTH) {
+        return $log->check_in_at && $log->check_out_at ? $r / 30 : null;
+    }
+
     return null;
 };
 @endphp

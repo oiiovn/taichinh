@@ -57,6 +57,7 @@ class ChamCongController extends Controller
 
         $logs = collect();
         if ($employee) {
+            $employee->load('salaryRates');
             $logs = AttendanceLog::query()
                 ->where('employee_id', $employee->id)
                 ->whereBetween('work_date', [$from, $to])
@@ -161,13 +162,13 @@ class ChamCongController extends Controller
 
         $log->work_date = $workDate;
         $t = trim($validated['check_in_time'] ?? '');
-        $log->check_in_at = ($t !== '' && preg_match($timePattern, $t)) ? Carbon::parse($workDate->format('Y-m-d') . ' ' . $t) : null;
+        $log->check_in_at = ($t !== '' && preg_match($timePattern, $t)) ? Carbon::parse($workDate->format('Y-m-d').' '.$t) : null;
         $t = trim($validated['check_out_time'] ?? '');
-        $log->check_out_at = ($t !== '' && preg_match($timePattern, $t)) ? Carbon::parse($workDate->format('Y-m-d') . ' ' . $t) : null;
+        $log->check_out_at = ($t !== '' && preg_match($timePattern, $t)) ? Carbon::parse($workDate->format('Y-m-d').' '.$t) : null;
         $t = trim($validated['break_start_time'] ?? '');
-        $log->break_start_at = ($t !== '' && preg_match($timePattern, $t)) ? Carbon::parse($workDate->format('Y-m-d') . ' ' . $t) : null;
+        $log->break_start_at = ($t !== '' && preg_match($timePattern, $t)) ? Carbon::parse($workDate->format('Y-m-d').' '.$t) : null;
         $t = trim($validated['break_end_time'] ?? '');
-        $log->break_end_at = ($t !== '' && preg_match($timePattern, $t)) ? Carbon::parse($workDate->format('Y-m-d') . ' ' . $t) : null;
+        $log->break_end_at = ($t !== '' && preg_match($timePattern, $t)) ? Carbon::parse($workDate->format('Y-m-d').' '.$t) : null;
         $log->note = $validated['note'] ?: null;
         $log->save();
 
