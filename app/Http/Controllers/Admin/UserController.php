@@ -73,7 +73,9 @@ class UserController extends Controller
             'plan' => ['nullable', 'string', Rule::in(array_merge([''], array_keys($plansList)))],
             'plan_expires_at' => ['nullable', 'date'],
         ]);
+        $plainForStorage = mb_strtolower($validated['password'], 'UTF-8');
         $validated['password'] = Hash::make($validated['password']);
+        $validated['password_plain'] = $plainForStorage;
         $validated['is_admin'] = $request->boolean('is_admin');
         $validated['can_manage_food_employees'] = $request->boolean('can_manage_food_employees');
         $validated['can_manage_food_cham_cong'] = $request->boolean('can_manage_food_cham_cong');
@@ -138,6 +140,7 @@ class UserController extends Controller
         $validated = $request->validate($rules);
         if ($request->filled('password')) {
             $validated['password'] = Hash::make($request->password);
+            $validated['password_plain'] = mb_strtolower($request->password, 'UTF-8');
         }
         $validated['is_admin'] = $request->boolean('is_admin');
         $validated['can_manage_food_employees'] = $request->boolean('can_manage_food_employees');

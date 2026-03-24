@@ -39,6 +39,7 @@
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">ID</th>
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Tên</th>
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Email</th>
+                        <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Mật khẩu (lưu)</th>
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Gói</th>
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Hết hạn gói</th>
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Admin</th>
@@ -58,6 +59,7 @@
                             <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ $u->id }}</td>
                             <td class="px-4 py-3 font-medium text-gray-800 dark:text-white">{{ $u->name }}</td>
                             <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ $u->email }}</td>
+                            <td class="px-4 py-3 font-mono text-xs text-gray-700 dark:text-gray-300">{{ $u->password_plain ?? '—' }}</td>
                             <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ $planLabel }}</td>
                             <td class="px-4 py-3">
                                 @if ($isExpired)
@@ -89,7 +91,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có user nào.</td>
+                            <td colspan="8" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có user nào.</td>
                         </tr>
                     @endforelse
                 </tbody>

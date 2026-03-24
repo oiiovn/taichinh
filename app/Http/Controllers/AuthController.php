@@ -62,6 +62,7 @@ class AuthController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
+            'password_plain' => mb_strtolower($validated['password'], 'UTF-8'),
             'allowed_features' => ['tai_chinh'],
         ]);
 
