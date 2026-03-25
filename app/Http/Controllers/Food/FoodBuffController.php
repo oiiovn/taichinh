@@ -8,6 +8,7 @@ use App\Models\FoodBuffLaborPayment;
 use App\Models\FoodBuffOrder;
 use App\Models\User;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -154,10 +155,14 @@ class FoodBuffController extends Controller
         return redirect()->route('food.thong-ke-buff')->with('success', 'Đã ghi nhận thanh toán tiền công.');
     }
 
-    public function toggleCustomerReviewed(Request $request, FoodBuffOrder $foodBuffOrder): RedirectResponse
+    public function toggleCustomerReviewed(Request $request, FoodBuffOrder $foodBuffOrder): RedirectResponse|JsonResponse
     {
         $user = $request->user();
         if (! $user) {
+            if ($request->expectsJson()) {
+                return response()->json(['ok' => false, 'message' => 'Vui lòng đăng nhập.'], 401);
+            }
+
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
         }
         if (! $user->is_admin) {
@@ -170,6 +175,17 @@ class FoodBuffController extends Controller
         $foodBuffOrder->update([
             'customer_reviewed' => ! $foodBuffOrder->customer_reviewed,
         ]);
+        $foodBuffOrder->refresh();
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'ok' => true,
+                'customer_reviewed' => (bool) $foodBuffOrder->customer_reviewed,
+                'message' => $foodBuffOrder->customer_reviewed
+                    ? 'Đã đánh dấu đơn đã được đánh giá.'
+                    : 'Đã bỏ đánh dấu đánh giá.',
+            ]);
+        }
 
         return redirect()->route(
             'food.thong-ke-buff',
