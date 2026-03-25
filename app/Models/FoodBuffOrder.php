@@ -19,12 +19,14 @@ class FoodBuffOrder extends Model
         'customer_name',
         'buff_amount',
         'labor_amount',
+        'customer_reviewed',
     ];
 
     protected $casts = [
         'order_date' => 'date',
         'buff_amount' => 'decimal:0',
         'labor_amount' => 'decimal:0',
+        'customer_reviewed' => 'boolean',
     ];
 
     public function user(): BelongsTo

@@ -154,6 +154,32 @@ class FoodBuffController extends Controller
         return redirect()->route('food.thong-ke-buff')->with('success', 'Đã ghi nhận thanh toán tiền công.');
     }
 
+    public function toggleCustomerReviewed(Request $request, FoodBuffOrder $foodBuffOrder): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+        if (! $user->is_admin) {
+            abort(403, 'Chỉ quản trị viên mới đánh dấu đánh giá.');
+        }
+        if ((int) $foodBuffOrder->user_id !== (int) $user->id) {
+            abort(403, 'Bạn không có quyền thao tác đơn này.');
+        }
+
+        $foodBuffOrder->update([
+            'customer_reviewed' => ! $foodBuffOrder->customer_reviewed,
+        ]);
+
+        return redirect()->route(
+            'food.thong-ke-buff',
+            array_filter(
+                $request->only(['from_date', 'to_date', 'food_branch_id']),
+                fn ($v) => $v !== null && $v !== ''
+            )
+        )->with('success', $foodBuffOrder->customer_reviewed ? 'Đã đánh dấu đơn đã được đánh giá.' : 'Đã bỏ đánh dấu đánh giá.');
+    }
+
     public function destroyBuffOrder(Request $request, FoodBuffOrder $foodBuffOrder): RedirectResponse
     {
         $user = $request->user();

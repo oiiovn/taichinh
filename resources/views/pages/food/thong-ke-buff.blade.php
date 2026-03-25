@@ -223,27 +223,51 @@
                 <div
                     x-show="openDate === '{{ $group['date_key'] }}'"
                     x-cloak
+                    x-data="{ visibleMobile: 3, isMobile: window.innerWidth < 768 }"
+                    x-init="window.addEventListener('resize', () => isMobile = window.innerWidth < 768)"
                     class="space-y-2 border-t border-gray-100 bg-gray-50 px-3 py-2.5 dark:border-gray-600 dark:bg-gray-900/40"
                 >
-                    @foreach($group['items'] as $o)
+                    @foreach($group['items'] as $itemIndex => $o)
                         @php
                             $customerRaw = trim((string) ($o->customer_name ?? ''));
                             $customerKey = mb_strtolower($customerRaw);
                             $customerDisplay = $customerRaw !== '' ? ($foodUserNameMap[$customerKey] ?? $customerRaw) : '—';
                         @endphp
-                        <div class="rounded-lg border border-gray-200 bg-white px-2.5 py-2 shadow-sm dark:border-gray-600 dark:bg-gray-800">
-                            <div class="flex items-start justify-between gap-3 border-b border-gray-100 pb-2 dark:border-gray-600">
-                                <div class="min-w-0">
-                                    <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Mã đơn hàng</p>
-                                    <div class="mt-0.5 flex flex-wrap items-center gap-2">
-                                        <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $o->invoice_code }}</p>
-                                        @if(auth()->user()?->is_admin)
-                                            <form
-                                                method="POST"
-                                                action="{{ route('food.thong-ke-buff.order.destroy', $o) }}"
-                                                class="inline"
-                                                onsubmit="return confirm('Xóa đơn {{ $o->invoice_code }}?');"
-                                            >
+                        <div
+                            x-show="!isMobile || {{ (int) $itemIndex }} < visibleMobile"
+                            x-cloak
+                            class="overflow-hidden rounded-lg border border-gray-200/90 bg-white text-[10px] leading-snug shadow-sm dark:border-gray-600 dark:bg-gray-800"
+                        >
+                            <div class="flex gap-2 border-b border-gray-100 px-2 py-1.5 dark:border-gray-700">
+                                <div class="min-w-0 flex-1 space-y-1">
+                                    <div class="flex flex-wrap items-center gap-1.5">
+                                        <span class="font-mono text-[11px] font-bold text-gray-900 dark:text-white">{{ $o->invoice_code }}</span>
+                                        @if(! empty($o->customer_reviewed))
+                                            <span class="inline-flex items-center gap-2 rounded border border-amber-200/90 bg-amber-50 px-1.5 py-px text-[9px] font-semibold text-amber-900 dark:border-amber-700/60 dark:bg-amber-950/40 dark:text-amber-100" role="img" aria-label="Đã đánh giá 5 sao" title="Đơn đã được đánh giá">
+                                                <span class="inline-flex items-center gap-px" aria-hidden="true">
+                                                    @for($si = 0; $si < 5; $si++)
+                                                        <svg class="h-2.5 w-2.5 shrink-0 text-amber-500 dark:text-amber-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                                            <path fill-rule="evenodd" d="M10.868 2.884c-.321-.772-1.415-.772-1.736 0l-1.83 4.401-4.753.381c-.833.067-1.171 1.107-.536 1.651l3.62 3.102-1.106 4.637c-.194.813.691 1.456 1.405 1.02L10 15.591l4.069 2.485c.713.436 1.598-.207 1.404-1.02l-1.106-4.637 3.62-3.102c.635-.544.297-1.584-.536-1.65l-4.752-.382-1.831-4.401z" clip-rule="evenodd" />
+                                                        </svg>
+                                                    @endfor
+                                                </span>
+                                                <span>Đã đánh giá</span>
+                                            </span>
+                                        @endif
+                                    </div>
+                                    @if(auth()->user()?->is_admin)
+                                        <div class="flex flex-wrap gap-1">
+                                            <form method="POST" action="{{ route('food.thong-ke-buff.order.reviewed', $o) }}" class="inline">
+                                                @csrf
+                                                @method('PATCH')
+                                                <input type="hidden" name="from_date" value="{{ $from->format('Y-m-d') }}">
+                                                <input type="hidden" name="to_date" value="{{ $to->format('Y-m-d') }}">
+                                                @if($branchId)
+                                                    <input type="hidden" name="food_branch_id" value="{{ $branchId }}">
+                                                @endif
+                                                <button type="submit" class="rounded border border-amber-200/80 bg-white px-1 py-px text-[9px] font-medium text-amber-800 hover:bg-amber-50 dark:border-amber-800 dark:bg-gray-900 dark:text-amber-200 dark:hover:bg-amber-950/40" title="Đánh dấu đơn khách đã đánh giá 5 sao">{{ ! empty($o->customer_reviewed) ? 'Bỏ đánh giá' : 'Đánh dấu đã đánh giá' }}</button>
+                                            </form>
+                                            <form method="POST" action="{{ route('food.thong-ke-buff.order.destroy', $o) }}" class="inline" onsubmit="return confirm('Xóa đơn {{ $o->invoice_code }}?');">
                                                 @csrf
                                                 @method('DELETE')
                                                 <input type="hidden" name="from_date" value="{{ $from->format('Y-m-d') }}">
@@ -251,35 +275,36 @@
                                                 @if($branchId)
                                                     <input type="hidden" name="food_branch_id" value="{{ $branchId }}">
                                                 @endif
-                                                <button type="submit" class="text-xs font-medium text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                                                <button type="submit" class="rounded border border-red-200/80 bg-white px-1 py-px text-[9px] font-medium text-red-700 hover:bg-red-50 dark:border-red-900 dark:bg-gray-900 dark:text-red-300 dark:hover:bg-red-950/30">Xóa</button>
                                             </form>
-                                        @endif
-                                    </div>
+                                        </div>
+                                    @endif
                                 </div>
-                                <div class="shrink-0 text-right">
-                                    <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tiền công</p>
-                                    <p class="mt-0.5 text-sm font-semibold tabular-nums text-green-600 dark:text-green-400">+ {{ $fmt($o->labor_amount) }} đ</p>
+                                <div class="flex shrink-0 items-center justify-end rounded bg-emerald-50 px-1.5 py-1 text-right dark:bg-emerald-950/35">
+                                    <span class="text-[11px] font-bold tabular-nums text-emerald-700 dark:text-emerald-300">+{{ $fmt($o->labor_amount) }}đ</span>
                                 </div>
                             </div>
-                            <div class="mt-2 space-y-2 text-xs text-gray-700 dark:text-gray-200">
-                                <div>
-                                    <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Chi nhánh</p>
-                                    <p class="mt-0.5 font-medium text-gray-900 dark:text-gray-100">{{ $o->branch?->name ?? '—' }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Thời gian đặt</p>
-                                    <p class="mt-0.5 text-gray-800 dark:text-gray-200">{{ $formatBuffOrderDateTime($o) }}</p>
-                                </div>
-                                <div>
-                                    <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tài khoản Shopeefood</p>
-                                    <p class="mt-0.5 font-medium text-gray-900 dark:text-gray-100">{{ $customerDisplay }}</p>
-                                </div>
+                            <div class="space-y-0.5 px-2 py-1.5 text-gray-800 dark:text-gray-200">
+                                <p class="truncate"><span class="text-gray-500 dark:text-gray-400">Chi nhánh:</span> <span class="font-semibold text-gray-900 dark:text-gray-100">{{ $o->branch?->name ?? '—' }}</span></p>
+                                <p class="tabular-nums"><span class="text-gray-500 dark:text-gray-400">Đặt lúc:</span> <span class="font-medium">{{ $formatBuffOrderDateTime($o) }}</span></p>
+                                <p class="break-all"><span class="text-gray-500 dark:text-gray-400">Shopeefood:</span> <span class="font-medium text-gray-900 dark:text-gray-100">{{ $customerDisplay }}</span></p>
                             </div>
                             @if(!($isOnlyThongKeBuffUser ?? false))
-                                <div class="mt-2 border-t border-gray-100 pt-2 text-xs font-medium text-amber-600 dark:border-gray-600 dark:text-amber-300">Buff: {{ $fmt($o->buff_amount) }} đ</div>
+                                <div class="border-t border-gray-100 bg-amber-50/50 px-2 py-1 dark:border-gray-700 dark:bg-amber-950/15">
+                                    <p class="text-[10px] font-semibold text-amber-900 dark:text-amber-200"><span class="font-medium text-amber-800/85 dark:text-amber-300">Buff:</span> {{ $fmt($o->buff_amount) }} đ</p>
+                                </div>
                             @endif
                         </div>
                     @endforeach
+                    @if(($group['count'] ?? 0) > 3)
+                        <button
+                            type="button"
+                            class="w-full rounded-lg border border-gray-200 bg-white py-2 text-[11px] font-medium text-brand-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-brand-400 dark:hover:bg-gray-700 md:hidden"
+                            @click="visibleMobile = Math.min(visibleMobile + 3, {{ (int) $group['count'] }})"
+                            x-show="isMobile && visibleMobile < {{ (int) $group['count'] }}"
+                            x-cloak
+                        >Xem thêm</button>
+                    @endif
                 </div>
             </div>
         @empty
