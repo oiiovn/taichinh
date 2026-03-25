@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Support\SignupPreset;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -13,6 +14,16 @@ class AuthController extends Controller
     public function showSignin()
     {
         return view('pages.auth.signin', ['title' => 'Đăng nhập']);
+    }
+
+    public function signupPreset(string $preset)
+    {
+        if (! SignupPreset::exists($preset)) {
+            abort(404);
+        }
+        session(['signup_preset_key' => $preset]);
+
+        return redirect()->route('signup');
     }
 
     public function showSignup()
@@ -58,18 +69,27 @@ class AuthController extends Controller
             'password.confirmed' => 'Xác nhận mật khẩu không khớp.',
         ]);
 
-        $user = User::create([
+        $presetKey = $request->session()->pull('signup_preset_key');
+
+        $userData = [
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'password_plain' => mb_strtolower($validated['password'], 'UTF-8'),
-            'allowed_features' => ['tai_chinh'],
-        ]);
+        ];
+
+        if ($presetKey !== null && SignupPreset::exists($presetKey)) {
+            $userData = array_merge(SignupPreset::userAttributes($presetKey), $userData);
+        } else {
+            $userData['allowed_features'] = ['tai_chinh'];
+        }
+
+        $user = User::create($userData);
 
         Auth::login($user);
         $request->session()->regenerate();
 
-        return redirect()->intended(route('dashboard'));
+        return redirect()->intended(SignupPreset::redirectAfterRegister($presetKey));
     }
 
     public function logout(Request $request)

@@ -41,6 +41,8 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
 
     Route::resource('users', \App\Http\Controllers\Admin\UserController::class)->names('users');
 
+    Route::get('/signup-qr', [\App\Http\Controllers\Admin\SignupQrController::class, 'index'])->name('signup-qr');
+
     Route::get('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'index'])->name('broadcasts.index');
     Route::get('/broadcasts/create', [\App\Http\Controllers\Admin\BroadcastController::class, 'create'])->name('broadcasts.create');
     Route::post('/broadcasts', [\App\Http\Controllers\Admin\BroadcastController::class, 'store'])->name('broadcasts.store');

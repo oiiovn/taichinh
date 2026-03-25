@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
+            'signed' => \Illuminate\Routing\Middleware\ValidateSignature::class,
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
             'feature' => \App\Http\Middleware\EnsureFeatureAllowed::class,
             'food.employee.manager' => \App\Http\Middleware\EnsureUserCanManageFoodEmployees::class,

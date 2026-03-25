@@ -2,6 +2,7 @@
     $currentPath = request()->path();
     $menuItems = [
         ['name' => 'Trang chủ', 'path' => route('admin.index'), 'icon' => 'dashboard'],
+        ['name' => 'QR đăng ký', 'path' => route('admin.signup-qr'), 'icon' => 'authentication'],
         ['name' => 'Quản lý user', 'path' => route('admin.users.index'), 'icon' => 'user-profile'],
         ['name' => 'Thông báo', 'path' => route('admin.broadcasts.index'), 'icon' => 'email'],
         ['name' => 'Lịch sử giao dịch', 'path' => route('admin.lich-su-giao-dich.index'), 'icon' => 'chart-bar'],
@@ -42,6 +43,7 @@
                 @foreach ($menuItems as $item)
                     @php
                         $isActive = ($item['path'] === route('admin.index') && request()->path() === 'admin')
+                            || (str_contains($item['path'], 'signup-qr') && request()->is('admin/signup-qr'))
                             || (str_contains($item['path'], 'users') && request()->is('admin/users*'))
                             || (str_contains($item['path'], 'broadcasts') && request()->is('admin/broadcasts*'))
                             || (str_contains($item['path'], 'lich-su-giao-dich') && request()->is('admin/lich-su-giao-dich*'))
