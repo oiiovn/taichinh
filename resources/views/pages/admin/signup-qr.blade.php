@@ -16,8 +16,8 @@
             In hoặc hiển thị mã để người dùng quét; họ sẽ vào trang đăng ký và sau khi tạo tài khoản chỉ có quyền Food — Thống kê seeding (đúng cấu hình preset). URL có chữ ký, không tự sửa tham số.
         </p>
         <div class="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-start">
-            <div class="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/40 [&_svg]:max-h-[280px] [&_svg]:w-auto">
-                {!! $qrSvg !!}
+            <div class="rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                <div id="signup-qr-canvas" class="inline-block min-h-[280px] min-w-[280px]"></div>
             </div>
             <div class="min-w-0 flex-1 space-y-2">
                 <label class="block text-xs font-medium uppercase text-gray-500 dark:text-gray-400">Liên kết (sao chép)</label>
@@ -27,4 +27,18 @@
             </div>
         </div>
     </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var el = document.getElementById('signup-qr-canvas');
+            if (!el || typeof QRCode === 'undefined') return;
+            el.innerHTML = '';
+            new QRCode(el, {
+                text: @json($signupUrl),
+                width: 280,
+                height: 280,
+                correctLevel: QRCode.CorrectLevel.M
+            });
+        });
+    </script>
 @endsection
