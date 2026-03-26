@@ -292,7 +292,7 @@
     if (document.readyState === 'complete') setTimeout(renderDoanhSoChart, 0);
     else window.addEventListener('load', function() { setTimeout(renderDoanhSoChart, 0); });
 
-    (function initDoanhSoDatePickers() {Nhân viên: foodee_svogokky
+    (function initDoanhSoDatePickers() {
         function run() {
             if (typeof window.flatpickr === 'undefined') return;
             var fromEl = document.getElementById('food-doanhso-from-date');

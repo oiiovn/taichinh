@@ -310,7 +310,7 @@
                                                 @click.prevent="toggleReview()"
                                                 :disabled="busy"
                                                 :class="{ 'opacity-60': busy }"
-                                                class="relative z-10 inline-flex min-h-7 shrink-0 items-center justify-center whitespace-nowrap rounded border border-amber-400/90 bg-amber-50 px-2 py-1 text-[9px] font-medium leading-tight text-amber-950 hover:bg-amber-100 disabled:cursor-not-allowed dark:border-amber-400/60 dark:bg-gray-900 dark:text-amber-50 dark:hover:bg-gray-800"
+                                                class="relative z-10 inline-flex min-h-7 shrink-0 items-center justify-center whitespace-nowrap rounded border border-blue-500/90 bg-blue-50 px-2 py-1 text-[9px] font-medium leading-tight text-blue-900 hover:bg-blue-100 disabled:cursor-not-allowed dark:border-blue-400/70 dark:bg-blue-950/40 dark:text-blue-100 dark:hover:bg-blue-900/50"
                                                 title="Đánh dấu đơn khách đã đánh giá 5 sao"
                                             >
                                                 <span class="inline {{ ! empty($o->customer_reviewed) ? 'hidden' : '' }}" :class="{ 'hidden': reviewed }">Đánh dấu đã đánh giá</span>

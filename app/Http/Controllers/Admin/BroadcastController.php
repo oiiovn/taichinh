@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Broadcast;
 use App\Models\PlanConfig;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 
 class BroadcastController extends Controller
 {
@@ -42,5 +43,13 @@ class BroadcastController extends Controller
         }
         Broadcast::create($validated);
         return redirect()->route('admin.broadcasts.index')->with('success', 'Đã gửi thông báo.');
+    }
+
+    public function destroy(Broadcast $broadcast)
+    {
+        $title = Str::limit((string) $broadcast->title, 80);
+        $broadcast->delete();
+
+        return redirect()->route('admin.broadcasts.index')->with('success', 'Đã xóa thông báo: '.$title);
     }
 }

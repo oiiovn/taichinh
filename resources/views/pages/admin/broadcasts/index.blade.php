@@ -29,6 +29,7 @@
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Đối tượng</th>
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Người tạo</th>
                         <th class="px-4 py-3 font-medium text-gray-800 dark:text-white">Ngày gửi</th>
+                        <th class="px-4 py-3 font-medium text-gray-800 dark:text-white w-32 text-right">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -48,10 +49,17 @@
                             <td class="px-4 py-3 text-gray-700 dark:text-gray-300">{{ $targetLabel }}</td>
                             <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ $b->creator?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ $b->created_at->format('d/m/Y H:i') }}</td>
+                            <td class="px-4 py-3 text-right">
+                                <form method="POST" action="{{ route('admin.broadcasts.destroy', $b) }}" class="inline" onsubmit="return confirm('Xóa thông báo này?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:bg-gray-900 dark:text-red-400 dark:hover:bg-red-950/30">Xóa</button>
+                                </form>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có thông báo nào.</td>
+                            <td colspan="7" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có thông báo nào.</td>
                         </tr>
                     @endforelse
                 </tbody>
