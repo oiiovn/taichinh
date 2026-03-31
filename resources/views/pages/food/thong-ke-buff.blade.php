@@ -47,8 +47,6 @@
     };
 @endphp
 <div class="space-y-6">
-    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Thống kê Nhân viên tăng đánh giá</h2>
-
     @if(session('success'))
         <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">{{ session('success') }}</div>
     @endif
@@ -56,7 +54,9 @@
         <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">{{ session('error') }}</div>
     @endif
 
-    <form method="GET" action="{{ route('food.thong-ke-buff') }}" class="flex flex-wrap items-end gap-2 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+    <div class="hidden md:block space-y-4">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Thống kê Nhân viên tăng đánh giá</h2>
+        <form method="GET" action="{{ route('food.thong-ke-buff') }}" class="flex flex-wrap items-end gap-2 rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
         <div>
             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Từ ngày</label>
             <input type="date" name="from_date" value="{{ $from->format('Y-m-d') }}" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
@@ -75,7 +75,8 @@
             </select>
         </div>
         <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Xem</button>
-    </form>
+        </form>
+    </div>
 
     @if($isOnlyThongKeBuffUser ?? false)
         <div class="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
@@ -196,10 +197,10 @@
             ->values();
     @endphp
     <div class="space-y-3" x-data="{ openDate: null }">
-        <div class="space-y-1">
-            <p class="text-sm font-semibold text-gray-900 dark:text-white">Danh sách đơn</p>
-            <p class="text-xs font-normal italic text-blue-700 dark:text-blue-300">Được cập nhật sau 22h mỗi ngày hoặc trước 10h ngày hôm sau.</p>
-        </div>
+        <p class="text-sm font-semibold text-gray-900 dark:text-white">
+            Danh sách đơn
+            <span class="ml-1 text-[10px] font-normal italic text-blue-600 dark:text-blue-400">(Được cập nhật sau 22h mỗi ngày hoặc trước 10h ngày hôm sau)</span>
+        </p>
         @forelse($ordersByDate as $group)
             <div
                 class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-800"
