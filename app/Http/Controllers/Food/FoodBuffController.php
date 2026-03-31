@@ -28,10 +28,14 @@ class FoodBuffController extends Controller
 
         $from = $request->input('from_date')
             ? Carbon::parse($request->input('from_date'))->startOfDay()
-            : now()->startOfMonth();
+            : Carbon::parse('2026-03-01')->startOfDay();
         $to = $request->input('to_date')
             ? Carbon::parse($request->input('to_date'))->endOfDay()
-            : now()->endOfMonth();
+            : now()->copy()->endOfMonth();
+
+        if ($from->gt($to)) {
+            [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+        }
 
         $branchId = $request->input('food_branch_id');
         $branchId = $branchId !== null && $branchId !== '' ? (int) $branchId : null;
