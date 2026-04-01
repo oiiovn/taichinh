@@ -18,8 +18,8 @@ class FoodReviewController extends Controller
         if (! $user) {
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
         }
-        if (! $user->is_admin) {
-            abort(403, 'Chỉ quản trị viên mới được cập nhật trạng thái thưởng.');
+        if (! $user->is_admin && ! $user->canManageFoodReviews()) {
+            abort(403, 'Bạn không có quyền cập nhật trạng thái thưởng.');
         }
 
         $review->update([
@@ -47,9 +47,6 @@ class FoodReviewController extends Controller
         $to = $request->input('to_date');
 
         $query = FoodReview::query()->with('branch')->orderByDesc('review_date')->orderByDesc('id');
-        if (! $user->is_admin) {
-            $query->where('user_id', $user->id);
-        }
         if ($q !== '') {
             $query->where(function ($sub) use ($q) {
                 $sub->where('review_code', 'like', "%{$q}%")
@@ -92,8 +89,8 @@ class FoodReviewController extends Controller
         if (! $user) {
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
         }
-        if (! $user->is_admin) {
-            abort(403, 'Chỉ quản trị viên mới được nhập đánh giá.');
+        if (! $user->is_admin && ! $user->canManageFoodReviews()) {
+            abort(403, 'Bạn không có quyền nhập đánh giá.');
         }
 
         return view('pages.food.reviews.import', [
@@ -106,7 +103,7 @@ class FoodReviewController extends Controller
     public function importText(Request $request): RedirectResponse
     {
         $user = $request->user();
-        if (! $user || ! $user->is_admin) {
+        if (! $user || (! $user->is_admin && ! $user->canManageFoodReviews())) {
             abort(403, 'Bạn không có quyền thực hiện thao tác này.');
         }
 
