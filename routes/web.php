@@ -27,5 +27,15 @@ require __DIR__.'/admin.php';
 // QR chấm công hiển thị mã: công khai (máy tính bảng/kiosk không cần đăng nhập). Quét → /food/qr-cham-cong/do vẫn cần đăng nhập.
 Route::get('/food/qr-cham-cong', [\App\Http\Controllers\Food\QrChamCongController::class, 'show'])->name('food.qr-cham-cong');
 Route::get('/food/qr-cham-cong/refresh', [\App\Http\Controllers\Food\QrChamCongController::class, 'refresh'])->name('food.qr-cham-cong.refresh');
+Route::get('/food/qr', function () {
+    $scanUrl = route('food.public-review-gift');
+
+    return view('pages.food.public-review-gift-qr', [
+        'title' => 'QR nhận quà 5 sao',
+        'scanUrl' => $scanUrl,
+    ]);
+})->name('food.qr-public-review-gift');
+Route::get('/food/nhan-qua-5-sao', [\App\Http\Controllers\Food\PublicReviewGiftController::class, 'show'])->name('food.public-review-gift');
+Route::post('/food/nhan-qua-5-sao', [\App\Http\Controllers\Food\PublicReviewGiftController::class, 'submit'])->name('food.public-review-gift.submit');
 
 require __DIR__.'/front.php';

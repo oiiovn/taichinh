@@ -36,6 +36,7 @@ class User extends Authenticatable
         'can_manage_food_san_pham',
         'can_manage_food_bao_cao',
         'can_manage_food_thong_ke_buff',
+        'can_manage_food_reviews',
         'can_use_food_employee',
         'can_use_qr_cham_cong',
         'allowed_features',
@@ -108,6 +109,7 @@ class User extends Authenticatable
             'can_manage_food_san_pham' => 'boolean',
             'can_manage_food_bao_cao' => 'boolean',
             'can_manage_food_thong_ke_buff' => 'boolean',
+            'can_manage_food_reviews' => 'boolean',
             'can_use_food_employee' => 'boolean',
             'can_use_qr_cham_cong' => 'boolean',
             'allowed_features' => 'array',
@@ -186,6 +188,11 @@ class User extends Authenticatable
         return (bool) $this->is_admin || (bool) $this->can_manage_food_thong_ke_buff;
     }
 
+    public function canManageFoodReviews(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_manage_food_reviews;
+    }
+
     public function getFoodBuffAssignedEmployees(): array
     {
         $raw = $this->food_buff_assigned_employees;
@@ -217,6 +224,7 @@ class User extends Authenticatable
             || (bool) $this->can_manage_food_san_pham
             || (bool) $this->can_manage_food_bao_cao
             || (bool) $this->can_manage_food_thong_ke_buff
+            || (bool) $this->can_manage_food_reviews
             || (bool) $this->can_manage_food_employees
             || (bool) $this->can_manage_food_cham_cong
             || (bool) $this->can_manage_food_xin_nghi

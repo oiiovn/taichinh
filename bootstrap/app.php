@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'food.employee.manager' => \App\Http\Middleware\EnsureUserCanManageFoodEmployees::class,
             'food.bao_cao' => \App\Http\Middleware\EnsureUserCanManageFoodBaoCao::class,
             'food.thong_ke_buff' => \App\Http\Middleware\EnsureUserCanManageFoodThongKeBuff::class,
+            'food.reviews' => \App\Http\Middleware\EnsureUserCanManageFoodReviews::class,
             'food.san_pham' => \App\Http\Middleware\EnsureUserCanManageFoodSanPham::class,
             'food.restrict.qr.only' => \App\Http\Middleware\RestrictQrChamCongOnlyUser::class,
         ]);

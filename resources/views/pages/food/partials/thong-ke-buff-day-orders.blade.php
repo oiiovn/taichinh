@@ -115,6 +115,12 @@
                 <p class="truncate"><span class="text-gray-600 dark:text-gray-400">Chi nhánh:</span> <span class="font-semibold text-gray-950 dark:text-white">{{ $o->branch?->name ?? '—' }}</span></p>
                 <p class="tabular-nums"><span class="text-gray-600 dark:text-gray-400">Đặt lúc:</span> <span class="font-medium text-gray-900 dark:text-gray-100">{{ $formatBuffOrderDateTime($o) }}</span></p>
                 <p class="break-all"><span class="text-gray-600 dark:text-gray-400">Shopeefood:</span> <span class="font-medium text-gray-950 dark:text-white">{{ $customerDisplay }}</span></p>
+                @if(!is_null($o->review_rating))
+                    <p><span class="text-gray-600 dark:text-gray-400">Đánh giá:</span> <span class="font-semibold text-amber-600 dark:text-amber-400">{{ (int) $o->review_rating }}/5 sao</span></p>
+                @endif
+                @if(!empty($o->review_content))
+                    <p class="break-words"><span class="text-gray-600 dark:text-gray-400">Nội dung:</span> <span class="font-medium text-gray-900 dark:text-gray-100">{{ $o->review_content }}</span></p>
+                @endif
             </div>
             @if(!($isOnlyThongKeBuffUser ?? false))
                 <div class="border-t border-gray-200 bg-amber-100/80 px-2 py-1 dark:border-gray-600 dark:bg-amber-950/55">

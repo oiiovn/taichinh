@@ -237,6 +237,13 @@ Route::middleware('auth')->group(function () {
             });
         }
 
+        Route::middleware(['food.reviews'])->group(function () {
+            Route::get('/food/danh-gia', [\App\Http\Controllers\Food\FoodReviewController::class, 'index'])->name('food.reviews.index');
+            Route::get('/food/danh-gia/import', [\App\Http\Controllers\Food\FoodReviewController::class, 'showImport'])->name('food.reviews.import');
+            Route::post('/food/danh-gia/import-text', [\App\Http\Controllers\Food\FoodReviewController::class, 'importText'])->name('food.reviews.import-text');
+            Route::post('/food/danh-gia/{review}/mark-rewarded', [\App\Http\Controllers\Food\FoodReviewController::class, 'markRewarded'])->name('food.reviews.mark-rewarded');
+        });
+
         Route::middleware(['food.thong_ke_buff'])->group(function () {
             Route::get('/food/thong-ke-buff', [\App\Http\Controllers\Food\FoodBuffController::class, 'index'])->name('food.thong-ke-buff');
             Route::post('/food/thong-ke-buff/thanh-toan-tien-cong', [\App\Http\Controllers\Food\FoodBuffController::class, 'storeLaborCashPayment'])->name('food.thong-ke-buff.thanh-toan-tien-cong');

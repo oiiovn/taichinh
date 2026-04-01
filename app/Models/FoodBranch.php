@@ -14,6 +14,7 @@ class FoodBranch extends Model
         'user_id',
         'name',
         'address',
+        'branch_link',
     ];
 
     public function user(): BelongsTo

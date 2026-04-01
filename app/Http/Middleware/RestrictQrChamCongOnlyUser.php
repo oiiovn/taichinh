@@ -26,6 +26,7 @@ class RestrictQrChamCongOnlyUser
             && ! (method_exists($user, 'canManageFoodDoanhSo') && $user->canManageFoodDoanhSo())
             && ! (method_exists($user, 'canManageFoodSanPham') && $user->canManageFoodSanPham())
             && ! (method_exists($user, 'canManageFoodBaoCao') && $user->canManageFoodBaoCao())
+            && ! (method_exists($user, 'canManageFoodReviews') && $user->canManageFoodReviews())
             && ! (method_exists($user, 'canManageFoodEmployees') && $user->canManageFoodEmployees())
             && ! (method_exists($user, 'canManageFoodChamCong') && $user->canManageFoodChamCong())
             && ! (method_exists($user, 'canManageFoodXinNghi') && $user->canManageFoodXinNghi())
@@ -40,7 +41,7 @@ class RestrictQrChamCongOnlyUser
 
         $path = $request->path();
         if ($hasOnlyThongKeBuff) {
-            $allowed = in_array($path, ['food', 'food/thong-ke-buff'], true);
+            $allowed = in_array($path, ['food', 'food/thong-ke-buff', 'food/danh-gia', 'food/danh-gia/import'], true);
             if ($allowed) {
                 return $next($request);
             }

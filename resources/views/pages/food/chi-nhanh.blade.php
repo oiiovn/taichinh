@@ -24,6 +24,10 @@
                 <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Địa chỉ</label>
                 <input type="text" name="address" maxlength="500" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="Số nhà, đường, quận...">
             </div>
+            <div class="min-w-[260px] flex-[2]">
+                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Link chi nhánh</label>
+                <input type="url" name="branch_link" maxlength="500" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="https://...">
+            </div>
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Thêm</button>
         </form>
     </div>
@@ -43,6 +47,13 @@
                         <div class="min-w-[220px] flex-[2]">
                             <label class="mb-1 block text-xs text-gray-500 dark:text-gray-400">Địa chỉ</label>
                             <input type="text" name="address" value="{{ $b->address }}" maxlength="500" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white">
+                        </div>
+                        <div class="min-w-[260px] flex-[2]">
+                            <label class="mb-1 block text-xs text-gray-500 dark:text-gray-400">Link chi nhánh</label>
+                            <input type="url" name="branch_link" value="{{ $b->branch_link }}" maxlength="500" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white" placeholder="https://...">
+                            @if(!empty($b->branch_link))
+                                <a href="{{ $b->branch_link }}" target="_blank" rel="noopener noreferrer" class="mt-1 inline-block text-[11px] text-blue-600 hover:underline dark:text-blue-400">Mở link</a>
+                            @endif
                         </div>
                         <button type="submit" class="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Lưu</button>
                     </form>

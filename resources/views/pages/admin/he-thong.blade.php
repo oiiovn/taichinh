@@ -20,6 +20,40 @@
     @endif
 
     <div class="space-y-6">
+        {{-- Cấu hình quà tặng đánh giá 5 sao --}}
+        <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/5 p-5 md:p-6">
+            <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Quà tặng đánh giá 5 sao</h3>
+            <p class="mb-5 text-sm text-gray-500 dark:text-gray-400">Dùng cho popup trang công khai khi khách nhập mã đơn 5 sao.</p>
+            <form action="{{ route('admin.he-thong.food-gift-config.update') }}" method="POST" enctype="multipart/form-data" class="grid gap-4 md:grid-cols-2">
+                @csrf
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Tên món quà</label>
+                    <input type="text" name="item_name" value="{{ old('item_name', $foodGiftConfig?->item_name ?? 'Bánh Tráng Trộn') }}"
+                        class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Giá trị quà tặng (VNĐ)</label>
+                    <input type="number" min="1000" step="1000" name="item_value" value="{{ old('item_value', (int) ($foodGiftConfig?->item_value ?? 34000)) }}"
+                        class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Ảnh món quà (vuông)</label>
+                    <input type="file" name="item_image" accept="image/*"
+                        class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                </div>
+                <div class="flex items-end">
+                    @if(!empty($foodGiftConfig?->item_image_path))
+                        <img src="{{ asset('storage/'.$foodGiftConfig->item_image_path) }}" alt="gift" class="h-24 w-24 rounded-lg border border-gray-200 object-cover dark:border-gray-700">
+                    @else
+                        <div class="h-24 w-24 rounded-lg border border-dashed border-gray-300 bg-gray-50 text-[11px] text-gray-500 flex items-center justify-center dark:border-gray-600 dark:bg-gray-800 dark:text-gray-400">Chưa có ảnh</div>
+                    @endif
+                </div>
+                <div class="md:col-span-2">
+                    <button type="submit" class="rounded-lg bg-success-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-success-600 dark:bg-success-600 dark:hover:bg-success-500">Lưu cấu hình quà tặng</button>
+                </div>
+            </form>
+        </div>
+
         {{-- Cấu hình gói --}}
         @php
             $planConfig = $planConfig ?? \App\Models\PlanConfig::getFullConfig();

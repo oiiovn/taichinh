@@ -99,6 +99,11 @@
                             <input type="checkbox" name="can_manage_food_thong_ke_buff" value="1" {{ old('can_manage_food_thong_ke_buff', $user->can_manage_food_thong_ke_buff) ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
                             <span class="text-sm text-gray-700 dark:text-gray-300">Thống kê seeding</span>
                         </label>
+                        <label class="flex items-center gap-2">
+                            <input type="hidden" name="can_manage_food_reviews" value="0">
+                            <input type="checkbox" name="can_manage_food_reviews" value="1" {{ old('can_manage_food_reviews', $user->can_manage_food_reviews) ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Đánh giá (/food/danh-gia)</span>
+                        </label>
                         <div class="pl-6">
                             <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nhân viên được xem ở thống kê seeding (mỗi dòng hoặc dấu phẩy)</label>
                             <textarea name="food_buff_assigned_employees" rows="3" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="Ví dụ: Nguyễn Văn A, Trần Thị B">{{ old('food_buff_assigned_employees', implode("\n", $user->getFoodBuffAssignedEmployees())) }}</textarea>

@@ -67,6 +67,7 @@ class UserController extends Controller
             'can_manage_food_san_pham' => ['boolean'],
             'can_manage_food_bao_cao' => ['boolean'],
             'can_manage_food_thong_ke_buff' => ['boolean'],
+            'can_manage_food_reviews' => ['boolean'],
             'food_buff_assigned_employees' => ['nullable', 'string'],
             'can_use_food_employee' => ['boolean'],
             'can_use_qr_cham_cong' => ['boolean'],
@@ -87,6 +88,7 @@ class UserController extends Controller
         $validated['can_manage_food_san_pham'] = $request->boolean('can_manage_food_san_pham');
         $validated['can_manage_food_bao_cao'] = $request->boolean('can_manage_food_bao_cao');
         $validated['can_manage_food_thong_ke_buff'] = $request->boolean('can_manage_food_thong_ke_buff');
+        $validated['can_manage_food_reviews'] = $request->boolean('can_manage_food_reviews');
         $validated['food_buff_assigned_employees'] = $this->parseFoodBuffAssignedEmployees($request->input('food_buff_assigned_employees'));
         $validated['can_use_food_employee'] = $request->boolean('can_use_food_employee');
         $validated['can_use_qr_cham_cong'] = $request->boolean('can_use_qr_cham_cong');
@@ -128,6 +130,7 @@ class UserController extends Controller
             'can_manage_food_san_pham' => ['boolean'],
             'can_manage_food_bao_cao' => ['boolean'],
             'can_manage_food_thong_ke_buff' => ['boolean'],
+            'can_manage_food_reviews' => ['boolean'],
             'food_buff_assigned_employees' => ['nullable', 'string'],
             'can_use_food_employee' => ['boolean'],
             'can_use_qr_cham_cong' => ['boolean'],
@@ -153,6 +156,7 @@ class UserController extends Controller
         $validated['can_manage_food_san_pham'] = $request->boolean('can_manage_food_san_pham');
         $validated['can_manage_food_bao_cao'] = $request->boolean('can_manage_food_bao_cao');
         $validated['can_manage_food_thong_ke_buff'] = $request->boolean('can_manage_food_thong_ke_buff');
+        $validated['can_manage_food_reviews'] = $request->boolean('can_manage_food_reviews');
         $validated['food_buff_assigned_employees'] = $this->parseFoodBuffAssignedEmployees($request->input('food_buff_assigned_employees'));
         $validated['can_use_food_employee'] = $request->boolean('can_use_food_employee');
         $validated['can_use_qr_cham_cong'] = $request->boolean('can_use_qr_cham_cong');
@@ -176,6 +180,7 @@ class UserController extends Controller
             'can_manage_food_san_pham',
             'can_manage_food_bao_cao',
             'can_manage_food_thong_ke_buff',
+            'can_manage_food_reviews',
             'food_buff_assigned_employees',
         ];
         foreach ($optionalColumns as $col) {

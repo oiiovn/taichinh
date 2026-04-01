@@ -44,12 +44,14 @@ class FoodChiNhanhController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
+            'branch_link' => ['nullable', 'url', 'max:500'],
         ]);
 
         FoodBranch::query()->create([
             'user_id' => $user->id,
             'name' => $validated['name'],
             'address' => $validated['address'] ?? null,
+            'branch_link' => $validated['branch_link'] ?? null,
         ]);
 
         return redirect()->route('food.chi-nhanh')->with('success', 'Đã thêm chi nhánh.');
@@ -68,11 +70,13 @@ class FoodChiNhanhController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
+            'branch_link' => ['nullable', 'url', 'max:500'],
         ]);
 
         $branch->update([
             'name' => $validated['name'],
             'address' => $validated['address'] ?? null,
+            'branch_link' => $validated['branch_link'] ?? null,
         ]);
 
         return redirect()->route('food.chi-nhanh')->with('success', 'Đã cập nhật chi nhánh.');

@@ -10,6 +10,7 @@
         $isSanPham = ($path === 'food/san-pham');
         $isChiNhanh = ($path === 'food/chi-nhanh');
         $isThongKeBuff = ($path === 'food/thong-ke-buff');
+        $isFoodReviews = str_starts_with($path, 'food/danh-gia');
         $isBaoCao = str_starts_with($path, 'food/bao-cao-ban-hang');
         $isKhachHang = ($path === 'food/khach-hang');
         $isCongNo = ($path === 'food/cong-no');
@@ -24,6 +25,8 @@
         $validTabs = ['tong-quan', 'doanh-so'];
         if ($isQrChamCong) {
             $currentTab = 'qr-cham-cong';
+        } elseif ($isFoodReviews) {
+            $currentTab = 'food-reviews';
         } elseif ($isChiNhanh) {
             $currentTab = 'chi-nhanh';
         } elseif ($isThongKeBuff) {
@@ -68,6 +71,7 @@
         $canManageSanPham = $user && method_exists($user, 'canManageFoodSanPham') ? $user->canManageFoodSanPham() : false;
         $canManageBaoCao = $user && method_exists($user, 'canManageFoodBaoCao') ? $user->canManageFoodBaoCao() : false;
         $canManageThongKeBuff = $user && method_exists($user, 'canManageFoodThongKeBuff') ? $user->canManageFoodThongKeBuff() : false;
+        $canManageFoodReviews = $user && method_exists($user, 'canManageFoodReviews') ? $user->canManageFoodReviews() : false;
         $isEmployee = $user && $hasFoodEmployees && $user->employee && method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee();
         $canUseQrChamCong = $user && method_exists($user, 'canUseQrChamCong') && $user->canUseQrChamCong();
         $isOnlyEmployee = $isEmployee && !$canManageAnyFood;
@@ -78,6 +82,7 @@
             && !$canManageDoanhSo
             && !$canManageSanPham
             && !$canManageBaoCao
+            && !$canManageFoodReviews
             && !$canManageNhanVien
             && !$canManageChamCong
             && !$canManageXinNghi
@@ -92,6 +97,8 @@
             ['id' => 'chi-nhanh', 'icon' => 'tables', 'label' => 'Chi nhánh', 'path' => route('food.chi-nhanh'), 'show' => $canManageBaoCao && \Illuminate\Support\Facades\Route::has('food.chi-nhanh')],
             ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManageBaoCao],
             ['id' => 'thong-ke-buff', 'icon' => 'charts', 'label' => 'Thống kê seeding', 'path' => route('food.thong-ke-buff'), 'show' => $canManageThongKeBuff && \Illuminate\Support\Facades\Route::has('food.thong-ke-buff')],
+            ['id' => 'food-reviews', 'icon' => 'charts', 'label' => 'Đánh giá', 'path' => route('food.reviews.index'), 'show' => $canManageFoodReviews && \Illuminate\Support\Facades\Route::has('food.reviews.index')],
+            ['id' => 'food-reviews-qr', 'icon' => 'check-circle', 'label' => 'QR nhận quà 5 sao', 'path' => route('food.qr-public-review-gift'), 'show' => $canManageFoodReviews && \Illuminate\Support\Facades\Route::has('food.qr-public-review-gift')],
             ['id' => 'khach-hang', 'icon' => 'users', 'label' => 'Khách hàng', 'path' => route('food.khach-hang'), 'show' => $canManageBaoCao],
             ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no'), 'show' => !$isEmployee],
         ];

@@ -98,7 +98,9 @@ window.addEventListener('resize', checkMobile);">
 
     <div class="flex min-h-screen flex-col">
         <div class="min-h-0 flex-1 overflow-y-auto">@yield('content')</div>
-        @include('layouts.footer')
+        @if(empty($hideFullscreenFooter))
+            @include('layouts.footer')
+        @endif
     </div>
 </body>
 
