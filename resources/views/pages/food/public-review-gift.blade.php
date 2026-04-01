@@ -6,6 +6,10 @@
 <div class="mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-xl items-center justify-center px-4 py-8">
     <div
         x-data="{ openGift: {{ (session('gift_popup') || session('gift_used_popup') || session('gift_expired_popup')) ? 'true' : 'false' }} }"
+        x-effect="
+            document.body.style.overflow = openGift ? 'hidden' : '';
+            document.documentElement.style.overflow = openGift ? 'hidden' : '';
+        "
         class="w-full rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800"
     >
         <h1 class="text-lg font-semibold text-gray-900 dark:text-white">Nhận quà đánh giá 5 sao - FRESH Bánh Tráng Trộn</h1>
@@ -34,7 +38,9 @@
         <div
             x-show="openGift"
             x-cloak
-            class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-0 sm:p-4"
+            class="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-black/50 p-0 sm:p-4"
+            @wheel.prevent
+            @touchmove.prevent
         >
             @if(session('gift_popup') && !session('gift_used_popup') && !session('gift_expired_popup'))
                 <div class="pointer-events-none absolute inset-0 overflow-hidden">
@@ -52,7 +58,7 @@
                     @endfor
                 </div>
             @endif
-            <div class="h-full w-full overflow-y-auto rounded-none bg-white p-5 shadow-xl dark:bg-gray-900 sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:rounded-xl">
+            <div class="h-full w-full overflow-hidden rounded-none bg-white p-5 shadow-xl dark:bg-gray-900 sm:h-auto sm:max-h-[90vh] sm:max-w-md sm:overflow-y-auto sm:rounded-xl">
                 @if(session('gift_expired_popup'))
                     <h2 class="text-lg font-bold text-amber-600 dark:text-amber-400">⌛ Mã quà đã hết hạn</h2>
                     <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">Mỗi mã quà chỉ có hiệu lực trong vòng 7 ngày kể từ ngày đánh giá 5⭐.</p>
