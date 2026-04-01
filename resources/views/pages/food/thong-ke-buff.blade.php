@@ -137,39 +137,143 @@
         </form>
     @endif
 
-    @php $paymentList = $paymentHistory ?? collect(); $paymentTotal = $paymentList->count(); $paymentVisibleStart = $paymentTotal > 0 ? min(2, $paymentTotal) : 0; @endphp
-    <div class="space-y-3" x-data="{ visible: {{ $paymentVisibleStart }} }">
+    @php
+        $paymentList = $paymentHistory ?? collect();
+        $nowYmPay = \Carbon\Carbon::now()->format('Y-m');
+        $payWithDate = $paymentList->filter(fn ($p) => $p->paid_at !== null);
+        $payNoDate = $paymentList->filter(fn ($p) => $p->paid_at === null);
+
+        $buildPayDay = function ($items, $dateKey) {
+            if ($dateKey === 'unknown') {
+                return [
+                    'day_key' => 'pd:unknown',
+                    'day_text' => '—',
+                    'count' => $items->count(),
+                    'total' => (float) $items->sum('amount'),
+                    'items' => $items->sortByDesc(fn ($x) => $x->paid_at?->timestamp ?? 0)->values(),
+                    'sort_ts' => 0,
+                ];
+            }
+            $d = \Carbon\Carbon::parse($dateKey);
+
+            return [
+                'day_key' => 'pd:'.$dateKey,
+                'day_text' => $d->format('d/m/Y'),
+                'count' => $items->count(),
+                'total' => (float) $items->sum('amount'),
+                'items' => $items->sortByDesc(fn ($x) => $x->paid_at?->timestamp ?? 0)->values(),
+                'sort_ts' => $d->copy()->endOfDay()->timestamp,
+            ];
+        };
+
+        $payInCurrent = $payWithDate->filter(fn ($p) => $p->paid_at->format('Y-m') === $nowYmPay);
+        $payOther = $payWithDate->filter(fn ($p) => $p->paid_at->format('Y-m') !== $nowYmPay);
+
+        $payCurrentMonthDays = $payInCurrent
+            ->groupBy(fn ($p) => $p->paid_at->format('Y-m-d'))
+            ->map(fn ($items, $dk) => $buildPayDay($items, $dk))
+            ->sortByDesc('sort_ts')
+            ->values();
+
+        $payPastMonths = $payOther
+            ->groupBy(fn ($p) => $p->paid_at->format('Y-m'))
+            ->map(function ($items, $ym) {
+                $start = \Carbon\Carbon::createFromFormat('Y-m', $ym)->startOfMonth();
+
+                return [
+                    'month_key' => 'pm:'.$ym,
+                    'month_text' => 'Tháng '.$start->format('n/Y'),
+                    'count' => $items->count(),
+                    'total' => (float) $items->sum('amount'),
+                    'items' => $items->sortByDesc(fn ($x) => $x->paid_at?->timestamp ?? 0)->values(),
+                    'sort_ts' => $start->copy()->endOfMonth()->timestamp,
+                ];
+            })
+            ->sortByDesc('sort_ts')
+            ->values();
+
+        if ($payNoDate->isNotEmpty()) {
+            $payPastMonths->push([
+                'month_key' => 'pm:unknown',
+                'month_text' => 'Không rõ ngày',
+                'count' => $payNoDate->count(),
+                'total' => (float) $payNoDate->sum('amount'),
+                'items' => $payNoDate->sortByDesc('id')->values(),
+                'sort_ts' => -1,
+            ]);
+        }
+
+        $paymentTopLevel = collect();
+        foreach ($payCurrentMonthDays as $day) {
+            $paymentTopLevel->push(['type' => 'current_day', 'day' => $day]);
+        }
+        foreach ($payPastMonths as $month) {
+            $paymentTopLevel->push(['type' => 'past_month', 'month' => $month]);
+        }
+
+        $payTopCount = $paymentTopLevel->count();
+        $payVisibleStart = $payTopCount > 0 ? min(2, $payTopCount) : 0;
+    @endphp
+    <div class="space-y-3" x-data="{ visible: {{ $payVisibleStart }}, pmOpenMonth: null }">
         <p class="text-sm font-semibold text-gray-900 dark:text-white">Lịch sử thanh toán</p>
-        @forelse($paymentList as $index => $p)
-            <div
-                x-show="visible > {{ (int) $index }}"
-                x-cloak
-                class="rounded-xl border border-gray-200 bg-gray-50/80 px-3 py-2.5 dark:border-gray-700 dark:bg-gray-800/50"
-            >
-                <div class="flex items-center justify-between gap-3 border-b border-gray-200/80 pb-2 dark:border-gray-600/80">
-                    <span class="min-w-0 text-sm font-medium text-gray-900 dark:text-white">{{ $p->paid_at?->format('d/m/Y H:i') ?? '—' }}</span>
-                    <span class="shrink-0 text-sm font-semibold tabular-nums text-orange-600 dark:text-orange-400">{{ $fmt($p->amount) }} đ</span>
-                </div>
-                <div class="mt-2 space-y-2 text-xs text-gray-700 dark:text-gray-300">
-                    <div class="flex flex-wrap gap-x-3 gap-y-1">
-                        <span><span class="font-medium text-gray-500 dark:text-gray-400">Nhận tiền:</span> {{ $p->paidUser?->name ?? '—' }}</span>
-                        <span class="text-gray-300 dark:text-gray-600">|</span>
-                        <span><span class="font-medium text-gray-500 dark:text-gray-400">Chi trả:</span> {{ $p->payer?->name ?? '—' }}</span>
+        @forelse($paymentTopLevel as $index => $block)
+            <div x-show="visible > {{ (int) $index }}" x-cloak class="space-y-0">
+                @if($block['type'] === 'current_day')
+                    @php $day = $block['day']; @endphp
+                    <div class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-800">
+                        <div class="flex w-full items-start justify-between gap-3 border-b border-gray-100 px-3 py-2.5 dark:border-gray-600">
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Ngày</p>
+                                <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ $day['day_text'] }}</p>
+                                <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">{{ $day['count'] }} giao dịch</p>
+                            </div>
+                            <div class="shrink-0 text-right">
+                                <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tổng thanh toán</p>
+                                <p class="mt-0.5 text-sm font-semibold tabular-nums text-orange-600 dark:text-orange-400">{{ $fmt($day['total']) }} đ</p>
+                            </div>
+                        </div>
+                        @include('pages.food.partials.thong-ke-buff-payment-day-body', ['day' => $day])
                     </div>
-                    <div class="font-medium text-gray-900 dark:text-gray-100">
-                        {{ $p->payment_method === 'cash' ? 'Tiền mặt' : strtoupper((string) $p->payment_method) }}@if($p->note)<span class="text-gray-400 dark:text-gray-500"> · </span>{{ $p->note }}@endif
+                @else
+                    @php $month = $block['month']; @endphp
+                    <div class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-800">
+                        <button
+                            type="button"
+                            class="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left"
+                            @click="pmOpenMonth = pmOpenMonth === '{{ $month['month_key'] }}' ? null : '{{ $month['month_key'] }}'"
+                        >
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tháng</p>
+                                <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ $month['month_text'] }}</p>
+                                <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">{{ $month['count'] }} giao dịch</p>
+                            </div>
+                            <div class="shrink-0 text-right">
+                                <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tổng thanh toán</p>
+                                <p class="mt-0.5 text-sm font-semibold tabular-nums text-orange-600 dark:text-orange-400">{{ $fmt($month['total']) }} đ</p>
+                                <p class="mt-1 text-xs font-medium text-brand-600 dark:text-brand-400" x-text="pmOpenMonth === '{{ $month['month_key'] }}' ? 'Thu gọn' : 'Xem chi tiết'"></p>
+                            </div>
+                        </button>
+                        <div
+                            x-show="pmOpenMonth === '{{ $month['month_key'] }}'"
+                            x-cloak
+                            class="space-y-2 border-t border-gray-100 bg-gray-50 px-2 py-2.5 dark:border-gray-600 dark:bg-gray-900/40"
+                        >
+                            @foreach($month['items'] as $p)
+                                @include('pages.food.partials.thong-ke-buff-payment-item', ['p' => $p])
+                            @endforeach
+                        </div>
                     </div>
-                </div>
+                @endif
             </div>
         @empty
             <p class="py-4 text-center text-xs text-gray-500 dark:text-gray-400">Chưa có lịch sử thanh toán.</p>
         @endforelse
-        @if($paymentTotal > 2)
+        @if($payTopCount > 2)
             <button
                 type="button"
                 class="w-full rounded-lg border border-gray-200 bg-white py-2 text-[11px] font-medium text-brand-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-brand-400 dark:hover:bg-gray-700"
-                @click="visible = Math.min(visible + 2, {{ $paymentTotal }})"
-                x-show="visible < {{ $paymentTotal }}"
+                @click="visible = Math.min(visible + 2, {{ $payTopCount }})"
+                x-show="visible < {{ $payTopCount }}"
                 x-cloak
             >Xem thêm</button>
         @endif
