@@ -143,37 +143,15 @@
         $payWithDate = $paymentList->filter(fn ($p) => $p->paid_at !== null);
         $payNoDate = $paymentList->filter(fn ($p) => $p->paid_at === null);
 
-        $buildPayDay = function ($items, $dateKey) {
-            if ($dateKey === 'unknown') {
-                return [
-                    'day_key' => 'pd:unknown',
-                    'day_text' => '—',
-                    'count' => $items->count(),
-                    'total' => (float) $items->sum('amount'),
-                    'items' => $items->sortByDesc(fn ($x) => $x->paid_at?->timestamp ?? 0)->values(),
-                    'sort_ts' => 0,
-                ];
-            }
-            $d = \Carbon\Carbon::parse($dateKey);
-
-            return [
-                'day_key' => 'pd:'.$dateKey,
-                'day_text' => $d->format('d/m/Y'),
-                'count' => $items->count(),
-                'total' => (float) $items->sum('amount'),
-                'items' => $items->sortByDesc(fn ($x) => $x->paid_at?->timestamp ?? 0)->values(),
-                'sort_ts' => $d->copy()->endOfDay()->timestamp,
-            ];
-        };
-
         $payInCurrent = $payWithDate->filter(fn ($p) => $p->paid_at->format('Y-m') === $nowYmPay);
         $payOther = $payWithDate->filter(fn ($p) => $p->paid_at->format('Y-m') !== $nowYmPay);
 
-        $payCurrentMonthDays = $payInCurrent
-            ->groupBy(fn ($p) => $p->paid_at->format('Y-m-d'))
-            ->map(fn ($items, $dk) => $buildPayDay($items, $dk))
-            ->sortByDesc('sort_ts')
-            ->values();
+        $payCurrentMonthBlock = null;
+        if ($payInCurrent->isNotEmpty()) {
+            $payCurrentMonthBlock = [
+                'items' => $payInCurrent->sortByDesc(fn ($x) => $x->paid_at?->timestamp ?? 0)->values(),
+            ];
+        }
 
         $payPastMonths = $payOther
             ->groupBy(fn ($p) => $p->paid_at->format('Y-m'))
@@ -204,8 +182,8 @@
         }
 
         $paymentTopLevel = collect();
-        foreach ($payCurrentMonthDays as $day) {
-            $paymentTopLevel->push(['type' => 'current_day', 'day' => $day]);
+        if ($payCurrentMonthBlock !== null) {
+            $paymentTopLevel->push(['type' => 'current_month', 'month' => $payCurrentMonthBlock]);
         }
         foreach ($payPastMonths as $month) {
             $paymentTopLevel->push(['type' => 'past_month', 'month' => $month]);
@@ -218,21 +196,12 @@
         <p class="text-sm font-semibold text-gray-900 dark:text-white">Lịch sử thanh toán</p>
         @forelse($paymentTopLevel as $index => $block)
             <div x-show="visible > {{ (int) $index }}" x-cloak class="space-y-0">
-                @if($block['type'] === 'current_day')
-                    @php $day = $block['day']; @endphp
-                    <div class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-800">
-                        <div class="flex w-full items-start justify-between gap-3 border-b border-gray-100 px-3 py-2.5 dark:border-gray-600">
-                            <div class="min-w-0">
-                                <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Ngày</p>
-                                <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ $day['day_text'] }}</p>
-                                <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">{{ $day['count'] }} giao dịch</p>
-                            </div>
-                            <div class="shrink-0 text-right">
-                                <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tổng thanh toán</p>
-                                <p class="mt-0.5 text-sm font-semibold tabular-nums text-orange-600 dark:text-orange-400">{{ $fmt($day['total']) }} đ</p>
-                            </div>
-                        </div>
-                        @include('pages.food.partials.thong-ke-buff-payment-day-body', ['day' => $day])
+                @if($block['type'] === 'current_month')
+                    @php $month = $block['month']; @endphp
+                    <div class="space-y-2">
+                        @foreach($month['items'] as $p)
+                            @include('pages.food.partials.thong-ke-buff-payment-item', ['p' => $p])
+                        @endforeach
                     </div>
                 @else
                     @php $month = $block['month']; @endphp
