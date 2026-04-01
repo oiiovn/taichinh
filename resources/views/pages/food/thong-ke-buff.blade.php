@@ -263,6 +263,7 @@
                     'day_key' => 'd:unknown',
                     'day_text' => '—',
                     'count' => $items->count(),
+                    'unreviewed_count' => $items->filter(fn ($o) => empty($o->customer_reviewed))->count(),
                     'labor_total' => (float) $items->sum('labor_amount'),
                     'items' => $items->sortByDesc(fn ($x) => $x->id)->values(),
                     'sort_ts' => 0,
@@ -274,6 +275,7 @@
                 'day_key' => 'd:'.$dateKey,
                 'day_text' => $d->format('d/m/Y'),
                 'count' => $items->count(),
+                'unreviewed_count' => $items->filter(fn ($o) => empty($o->customer_reviewed))->count(),
                 'labor_total' => (float) $items->sum('labor_amount'),
                 'items' => $items->sortByDesc(fn ($x) => $x->id)->values(),
                 'sort_ts' => $d->copy()->endOfDay()->timestamp,
@@ -339,7 +341,14 @@
                     <div class="min-w-0">
                         <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Ngày</p>
                         <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ $day['day_text'] }}</p>
-                        <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">{{ $day['count'] }} đơn</p>
+                        <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                            {{ $day['count'] }} đơn •
+                            @if((int) ($day['unreviewed_count'] ?? 0) === 0)
+                                <span class="font-medium text-green-600 dark:text-green-400">Đã hoàn thành đánh giá</span>
+                            @else
+                                <span class="font-medium text-amber-600 dark:text-amber-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
+                            @endif
+                        </p>
                     </div>
                     <div class="shrink-0 text-right">
                         <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tổng thu nhập</p>
@@ -388,7 +397,14 @@
                                 <div class="min-w-0">
                                     <p class="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Ngày</p>
                                     <p class="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white">{{ $day['day_text'] }}</p>
-                                    <p class="mt-0.5 text-[11px] text-gray-600 dark:text-gray-400">{{ $day['count'] }} đơn</p>
+                                    <p class="mt-0.5 text-[11px] text-gray-600 dark:text-gray-400">
+                                        {{ $day['count'] }} đơn •
+                                        @if((int) ($day['unreviewed_count'] ?? 0) === 0)
+                                            <span class="font-medium text-green-600 dark:text-green-400">Đã hoàn thành đánh giá</span>
+                                        @else
+                                            <span class="font-medium text-amber-600 dark:text-amber-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
+                                        @endif
+                                    </p>
                                 </div>
                                 <div class="shrink-0 text-right">
                                     <p class="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Thu nhập</p>
