@@ -60,8 +60,13 @@ class PublicReviewGiftController extends Controller
                 ->with('gift_branch_name', $review->branch?->name ?? null);
         }
 
-        $renderCode = $review->gift_code ?: ('FR-'.strtoupper(substr(md5($normalized), 0, 4)));
-        if (! $review->gift_code) {
+        $renderCode = $review->gift_code;
+        if (! is_string($renderCode) || ! preg_match('/^FR-\d{4}$/', $renderCode)) {
+            $renderCode = $this->generateNumericGiftCode();
+            $review->gift_code = $renderCode;
+        }
+
+        if (! $review->gift_rendered_at) {
             $review->gift_code = $renderCode;
             $review->gift_item_name = (string) $giftConfig->item_name;
             $review->gift_status = 'chua_thuong';
@@ -79,6 +84,16 @@ class PublicReviewGiftController extends Controller
             ->with('gift_item_image', $giftConfig->item_image_path ? asset('storage/'.$giftConfig->item_image_path) : null)
             ->with('gift_branch_name', $review->branch?->name ?? null)
             ->with('gift_branch_link', $review->branch?->branch_link ?? null);
+    }
+
+    private function generateNumericGiftCode(): string
+    {
+        do {
+            $code = 'FR-' . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            $exists = FoodReview::query()->where('gift_code', $code)->exists();
+        } while ($exists);
+
+        return $code;
     }
 }
 
