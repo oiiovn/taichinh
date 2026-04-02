@@ -13,6 +13,15 @@ class AuthController extends Controller
 {
     public function showSignin()
     {
+        if (Auth::check()) {
+            $user = Auth::user();
+            if ($user instanceof User && $user->isFoodThongKeBuffOnlyUser()) {
+                return redirect()->route('food.thong-ke-buff');
+            }
+
+            return redirect()->route('dashboard');
+        }
+
         return view('pages.auth.signin', ['title' => 'Đăng nhập']);
     }
 
@@ -46,7 +55,17 @@ class AuthController extends Controller
 
         if (Auth::attempt($validated, $remember)) {
             $request->session()->regenerate();
-            return redirect()->intended(route('dashboard'));
+            $intended = $request->session()->get('url.intended');
+            if (is_string($intended) && (str_contains($intended, '/login') || str_contains($intended, '/signin'))) {
+                $request->session()->forget('url.intended');
+            }
+
+            $user = Auth::user();
+            $home = ($user instanceof User && $user->isFoodThongKeBuffOnlyUser())
+                ? route('food.thong-ke-buff')
+                : route('dashboard');
+
+            return redirect()->intended($home);
         }
 
         return back()->withErrors([

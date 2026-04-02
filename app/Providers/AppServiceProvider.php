@@ -2,6 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use Illuminate\Auth\Middleware\RedirectIfAuthenticated;
+use Illuminate\Http\Request;
 use Illuminate\Support\ServiceProvider;
 
 class AppServiceProvider extends ServiceProvider
@@ -19,6 +22,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        RedirectIfAuthenticated::redirectUsing(function (Request $request) {
+            $user = $request->user();
+            if ($user instanceof User && $user->isFoodThongKeBuffOnlyUser()) {
+                return route('food.thong-ke-buff');
+            }
+
+            return route('dashboard');
+        });
     }
 }

@@ -10,6 +10,10 @@
             $customerRaw = trim((string) ($o->customer_name ?? ''));
             $customerKey = mb_strtolower($customerRaw);
             $customerDisplay = $customerRaw !== '' ? ($foodUserNameMap[$customerKey] ?? $customerRaw) : '—';
+            $branchName = trim((string) ($o->branch?->name ?? '—'));
+            $branchHash = abs(crc32(mb_strtolower($branchName)));
+            $branchHue = $branchHash % 360;
+            $branchColorStyle = 'color: hsl(' . $branchHue . ' 72% 42%);';
         @endphp
         <div
             x-show="!isMobile || {{ (int) $itemIndex }} < visibleMobile"
@@ -112,7 +116,7 @@
                 </div>
             </div>
             <div class="space-y-0.5 px-2 py-1.5 text-gray-900 dark:text-gray-100">
-                <p class="truncate"><span class="text-gray-600 dark:text-gray-400">Chi nhánh:</span> <span class="font-semibold text-gray-950 dark:text-white">{{ $o->branch?->name ?? '—' }}</span></p>
+                <p class="truncate"><span class="text-gray-600 dark:text-gray-400">Chi nhánh:</span> <span class="font-semibold" style="{{ $branchColorStyle }}">{{ $branchName }}</span></p>
                 <p class="tabular-nums"><span class="text-gray-600 dark:text-gray-400">Đặt lúc:</span> <span class="font-medium text-gray-900 dark:text-gray-100">{{ $formatBuffOrderDateTime($o) }}</span></p>
                 <p class="break-all"><span class="text-gray-600 dark:text-gray-400">Shopeefood:</span> <span class="font-medium text-gray-950 dark:text-white">{{ $customerDisplay }}</span></p>
                 @if(!is_null($o->review_rating))

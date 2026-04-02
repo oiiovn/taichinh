@@ -232,6 +232,24 @@ class User extends Authenticatable
             || (bool) $this->can_manage_food_luong;
     }
 
+    public function isFoodThongKeBuffOnlyUser(): bool
+    {
+        return ! $this->is_admin
+            && $this->canManageFoodThongKeBuff()
+            && ! $this->canManageFoodTongQuan()
+            && ! $this->canManageFoodDoanhSo()
+            && ! $this->canManageFoodSanPham()
+            && ! $this->canManageFoodBaoCao()
+            && ! $this->canManageFoodReviews()
+            && ! $this->canManageFoodEmployees()
+            && ! $this->canManageFoodChamCong()
+            && ! $this->canManageFoodXinNghi()
+            && ! $this->canManageFoodUngLuong()
+            && ! $this->canManageFoodLuong()
+            && ! $this->canUseFoodEmployee()
+            && ! $this->canUseQrChamCong();
+    }
+
     public function employee(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(Employee::class);
