@@ -344,9 +344,9 @@
                         <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
                             {{ $day['count'] }} đơn •
                             @if((int) ($day['unreviewed_count'] ?? 0) === 0)
-                                <span class="font-medium text-green-600 dark:text-green-400">Đã hoàn thành đánh giá</span>
+                                <span class="font-medium text-green-700 dark:text-green-500">Đã hoàn thành đánh giá</span>
                             @else
-                                <span class="font-medium text-amber-600 dark:text-amber-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
+                                <span class="font-medium text-orange-600 dark:text-orange-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
                             @endif
                         </p>
                     </div>
@@ -400,9 +400,9 @@
                                     <p class="mt-0.5 text-[11px] text-gray-600 dark:text-gray-400">
                                         {{ $day['count'] }} đơn •
                                         @if((int) ($day['unreviewed_count'] ?? 0) === 0)
-                                            <span class="font-medium text-green-600 dark:text-green-400">Đã hoàn thành đánh giá</span>
+                                            <span class="font-medium text-green-700 dark:text-green-500">Đã hoàn thành đánh giá</span>
                                         @else
-                                            <span class="font-medium text-amber-600 dark:text-amber-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
+                                            <span class="font-medium text-orange-600 dark:text-orange-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
                                         @endif
                                     </p>
                                 </div>
