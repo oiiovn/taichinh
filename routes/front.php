@@ -245,9 +245,11 @@ Route::middleware('auth')->group(function () {
         });
 
         Route::middleware(['food.thong_ke_buff'])->group(function () {
+            Route::get('/food/lich-dat-don', [\App\Http\Controllers\Food\FoodBuffController::class, 'orderSchedulePage'])->name('food.lich-dat-don');
+            Route::post('/food/lich-dat-don/xac-nhan', [\App\Http\Controllers\Food\FoodBuffController::class, 'acknowledgeOrderSchedules'])->name('food.lich-dat-don.acknowledge');
+            Route::post('/food/lich-dat-don', [\App\Http\Controllers\Food\FoodBuffController::class, 'storeOrderSchedule'])->name('food.lich-dat-don.store');
+            Route::delete('/food/lich-dat-don/{foodBuffOrderSchedule}', [\App\Http\Controllers\Food\FoodBuffController::class, 'destroyOrderSchedule'])->name('food.lich-dat-don.destroy');
             Route::get('/food/thong-ke-buff', [\App\Http\Controllers\Food\FoodBuffController::class, 'index'])->name('food.thong-ke-buff');
-            Route::post('/food/thong-ke-buff/lich-don', [\App\Http\Controllers\Food\FoodBuffController::class, 'storeOrderSchedule'])->name('food.thong-ke-buff.order-schedule.store');
-            Route::post('/food/thong-ke-buff/lich-don/xac-nhan', [\App\Http\Controllers\Food\FoodBuffController::class, 'acknowledgeOrderSchedules'])->name('food.thong-ke-buff.order-schedule.acknowledge');
             Route::post('/food/thong-ke-buff/thanh-toan-tien-cong', [\App\Http\Controllers\Food\FoodBuffController::class, 'storeLaborCashPayment'])->name('food.thong-ke-buff.thanh-toan-tien-cong');
             Route::patch('/food/thong-ke-buff/don/{foodBuffOrder}/danh-gia', [\App\Http\Controllers\Food\FoodBuffController::class, 'toggleCustomerReviewed'])->name('food.thong-ke-buff.order.reviewed');
             Route::delete('/food/thong-ke-buff/don/{foodBuffOrder}', [\App\Http\Controllers\Food\FoodBuffController::class, 'destroyBuffOrder'])->name('food.thong-ke-buff.order.destroy');

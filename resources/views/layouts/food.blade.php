@@ -10,6 +10,7 @@
         $isSanPham = ($path === 'food/san-pham');
         $isChiNhanh = ($path === 'food/chi-nhanh');
         $isThongKeBuff = ($path === 'food/thong-ke-buff');
+        $isLichDatDon = ($path === 'food/lich-dat-don');
         $isFoodReviews = str_starts_with($path, 'food/danh-gia');
         $isBaoCao = str_starts_with($path, 'food/bao-cao-ban-hang');
         $isKhachHang = ($path === 'food/khach-hang');
@@ -31,6 +32,8 @@
             $currentTab = 'chi-nhanh';
         } elseif ($isThongKeBuff) {
             $currentTab = 'thong-ke-buff';
+        } elseif ($isLichDatDon) {
+            $currentTab = 'lich-dat-don';
         } elseif ($isLuongCuaToi) {
             $currentTab = 'luong-cua-toi';
         } elseif ($isLuong) {
@@ -97,6 +100,7 @@
             ['id' => 'chi-nhanh', 'icon' => 'tables', 'label' => 'Chi nhánh', 'path' => route('food.chi-nhanh'), 'show' => $canManageBaoCao && \Illuminate\Support\Facades\Route::has('food.chi-nhanh')],
             ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManageBaoCao],
             ['id' => 'thong-ke-buff', 'icon' => 'charts', 'label' => 'Thống kê seeding', 'path' => route('food.thong-ke-buff'), 'show' => $canManageThongKeBuff && \Illuminate\Support\Facades\Route::has('food.thong-ke-buff')],
+            ['id' => 'lich-dat-don', 'icon' => 'calendar', 'label' => 'Lịch đặt đơn', 'path' => route('food.lich-dat-don'), 'show' => $user && $user->is_admin && $canManageThongKeBuff && \Illuminate\Support\Facades\Route::has('food.lich-dat-don')],
             ['id' => 'food-reviews', 'icon' => 'charts', 'label' => 'Đánh giá', 'path' => route('food.reviews.index'), 'show' => $canManageFoodReviews && \Illuminate\Support\Facades\Route::has('food.reviews.index')],
             ['id' => 'food-reviews-qr', 'icon' => 'check-circle', 'label' => 'QR nhận quà 5 sao', 'path' => route('food.qr-public-review-gift'), 'show' => $canManageFoodReviews && \Illuminate\Support\Facades\Route::has('food.qr-public-review-gift')],
             ['id' => 'khach-hang', 'icon' => 'users', 'label' => 'Khách hàng', 'path' => route('food.khach-hang'), 'show' => $canManageBaoCao],

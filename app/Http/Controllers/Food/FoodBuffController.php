@@ -13,6 +13,7 @@ use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -105,54 +106,7 @@ class FoodBuffController extends Controller
         $tongDaTra = (float) $paymentHistory->sum('amount');
         $tongConLai = $tongTienCong - $tongDaTra;
 
-        $branchNameById = FoodBranch::query()->pluck('name', 'id')->all();
-        $today = Carbon::today();
-
-        $pendingBuffOrderSchedulesForPopup = FoodBuffOrderSchedule::query()
-            ->whereDate('schedule_date', $today)
-            ->whereHas('assignees', fn ($q) => $q->where('users.id', $user->id))
-            ->whereDoesntHave('acknowledgments', fn ($q) => $q->where('user_id', $user->id))
-            ->orderBy('id')
-            ->get()
-            ->map(function (FoodBuffOrderSchedule $sched) use ($branchNameById) {
-                $lines = collect($sched->branch_targets ?? [])->map(function (array $row) use ($branchNameById) {
-                    $bid = (int) ($row['food_branch_id'] ?? 0);
-
-                    return [
-                        'branch_name' => $branchNameById[$bid] ?? ('Chi nhánh #'.$bid),
-                        'order_count' => (int) ($row['order_count'] ?? 0),
-                    ];
-                })->values()->all();
-
-                return [
-                    'id' => $sched->id,
-                    'date_label' => $sched->schedule_date->format('d/m/Y'),
-                    'lines' => $lines,
-                ];
-            });
-
-        $allScheduleBranches = $user->is_admin
-            ? FoodBranch::query()->orderBy('name')->get()
-            : collect();
-
-        $scheduleAssignableUsers = $user->is_admin
-            ? User::query()
-                ->where(function ($q) {
-                    $q->where('is_admin', true)
-                        ->orWhere('can_manage_food_thong_ke_buff', true);
-                })
-                ->orderBy('name')
-                ->get(['id', 'name', 'email'])
-            : collect();
-
-        $recentScheduleAcknowledgments = $user->is_admin
-            ? FoodBuffOrderScheduleAcknowledgment::query()
-                ->with(['user:id,name,email', 'schedule'])
-                ->orderByDesc('acknowledged_at')
-                ->orderByDesc('id')
-                ->limit(40)
-                ->get()
-            : collect();
+        $foodBuffOrderSchedulePopup = $this->foodBuffOrderSchedulePopupData($user);
 
         return view('pages.food.thong-ke-buff', [
             'title' => 'Thống kê seeding',
@@ -170,12 +124,39 @@ class FoodBuffController extends Controller
             'paymentHistory' => $paymentHistory,
             'tongDaTra' => $tongDaTra,
             'tongConLai' => $tongConLai,
-            'pendingBuffOrderSchedulesForPopup' => $pendingBuffOrderSchedulesForPopup,
+            'foodBuffOrderSchedulePopup' => $foodBuffOrderSchedulePopup,
+        ]);
+    }
+
+    public function orderSchedulePage(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+        if (! $user->is_admin) {
+            abort(403, 'Chỉ quản trị viên mới quản lý lịch đặt đơn.');
+        }
+
+        $branchNameById = $this->branchNameByIdArray();
+        $foodBuffOrderSchedulePopup = $this->foodBuffOrderSchedulePopupData($user);
+        $allScheduleBranches = FoodBranch::query()->orderBy('name')->get();
+        $scheduleAssignableUsers = User::query()
+            ->where(function ($q) {
+                $q->where('is_admin', true)
+                    ->orWhere('can_manage_food_thong_ke_buff', true);
+            })
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+        $buffSchedulesAdminMonitor = $this->buffSchedulesAdminMonitorCollection($branchNameById);
+
+        return view('pages.food.lich-dat-don', [
+            'title' => 'Lịch đặt đơn',
+            'branchNameById' => $branchNameById,
+            'foodBuffOrderSchedulePopup' => $foodBuffOrderSchedulePopup,
             'allScheduleBranches' => $allScheduleBranches,
             'scheduleAssignableUsers' => $scheduleAssignableUsers,
-            'recentScheduleAcknowledgments' => $recentScheduleAcknowledgments,
-            'isBuffAdmin' => (bool) $user->is_admin,
-            'branchNameById' => $branchNameById,
+            'buffSchedulesAdminMonitor' => $buffSchedulesAdminMonitor,
         ]);
     }
 
@@ -199,7 +180,7 @@ class FoodBuffController extends Controller
         $assignees = User::query()->whereIn('id', $assigneeIds)->get();
         foreach ($assignees as $a) {
             if (! $a->is_admin && ! $a->canManageFoodThongKeBuff()) {
-                return redirect()->route('food.thong-ke-buff')->with('error', 'Tài khoản '.$a->name.' không có quyền trang thống kê seeding.');
+                return redirect()->back()->with('error', 'Tài khoản '.$a->name.' không có quyền trang thống kê seeding.');
             }
         }
 
@@ -211,14 +192,46 @@ class FoodBuffController extends Controller
             ->values()
             ->all();
 
+        $dateStr = Carbon::parse($validated['schedule_date'])->toDateString();
+        $existing = $this->findBuffScheduleSameDayAndAssignees($dateStr, $assigneeIds);
+
+        if ($existing) {
+            $existing->update([
+                'branch_targets' => $targets,
+                'created_by_user_id' => $user->id,
+            ]);
+            $existing->assignees()->sync($assigneeIds);
+            FoodBuffOrderScheduleAcknowledgment::query()
+                ->where('food_buff_order_schedule_id', $existing->id)
+                ->delete();
+
+            return redirect()->back()->with(
+                'success',
+                'Đã cập nhật lịch đặt đơn (cùng ngày và cùng người nhận). Người nhận cần xác nhận lại.'
+            );
+        }
+
         $schedule = FoodBuffOrderSchedule::query()->create([
-            'schedule_date' => Carbon::parse($validated['schedule_date'])->toDateString(),
+            'schedule_date' => $dateStr,
             'branch_targets' => $targets,
             'created_by_user_id' => $user->id,
         ]);
         $schedule->assignees()->sync($assigneeIds);
 
-        return redirect()->route('food.thong-ke-buff')->with('success', 'Đã tạo lịch đặt đơn và gửi tới người được chọn.');
+        return redirect()->back()->with('success', 'Đã tạo lịch đặt đơn và gửi tới người được chọn.');
+    }
+
+    public function destroyOrderSchedule(Request $request, FoodBuffOrderSchedule $foodBuffOrderSchedule): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->is_admin) {
+            abort(403, 'Chỉ quản trị viên mới được xóa lịch đặt đơn.');
+        }
+
+        $dateLabel = $foodBuffOrderSchedule->schedule_date->format('d/m/Y');
+        $foodBuffOrderSchedule->delete();
+
+        return redirect()->back()->with('success', 'Đã xóa lịch đặt đơn ngày '.$dateLabel.'.');
     }
 
     public function acknowledgeOrderSchedules(Request $request): RedirectResponse
@@ -236,12 +249,13 @@ class FoodBuffController extends Controller
         $ids = array_values(array_unique(array_map('intval', $validated['schedule_ids'])));
         $schedules = FoodBuffOrderSchedule::query()->whereIn('id', $ids)->get();
         if ($schedules->count() !== count($ids)) {
-            return redirect()->route('food.thong-ke-buff')->with('error', 'Không tìm thấy đủ lịch đặt đơn.');
+            return redirect()->back()->with('error', 'Không tìm thấy đủ lịch đặt đơn.');
         }
 
+        $todayStr = now()->toDateString();
         foreach ($schedules as $schedule) {
-            if (! $schedule->schedule_date->isToday()) {
-                return redirect()->route('food.thong-ke-buff')->with('error', 'Chỉ xác nhận được lịch trong ngày hôm nay.');
+            if ($schedule->schedule_date->format('Y-m-d') !== $todayStr) {
+                return redirect()->back()->with('error', 'Chỉ xác nhận được lịch trong ngày hôm nay.');
             }
             if (! $schedule->assignees()->where('users.id', $user->id)->exists()) {
                 abort(403, 'Bạn không thuộc danh sách nhận một số lịch này.');
@@ -258,7 +272,7 @@ class FoodBuffController extends Controller
             );
         }
 
-        return redirect()->route('food.thong-ke-buff')->with('success', 'Đã xác nhận đã nắm lịch đặt đơn.');
+        return redirect()->back()->with('success', 'Đã xác nhận đã nắm lịch đặt đơn.');
     }
 
     public function storeLaborCashPayment(Request $request): RedirectResponse
@@ -362,6 +376,179 @@ class FoodBuffController extends Controller
                 fn ($v) => $v !== null && $v !== ''
             )
         )->with('success', 'Đã xóa đơn '.$code.'.');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function branchNameByIdArray(): array
+    {
+        return FoodBranch::query()->pluck('name', 'id')->all();
+    }
+
+    /**
+     * @return array{pending_blocks: Collection<int, array>, other_blocks: Collection<int, array>}
+     */
+    private function foodBuffOrderSchedulePopupData(User $user): array
+    {
+        $todayStr = now()->toDateString();
+        $branchNameById = $this->branchNameByIdArray();
+        $with = [
+            'assignees:id,name,email',
+            'creator:id,name,is_admin',
+            'acknowledgments' => fn ($q) => $q->select('id', 'food_buff_order_schedule_id', 'user_id', 'acknowledged_at'),
+        ];
+
+        $pendingSchedules = FoodBuffOrderSchedule::query()
+            ->with($with)
+            ->whereDate('schedule_date', $todayStr)
+            ->whereHas('assignees', fn ($q) => $q->where('users.id', $user->id))
+            ->whereDoesntHave('acknowledgments', fn ($q) => $q->where('user_id', $user->id))
+            ->orderBy('id')
+            ->get();
+
+        $otherSchedules = FoodBuffOrderSchedule::query()
+            ->with($with)
+            ->whereDate('schedule_date', $todayStr)
+            ->whereDoesntHave('assignees', fn ($q) => $q->where('users.id', $user->id))
+            ->orderBy('id')
+            ->get();
+
+        $mapper = fn (FoodBuffOrderSchedule $s) => $this->mapFoodBuffOrderScheduleBlock($s, $branchNameById, $user);
+
+        return [
+            'pending_blocks' => $pendingSchedules->map($mapper)->values(),
+            'other_blocks' => $otherSchedules->map($mapper)->values(),
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $branchNameById
+     * @return array{id: int, date_label: string, lines: list<array{branch_name: string, order_count: int}>, assignees: list<array{name: string, email: string, is_me: bool, has_acknowledged: bool, acknowledged_at_label: string|null}>, giver_line: string}
+     */
+    private function mapFoodBuffOrderScheduleBlock(FoodBuffOrderSchedule $sched, array $branchNameById, User $viewer): array
+    {
+        $byAck = $sched->acknowledgments->keyBy('user_id');
+        $lines = collect($sched->branch_targets ?? [])->map(function (array $row) use ($branchNameById) {
+            $bid = (int) ($row['food_branch_id'] ?? 0);
+
+            return [
+                'branch_name' => $branchNameById[$bid] ?? ('Chi nhánh #'.$bid),
+                'order_count' => (int) ($row['order_count'] ?? 0),
+            ];
+        })->values()->all();
+
+        $assignees = $sched->assignees->map(function (User $a) use ($byAck, $viewer) {
+            $ack = $byAck->get($a->id);
+
+            return [
+                'name' => $a->name,
+                'email' => $a->email,
+                'is_me' => (int) $a->id === (int) $viewer->id,
+                'has_acknowledged' => $ack !== null,
+                'acknowledged_at_label' => $ack ? $ack->acknowledged_at->format('d/m/Y H:i') : null,
+            ];
+        })->values()->all();
+
+        $creator = $sched->creator;
+        $giverLine = '—';
+        if ($creator) {
+            $giverLine = $creator->is_admin
+                ? 'Quản lý: Hạnh Nhân'
+                : 'Người tạo: '.$creator->name;
+        }
+
+        return [
+            'id' => $sched->id,
+            'date_label' => $sched->schedule_date->format('d/m/Y'),
+            'lines' => $lines,
+            'assignees' => $assignees,
+            'giver_line' => $giverLine,
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $branchNameById
+     */
+    private function buffSchedulesAdminMonitorCollection(array $branchNameById): Collection
+    {
+        $todayStrMonitor = now()->toDateString();
+
+        return FoodBuffOrderSchedule::query()
+            ->with(['assignees:id,name,email', 'acknowledgments'])
+            ->whereDate('schedule_date', '>=', now()->subDays(30)->toDateString())
+            ->orderByDesc('schedule_date')
+            ->orderByDesc('id')
+            ->limit(40)
+            ->get()
+            ->map(function (FoodBuffOrderSchedule $s) use ($branchNameById, $todayStrMonitor) {
+                $summary = collect($s->branch_targets ?? [])->map(function (array $row) use ($branchNameById) {
+                    $bid = (int) ($row['food_branch_id'] ?? 0);
+                    $bn = $branchNameById[$bid] ?? ('#'.$bid);
+                    $n = (int) ($row['order_count'] ?? 0);
+
+                    return $bn.': '.$n.' đơn';
+                })->implode('; ');
+                $byUserAck = $s->acknowledgments->keyBy('user_id');
+                $dayStr = $s->schedule_date->format('Y-m-d');
+                $assigneeRows = $s->assignees->map(function (User $assignee) use ($byUserAck, $dayStr, $todayStrMonitor) {
+                    $ack = $byUserAck->get($assignee->id);
+                    if ($ack) {
+                        $status = 'done';
+                        $statusLabel = $ack->acknowledged_at->format('d/m/Y H:i');
+                    } elseif ($dayStr > $todayStrMonitor) {
+                        $status = 'future';
+                        $statusLabel = 'Chờ đến ngày lịch';
+                    } else {
+                        $status = 'pending';
+                        $statusLabel = 'Chưa xác nhận';
+                    }
+
+                    return [
+                        'name' => $assignee->name,
+                        'email' => $assignee->email,
+                        'status' => $status,
+                        'status_label' => $statusLabel,
+                    ];
+                });
+
+                return [
+                    'id' => $s->id,
+                    'date_label' => $s->schedule_date->format('d/m/Y'),
+                    'summary' => $summary,
+                    'assignees' => $assigneeRows,
+                    'has_pending' => $assigneeRows->contains(fn (array $r) => $r['status'] === 'pending'),
+                ];
+            });
+    }
+
+    /**
+     * @param  array<int>  $assigneeIds
+     */
+    private function findBuffScheduleSameDayAndAssignees(string $dateStr, array $assigneeIds): ?FoodBuffOrderSchedule
+    {
+        $want = $this->normalizedAssigneeIdList($assigneeIds);
+        $candidates = FoodBuffOrderSchedule::query()
+            ->whereDate('schedule_date', $dateStr)
+            ->get();
+
+        foreach ($candidates as $candidate) {
+            $have = $this->normalizedAssigneeIdList($candidate->assignees()->pluck('id')->all());
+            if ($have === $want) {
+                return $candidate;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int|string>  $ids
+     * @return array<int>
+     */
+    private function normalizedAssigneeIdList(array $ids): array
+    {
+        return collect($ids)->map(fn ($id) => (int) $id)->unique()->sort()->values()->all();
     }
 
     private function isOnlyThongKeBuffUser(User $user): bool

@@ -45,65 +45,13 @@
 
         return $order->order_date?->format('d/m/Y') ?? '—';
     };
-    $branchNameById = $branchNameById ?? [];
-    $scheduleBranchOptions = ($isBuffAdmin ?? false)
-        ? ($allScheduleBranches ?? collect())->map(fn ($b) => ['id' => $b->id, 'name' => $b->name])->values()
-        : collect();
 @endphp
-<div
-    class="space-y-6"
-    x-data="{
-        showCreateSchedule: false,
-        branchOptions: {{ \Illuminate\Support\Js::from($scheduleBranchOptions) }},
-        scheduleRows: [{ food_branch_id: '', order_count: 1 }],
-        addScheduleRow() { this.scheduleRows.push({ food_branch_id: '', order_count: 1 }); },
-        removeScheduleRow(i) { if (this.scheduleRows.length > 1) this.scheduleRows.splice(i, 1); },
-    }"
->
+<div class="space-y-6">
     @if(session('success'))
         <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">{{ session('success') }}</div>
     @endif
     @if(session('error'))
         <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">{{ session('error') }}</div>
-    @endif
-
-    @if($isBuffAdmin ?? false)
-        <div class="rounded-xl border border-violet-200 bg-violet-50/90 p-4 dark:border-violet-900/60 dark:bg-violet-950/40">
-            <div class="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                    <p class="text-sm font-semibold text-violet-950 dark:text-violet-100">Lịch đặt đơn</p>
-                    <p class="mt-0.5 text-xs text-violet-800/90 dark:text-violet-300/90">Tạo lịch theo ngày, mục tiêu đơn từng chi nhánh và người nhận. Người được giao sẽ thấy popup xác nhận trong ngày đó.</p>
-                </div>
-                <button type="button" @click="showCreateSchedule = true" class="shrink-0 rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700">Tạo lịch</button>
-            </div>
-            @if(($recentScheduleAcknowledgments ?? collect())->isNotEmpty())
-                <div class="mt-4 border-t border-violet-200/80 pt-3 dark:border-violet-800">
-                    <p class="mb-2 text-xs font-medium uppercase tracking-wide text-violet-800 dark:text-violet-300">Đã xác nhận gần đây</p>
-                    <ul class="max-h-48 space-y-2 overflow-y-auto text-xs text-violet-950 dark:text-violet-100">
-                        @foreach($recentScheduleAcknowledgments as $ack)
-                            @php
-                                $sched = $ack->schedule;
-                                $summary = collect($sched?->branch_targets ?? [])->map(function ($row) use ($branchNameById) {
-                                    $bid = (int) ($row['food_branch_id'] ?? 0);
-                                    $bn = $branchNameById[$bid] ?? ('#'.$bid);
-                                    $n = (int) ($row['order_count'] ?? 0);
-
-                                    return $bn.': '.$n.' đơn';
-                                })->implode('; ');
-                            @endphp
-                            <li class="rounded-lg border border-violet-100 bg-white/80 px-2 py-1.5 dark:border-violet-900 dark:bg-gray-900/60">
-                                <span class="font-medium">{{ $ack->user?->name ?? '—' }}</span>
-                                <span class="text-violet-700 dark:text-violet-400"> · ngày lịch {{ $sched?->schedule_date?->format('d/m/Y') ?? '—' }}</span>
-                                <span class="text-violet-600 dark:text-violet-500"> · xác nhận {{ $ack->acknowledged_at?->format('d/m/Y H:i') ?? '—' }}</span>
-                                @if($summary !== '')
-                                    <p class="mt-0.5 text-[11px] text-violet-800 dark:text-violet-300">{{ $summary }}</p>
-                                @endif
-                            </li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
-        </div>
     @endif
 
     <div class="hidden md:block space-y-4">
@@ -473,114 +421,7 @@
         @endif
     </div>
 
-    @if($pendingBuffOrderSchedulesForPopup->isNotEmpty())
-        <div
-            x-data="{ open: true }"
-            x-show="open"
-            x-cloak
-            class="fixed inset-0 z-[100] flex items-end justify-center bg-black/55 p-4 backdrop-blur-[1px] sm:items-center"
-        >
-            <div class="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-gray-200 bg-white p-5 shadow-2xl dark:border-gray-600 dark:bg-gray-900">
-                <h3 class="text-base font-semibold text-gray-900 dark:text-white">Xác nhận lịch đặt đơn</h3>
-                <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">Vui lòng xem kỹ mục tiêu hôm nay. Nhấn đồng ý để ghi nhận bạn đã hiểu và không hiện lại popup này trong ngày.</p>
-                <div class="mt-4 space-y-4">
-                    @foreach($pendingBuffOrderSchedulesForPopup as $block)
-                        <div class="rounded-xl border border-amber-200 bg-amber-50/90 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
-                            <p class="text-xs font-semibold text-amber-950 dark:text-amber-100">Ngày {{ $block['date_label'] }}</p>
-                            <ul class="mt-2 space-y-1 text-sm text-gray-800 dark:text-gray-200">
-                                @foreach($block['lines'] as $line)
-                                    <li>
-                                        <span class="font-medium">{{ $line['branch_name'] }}</span>:
-                                        <span class="tabular-nums">{{ $line['order_count'] }}</span> đơn
-                                    </li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endforeach
-                </div>
-                <form method="POST" action="{{ route('food.thong-ke-buff.order-schedule.acknowledge') }}" class="mt-5 flex flex-col gap-2 sm:flex-row sm:justify-end">
-                    @csrf
-                    @foreach($pendingBuffOrderSchedulesForPopup as $block)
-                        <input type="hidden" name="schedule_ids[]" value="{{ $block['id'] }}">
-                    @endforeach
-                    <button type="button" class="rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700" @click="open = false">Để sau</button>
-                    <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-700">Đồng ý, đã nắm lịch</button>
-                </form>
-            </div>
-        </div>
-    @endif
+    @include('pages.food.partials.food-buff-order-schedule-popup')
 
-    @if($isBuffAdmin ?? false)
-        <div
-            x-show="showCreateSchedule"
-            x-cloak
-            class="fixed inset-0 z-[90] flex items-end justify-center bg-black/50 p-4 sm:items-center"
-            @keydown.escape.window="showCreateSchedule = false"
-        >
-            <div
-                class="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-600 dark:bg-gray-900"
-                @click.outside="showCreateSchedule = false"
-            >
-                <div class="flex items-start justify-between gap-2">
-                    <h3 class="text-base font-semibold text-gray-900 dark:text-white">Tạo lịch đặt đơn</h3>
-                    <button type="button" class="rounded p-1 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800" @click="showCreateSchedule = false" aria-label="Đóng">×</button>
-                </div>
-                <form method="POST" action="{{ route('food.thong-ke-buff.order-schedule.store') }}" class="mt-4 space-y-4">
-                    @csrf
-                    <div>
-                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Ngày áp dụng</label>
-                        <input type="date" name="schedule_date" value="{{ old('schedule_date', now()->format('Y-m-d')) }}" required class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                        @error('schedule_date')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                    </div>
-                    <div>
-                        <div class="mb-1 flex items-center justify-between gap-2">
-                            <label class="text-xs font-medium text-gray-600 dark:text-gray-400">Chi nhánh &amp; số đơn</label>
-                            <button type="button" class="text-xs font-medium text-violet-600 hover:underline dark:text-violet-400" @click="addScheduleRow()">+ Thêm dòng</button>
-                        </div>
-                        <div class="space-y-2">
-                            <template x-for="(row, idx) in scheduleRows" :key="idx">
-                                <div class="flex flex-wrap items-end gap-2 rounded-lg border border-gray-100 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800/80">
-                                    <div class="min-w-[160px] flex-1">
-                                        <select
-                                            class="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white"
-                                            x-model="row.food_branch_id"
-                                            :name="`targets[${idx}][food_branch_id]`"
-                                            required
-                                        >
-                                            <option value="">Chọn chi nhánh</option>
-                                            <template x-for="b in branchOptions" :key="b.id">
-                                                <option :value="b.id" x-text="b.name"></option>
-                                            </template>
-                                        </select>
-                                    </div>
-                                    <div class="w-24">
-                                        <input type="number" min="1" max="999" :name="`targets[${idx}][order_count]`" x-model.number="row.order_count" required class="w-full rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                                    </div>
-                                    <button type="button" class="text-xs text-red-600 hover:underline" @click="removeScheduleRow(idx)" x-show="scheduleRows.length > 1">Xóa</button>
-                                </div>
-                            </template>
-                        </div>
-                        @error('targets')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                        @error('targets.*')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                    </div>
-                    <div>
-                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">User nhận lịch</label>
-                        <select name="assignee_user_ids[]" multiple required size="6" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                            @foreach(($scheduleAssignableUsers ?? collect()) as $su)
-                                <option value="{{ $su->id }}" @selected(collect(old('assignee_user_ids', []))->contains($su->id))>{{ $su->name }} ({{ $su->email }})</option>
-                            @endforeach
-                        </select>
-                        <p class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">Giữ Cmd/Ctrl để chọn nhiều người.</p>
-                        @error('assignee_user_ids')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                        @error('assignee_user_ids.*')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
-                    </div>
-                    <div class="flex justify-end gap-2 pt-2">
-                        <button type="button" class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200" @click="showCreateSchedule = false">Hủy</button>
-                        <button type="submit" class="rounded-lg bg-violet-600 px-4 py-2 text-sm font-medium text-white hover:bg-violet-700">Lưu lịch</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    @endif
 </div>
 @endsection

@@ -41,8 +41,13 @@ class RestrictQrChamCongOnlyUser
 
         $path = $request->path();
         if ($hasOnlyThongKeBuff) {
-            $allowed = in_array($path, ['food', 'food/thong-ke-buff', 'food/danh-gia', 'food/danh-gia/import'], true);
-            if ($allowed) {
+            if ($path === 'food/lich-dat-don' || str_starts_with($path, 'food/lich-dat-don/')) {
+                return $next($request);
+            }
+            if ($path === 'food/thong-ke-buff' || str_starts_with($path, 'food/thong-ke-buff/')) {
+                return $next($request);
+            }
+            if (in_array($path, ['food', 'food/danh-gia', 'food/danh-gia/import'], true)) {
                 return $next($request);
             }
 
