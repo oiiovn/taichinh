@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\FoodBranch;
 use App\Models\FoodBuffLaborPayment;
 use App\Models\FoodBuffOrder;
+use App\Models\FoodBuffOrderSchedule;
+use App\Models\FoodBuffOrderScheduleAcknowledgment;
 use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -103,6 +105,55 @@ class FoodBuffController extends Controller
         $tongDaTra = (float) $paymentHistory->sum('amount');
         $tongConLai = $tongTienCong - $tongDaTra;
 
+        $branchNameById = FoodBranch::query()->pluck('name', 'id')->all();
+        $today = Carbon::today();
+
+        $pendingBuffOrderSchedulesForPopup = FoodBuffOrderSchedule::query()
+            ->whereDate('schedule_date', $today)
+            ->whereHas('assignees', fn ($q) => $q->where('users.id', $user->id))
+            ->whereDoesntHave('acknowledgments', fn ($q) => $q->where('user_id', $user->id))
+            ->orderBy('id')
+            ->get()
+            ->map(function (FoodBuffOrderSchedule $sched) use ($branchNameById) {
+                $lines = collect($sched->branch_targets ?? [])->map(function (array $row) use ($branchNameById) {
+                    $bid = (int) ($row['food_branch_id'] ?? 0);
+
+                    return [
+                        'branch_name' => $branchNameById[$bid] ?? ('Chi nhánh #'.$bid),
+                        'order_count' => (int) ($row['order_count'] ?? 0),
+                    ];
+                })->values()->all();
+
+                return [
+                    'id' => $sched->id,
+                    'date_label' => $sched->schedule_date->format('d/m/Y'),
+                    'lines' => $lines,
+                ];
+            });
+
+        $allScheduleBranches = $user->is_admin
+            ? FoodBranch::query()->orderBy('name')->get()
+            : collect();
+
+        $scheduleAssignableUsers = $user->is_admin
+            ? User::query()
+                ->where(function ($q) {
+                    $q->where('is_admin', true)
+                        ->orWhere('can_manage_food_thong_ke_buff', true);
+                })
+                ->orderBy('name')
+                ->get(['id', 'name', 'email'])
+            : collect();
+
+        $recentScheduleAcknowledgments = $user->is_admin
+            ? FoodBuffOrderScheduleAcknowledgment::query()
+                ->with(['user:id,name,email', 'schedule'])
+                ->orderByDesc('acknowledged_at')
+                ->orderByDesc('id')
+                ->limit(40)
+                ->get()
+            : collect();
+
         return view('pages.food.thong-ke-buff', [
             'title' => 'Thống kê seeding',
             'from' => $from,
@@ -119,7 +170,95 @@ class FoodBuffController extends Controller
             'paymentHistory' => $paymentHistory,
             'tongDaTra' => $tongDaTra,
             'tongConLai' => $tongConLai,
+            'pendingBuffOrderSchedulesForPopup' => $pendingBuffOrderSchedulesForPopup,
+            'allScheduleBranches' => $allScheduleBranches,
+            'scheduleAssignableUsers' => $scheduleAssignableUsers,
+            'recentScheduleAcknowledgments' => $recentScheduleAcknowledgments,
+            'isBuffAdmin' => (bool) $user->is_admin,
+            'branchNameById' => $branchNameById,
         ]);
+    }
+
+    public function storeOrderSchedule(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->is_admin) {
+            abort(403, 'Chỉ quản trị viên mới được tạo lịch đặt đơn.');
+        }
+
+        $validated = $request->validate([
+            'schedule_date' => ['required', 'date'],
+            'assignee_user_ids' => ['required', 'array', 'min:1'],
+            'assignee_user_ids.*' => ['integer', Rule::exists('users', 'id')],
+            'targets' => ['required', 'array', 'min:1'],
+            'targets.*.food_branch_id' => ['required', 'integer', Rule::exists('food_branches', 'id')],
+            'targets.*.order_count' => ['required', 'integer', 'min:1', 'max:999'],
+        ]);
+
+        $assigneeIds = array_values(array_unique(array_map('intval', $validated['assignee_user_ids'])));
+        $assignees = User::query()->whereIn('id', $assigneeIds)->get();
+        foreach ($assignees as $a) {
+            if (! $a->is_admin && ! $a->canManageFoodThongKeBuff()) {
+                return redirect()->route('food.thong-ke-buff')->with('error', 'Tài khoản '.$a->name.' không có quyền trang thống kê seeding.');
+            }
+        }
+
+        $targets = collect($validated['targets'])
+            ->map(fn (array $t) => [
+                'food_branch_id' => (int) $t['food_branch_id'],
+                'order_count' => (int) $t['order_count'],
+            ])
+            ->values()
+            ->all();
+
+        $schedule = FoodBuffOrderSchedule::query()->create([
+            'schedule_date' => Carbon::parse($validated['schedule_date'])->toDateString(),
+            'branch_targets' => $targets,
+            'created_by_user_id' => $user->id,
+        ]);
+        $schedule->assignees()->sync($assigneeIds);
+
+        return redirect()->route('food.thong-ke-buff')->with('success', 'Đã tạo lịch đặt đơn và gửi tới người được chọn.');
+    }
+
+    public function acknowledgeOrderSchedules(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+
+        $validated = $request->validate([
+            'schedule_ids' => ['required', 'array', 'min:1'],
+            'schedule_ids.*' => ['integer', Rule::exists('food_buff_order_schedules', 'id')],
+        ]);
+
+        $ids = array_values(array_unique(array_map('intval', $validated['schedule_ids'])));
+        $schedules = FoodBuffOrderSchedule::query()->whereIn('id', $ids)->get();
+        if ($schedules->count() !== count($ids)) {
+            return redirect()->route('food.thong-ke-buff')->with('error', 'Không tìm thấy đủ lịch đặt đơn.');
+        }
+
+        foreach ($schedules as $schedule) {
+            if (! $schedule->schedule_date->isToday()) {
+                return redirect()->route('food.thong-ke-buff')->with('error', 'Chỉ xác nhận được lịch trong ngày hôm nay.');
+            }
+            if (! $schedule->assignees()->where('users.id', $user->id)->exists()) {
+                abort(403, 'Bạn không thuộc danh sách nhận một số lịch này.');
+            }
+        }
+
+        foreach ($schedules as $schedule) {
+            FoodBuffOrderScheduleAcknowledgment::query()->firstOrCreate(
+                [
+                    'food_buff_order_schedule_id' => $schedule->id,
+                    'user_id' => $user->id,
+                ],
+                ['acknowledged_at' => now()]
+            );
+        }
+
+        return redirect()->route('food.thong-ke-buff')->with('success', 'Đã xác nhận đã nắm lịch đặt đơn.');
     }
 
     public function storeLaborCashPayment(Request $request): RedirectResponse
