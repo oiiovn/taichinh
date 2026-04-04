@@ -64,21 +64,9 @@
                                             <span class="font-semibold text-gray-900 dark:text-white">{{ $block['giver_line'] ?? '—' }}</span>
                                         </p>
                                     @endif
-                                    <div class="space-y-2">
+                                    <div class="space-y-1.5">
                                         @foreach($block['assignees'] as $as)
-                                            <div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 text-sm">
-                                                <span class="font-semibold text-gray-900 dark:text-white">
-                                                    {{ $as['name'] }}
-                                                    @if(!empty($as['is_me']))
-                                                        <span class="ml-1 text-xs font-bold text-amber-700 dark:text-amber-400">(bạn)</span>
-                                                    @endif
-                                                </span>
-                                                @if(!empty($as['has_acknowledged']))
-                                                    <span class="text-[11px] font-medium text-green-600 dark:text-green-400">Đã xác nhận {{ $as['acknowledged_at_label'] }}</span>
-                                                @else
-                                                    <span class="text-[11px] font-medium text-amber-800 dark:text-amber-300">Chưa xác nhận</span>
-                                                @endif
-                                            </div>
+                                            <p class="text-sm font-semibold text-gray-900 dark:text-white">{{ $as['name'] }}</p>
                                         @endforeach
                                     </div>
                                     <ul class="mt-3 space-y-1.5 border-t border-amber-100 pt-3 dark:border-amber-900/50">
