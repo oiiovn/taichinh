@@ -193,17 +193,38 @@
         $payTopCount = $paymentTopLevel->count();
         $payVisibleStart = $payTopCount > 0 ? min(2, $payTopCount) : 0;
     @endphp
-    <div class="space-y-3" x-data="{ visible: {{ $payVisibleStart }}, pmOpenMonth: null }">
+    <div class="space-y-3" x-data="{ visible: {{ $payVisibleStart }}, pmOpenMonth: null, payCurrentExpanded: false }">
         <p class="text-sm font-semibold text-gray-900 dark:text-white">Lịch sử thanh toán</p>
         @forelse($paymentTopLevel as $index => $block)
             <div x-show="visible > {{ (int) $index }}" x-cloak class="space-y-0">
                 @if($block['type'] === 'current_month')
-                    @php $month = $block['month']; @endphp
+                    @php
+                        $month = $block['month'];
+                        $payCurrentCount = $month['items']->count();
+                    @endphp
                     <div class="space-y-2">
-                        @foreach($month['items'] as $p)
-                            @include('pages.food.partials.thong-ke-buff-payment-item', ['p' => $p])
+                        @foreach($month['items'] as $idx => $p)
+                            <div x-show="payCurrentExpanded || {{ (int) $idx }} < 2" x-cloak>
+                                @include('pages.food.partials.thong-ke-buff-payment-item', ['p' => $p])
+                            </div>
                         @endforeach
                     </div>
+                    @if($payCurrentCount > 2)
+                        <button
+                            type="button"
+                            class="mt-1 w-full text-center text-[10px] font-medium text-brand-600 hover:underline dark:text-brand-400"
+                            x-show="!payCurrentExpanded"
+                            x-cloak
+                            @click="payCurrentExpanded = true"
+                        >Xem thêm</button>
+                        <button
+                            type="button"
+                            class="mt-1 w-full text-center text-[10px] font-medium text-brand-600 hover:underline dark:text-brand-400"
+                            x-show="payCurrentExpanded"
+                            x-cloak
+                            @click="payCurrentExpanded = false"
+                        >Thu gọn</button>
+                    @endif
                 @else
                     @php $month = $block['month']; @endphp
                     <div class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-800">
@@ -241,7 +262,7 @@
         @if($payTopCount > 2)
             <button
                 type="button"
-                class="w-full rounded-lg border border-gray-200 bg-white py-2 text-[11px] font-medium text-brand-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-brand-400 dark:hover:bg-gray-700"
+                class="w-full text-center text-[10px] font-medium text-brand-600 hover:underline dark:text-brand-400"
                 @click="visible = Math.min(visible + 2, {{ $payTopCount }})"
                 x-show="visible < {{ $payTopCount }}"
                 x-cloak
