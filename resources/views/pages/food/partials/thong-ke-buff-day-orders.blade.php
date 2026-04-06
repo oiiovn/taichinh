@@ -139,7 +139,7 @@
     @if(($day['count'] ?? 0) > 3)
         <button
             type="button"
-            class="w-full py-1 text-center text-[10px] font-medium text-brand-600 hover:underline dark:text-brand-400 md:hidden"
+            class="w-full rounded-lg border border-gray-200 bg-white py-2 text-[11px] font-medium text-brand-600 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-brand-400 dark:hover:bg-gray-700 md:hidden"
             @click="visibleMobile = Math.min(visibleMobile + 3, {{ (int) $day['count'] }})"
             x-show="isMobile && visibleMobile < {{ (int) $day['count'] }}"
             x-cloak

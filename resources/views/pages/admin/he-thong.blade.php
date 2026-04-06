@@ -20,6 +20,60 @@
     @endif
 
     <div class="space-y-6">
+        {{-- Mục tiêu thu nhập tháng cho user --}}
+        <div class="rounded-2xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-white/5 md:p-6">
+            <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Mục tiêu thu nhập tháng (Food)</h3>
+            <form action="{{ route('admin.he-thong.food-income-targets.upsert') }}" method="POST" class="grid gap-4 md:grid-cols-4">
+                @csrf
+                <div class="md:col-span-2">
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">User</label>
+                    <select name="user_id" required class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                        <option value="">Chọn user</option>
+                        @foreach(($foodTargetUsers ?? collect()) as $u)
+                            <option value="{{ $u->id }}" @selected((int) old('user_id') === (int) $u->id)>{{ $u->name }} ({{ $u->email }})</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Số tiền mục tiêu (VNĐ)</label>
+                    <input type="number" name="target_amount" min="0" step="1000" required value="{{ old('target_amount') }}"
+                        class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white" placeholder="VD: 3000000">
+                </div>
+                <div>
+                    <label class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">Tháng mục tiêu</label>
+                    <input type="month" name="target_month" required value="{{ old('target_month', now()->format('Y-m')) }}"
+                        class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-700 dark:bg-gray-800 dark:text-white">
+                </div>
+                <div class="md:col-span-4">
+                    <button type="submit" class="rounded-lg bg-success-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-success-600 dark:bg-success-600 dark:hover:bg-success-500">Lưu mục tiêu tháng</button>
+                </div>
+            </form>
+            <div class="mt-5 overflow-x-auto">
+                <table class="w-full min-w-[560px] text-sm">
+                    <thead>
+                        <tr class="border-b border-gray-200 dark:border-gray-700">
+                            <th class="pb-2 text-left font-medium text-gray-700 dark:text-gray-300">Tháng</th>
+                            <th class="pb-2 text-left font-medium text-gray-700 dark:text-gray-300">User</th>
+                            <th class="pb-2 text-left font-medium text-gray-700 dark:text-gray-300">Mục tiêu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse(($foodIncomeTargets ?? collect()) as $target)
+                            <tr class="border-b border-gray-100 dark:border-gray-700/50">
+                                <td class="py-2.5">{{ $target->target_month?->format('m/Y') }}</td>
+                                <td class="py-2.5">{{ $target->user?->name ?? '—' }} <span class="text-xs text-gray-500 dark:text-gray-400">({{ $target->user?->email ?? '—' }})</span></td>
+                                <td class="py-2.5 font-medium">{{ number_format((int) $target->target_amount, 0, ',', '.') }} đ</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="3" class="py-4 text-center text-gray-500 dark:text-gray-400">Chưa có mục tiêu nào.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         {{-- Cấu hình quà tặng đánh giá 5 sao --}}
         <div class="rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/5 p-5 md:p-6">
             <h3 class="mb-4 text-lg font-semibold text-gray-800 dark:text-white">Quà tặng đánh giá 5 sao</h3>

@@ -32,33 +32,29 @@ class ChamCongController extends Controller
         $to = $request->input('to_date') ? Carbon::parse($request->to_date)->endOfDay() : now()->endOfDay();
 
         $employeeId = $request->input('employee_id');
-        if ($isManager && $employeeId) {
-            $target = Employee::find($employeeId);
-            if ($target) {
-                $employee = $target;
+        $selectedEmployeeId = null;
+        if ($isManager) {
+            if (is_numeric($employeeId) && (int) $employeeId > 0) {
+                $selectedEmployeeId = (int) $employeeId;
             }
-        }
-        if (! $employee && $isManager) {
-            $first = Employee::where('active', true)->orderBy('id')->first();
-            if ($first) {
-                $employee = $first;
-                if (! $employeeId) {
-                    return redirect()->route('food.cham-cong', [
-                        'employee_id' => $first->id,
-                        'from_date' => $from->format('Y-m-d'),
-                        'to_date' => $to->format('Y-m-d'),
-                    ]);
-                }
-            }
-        }
-        if (! $employee) {
+            $employee = $selectedEmployeeId ? Employee::find($selectedEmployeeId) : null;
+        } elseif (! $employee) {
             $employee = $user->employee;
         }
 
         $logs = collect();
-        if ($employee) {
+        if ($isManager && ! $selectedEmployeeId) {
+            $logs = AttendanceLog::query()
+                ->with(['employee.user', 'employee.salaryRates'])
+                ->whereBetween('work_date', [$from, $to])
+                ->whereHas('employee', fn ($q) => $q->where('active', true))
+                ->orderByDesc('work_date')
+                ->orderByDesc('id')
+                ->get();
+        } elseif ($employee) {
             $employee->load('salaryRates');
             $logs = AttendanceLog::query()
+                ->with(['employee.user', 'employee.salaryRates'])
                 ->where('employee_id', $employee->id)
                 ->whereBetween('work_date', [$from, $to])
                 ->orderByDesc('work_date')
@@ -81,6 +77,7 @@ class ChamCongController extends Controller
             'from' => $from,
             'to' => $to,
             'isManager' => $isManager,
+            'selectedEmployeeId' => $selectedEmployeeId,
             'currentUserIsEmployee' => (bool) $user->employee,
             'employeesForSelect' => $employeesForSelect,
             'hasCheckedInToday' => $todayLog && $todayLog->check_in_at !== null,

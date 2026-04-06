@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Food;
 
 use App\Http\Controllers\Controller;
 use App\Models\FoodBranch;
+use App\Models\FoodBuffIncomeTarget;
 use App\Models\FoodBuffLaborPayment;
 use App\Models\FoodBuffOrder;
 use App\Models\FoodBuffOrderSchedule;
@@ -106,6 +107,29 @@ class FoodBuffController extends Controller
         $tongDaTra = (float) $paymentHistory->sum('amount');
         $tongConLai = $tongTienCong - $tongDaTra;
 
+        $targetMonthStart = now()->copy()->startOfMonth();
+        $targetMonthEnd = now()->copy()->endOfMonth();
+        $incomeTarget = FoodBuffIncomeTarget::query()
+            ->where('user_id', $user->id)
+            ->whereDate('target_month', $targetMonthStart->toDateString())
+            ->first();
+        $incomeTargetProgress = null;
+        if ($incomeTarget && (int) $incomeTarget->target_amount > 0) {
+            $actualAmount = (float) FoodBuffOrder::query()
+                ->where('user_id', $user->id)
+                ->whereBetween('order_date', [$targetMonthStart->toDateString(), $targetMonthEnd->toDateString()])
+                ->sum('labor_amount');
+            $targetAmount = (float) $incomeTarget->target_amount;
+            $percent = $targetAmount > 0 ? min(100, ($actualAmount / $targetAmount) * 100) : 0;
+            $incomeTargetProgress = [
+                'month_label' => 'Tháng '.$targetMonthStart->format('n/Y'),
+                'actual_amount' => $actualAmount,
+                'target_amount' => $targetAmount,
+                'percent' => $percent,
+                'done' => $actualAmount >= $targetAmount,
+            ];
+        }
+
         $foodBuffOrderSchedulePopup = $this->foodBuffOrderSchedulePopupData($user);
 
         return view('pages.food.thong-ke-buff', [
@@ -124,6 +148,7 @@ class FoodBuffController extends Controller
             'paymentHistory' => $paymentHistory,
             'tongDaTra' => $tongDaTra,
             'tongConLai' => $tongConLai,
+            'incomeTargetProgress' => $incomeTargetProgress,
             'foodBuffOrderSchedulePopup' => $foodBuffOrderSchedulePopup,
         ]);
     }

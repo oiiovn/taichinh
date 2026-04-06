@@ -2,10 +2,12 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Models\FoodReportBonusTier;
+use App\Models\FoodBuffIncomeTarget;
 use App\Models\FoodGiftConfig;
 use App\Models\PaymentConfig;
 use App\Models\Pay2sApiConfig;
 use App\Models\PlanConfig;
+use App\Models\User;
 
 /*
 |--------------------------------------------------------------------------
@@ -25,6 +27,13 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
             'planConfig' => PlanConfig::getFullConfig(),
             'foodGiftConfig' => FoodGiftConfig::getConfig(),
             'bonusTiers' => FoodReportBonusTier::orderByDesc('min_total_cost')->get(),
+            'foodTargetUsers' => User::query()->orderBy('name')->get(['id', 'name', 'email']),
+            'foodIncomeTargets' => FoodBuffIncomeTarget::query()
+                ->with('user:id,name,email')
+                ->orderByDesc('target_month')
+                ->orderByDesc('id')
+                ->limit(30)
+                ->get(),
         ]);
     })->name('he-thong');
 
@@ -34,6 +43,7 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
 
     Route::put('/he-thong/thanh-toan', [\App\Http\Controllers\Admin\PaymentConfigController::class, 'update'])->name('he-thong.payment.update');
     Route::post('/he-thong/food-gift-config', [\App\Http\Controllers\Admin\FoodGiftConfigController::class, 'update'])->name('he-thong.food-gift-config.update');
+    Route::post('/he-thong/food-income-targets', [\App\Http\Controllers\Admin\FoodBuffIncomeTargetController::class, 'upsert'])->name('he-thong.food-income-targets.upsert');
     Route::put('/he-thong/pay2s-api', [\App\Http\Controllers\Admin\Pay2sApiConfigController::class, 'update'])->name('he-thong.pay2s-api.update');
     Route::put('/he-thong/plans', [\App\Http\Controllers\Admin\PlanConfigController::class, 'update'])->name('he-thong.plans.update');
     Route::post('/he-thong/plans/adjust-prices', [\App\Http\Controllers\Admin\PlanConfigController::class, 'adjustPrices'])->name('he-thong.plans.adjust-prices');

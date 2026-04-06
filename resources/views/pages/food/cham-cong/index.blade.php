@@ -44,9 +44,9 @@ $dailySalary = function ($log, $emp) {
             <div class="flex flex-wrap items-center gap-2">
                 <label class="text-sm font-medium text-gray-700 dark:text-gray-300">Xem chấm công:</label>
                 <select onchange="window.location.href='{{ route('food.cham-cong') }}?employee_id='+this.value+'&from_date={{ $from->format('Y-m-d') }}&to_date={{ $to->format('Y-m-d') }}'" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                    <option value="">— Chọn nhân viên —</option>
+                    <option value="" {{ empty($selectedEmployeeId) ? 'selected' : '' }}>Tất cả</option>
                     @foreach($employeesForSelect as $e)
-                        <option value="{{ $e->id }}" {{ $employee && $e->id == $employee->id ? 'selected' : '' }}>{{ $e->user->name ?? $e->id }}</option>
+                        <option value="{{ $e->id }}" {{ (int) ($selectedEmployeeId ?? 0) === (int) $e->id ? 'selected' : '' }}>{{ $e->user->name ?? $e->id }}</option>
                     @endforeach
                 </select>
             </div>
@@ -65,10 +65,12 @@ $dailySalary = function ($log, $emp) {
         </div>
         @endif
 
-        @if($employee)
+        @if($employee || $isManager)
         <div class="flex flex-wrap items-center gap-2 pr-2 sm:pr-0">
             <form action="{{ route('food.cham-cong') }}" method="get" class="flex flex-wrap items-center gap-2 min-w-0">
-                <input type="hidden" name="employee_id" value="{{ $employee->id }}">
+                @if(!empty($selectedEmployeeId))
+                    <input type="hidden" name="employee_id" value="{{ (int) $selectedEmployeeId }}">
+                @endif
                 <input type="date" name="from_date" value="{{ $from->format('Y-m-d') }}" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white min-w-0">
                 <input type="date" name="to_date" value="{{ $to->format('Y-m-d') }}" class="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white min-w-0">
                 <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm text-white hover:bg-brand-700 shrink-0">Xem</button>
@@ -92,7 +94,11 @@ $dailySalary = function ($log, $emp) {
                         <dt class="text-gray-500 dark:text-gray-400">Nghỉ</dt>
                         <dd class="text-gray-900 dark:text-white">{{ $log->break_start_at ? $log->break_start_at->format('H:i') . ' – ' . ($log->break_end_at?->format('H:i') ?? '—') : '—' }}</dd>
                         <dt class="text-gray-500 dark:text-gray-400">Lương ngày</dt>
-                        <dd class="text-gray-900 dark:text-white font-medium">{{ ($amt = $dailySalary($log, $employee)) !== null ? $fmt($amt) . ' đ' : '—' }}</dd>
+                        <dd class="text-gray-900 dark:text-white font-medium">{{ ($amt = $dailySalary($log, $log->employee ?? $employee)) !== null ? $fmt($amt) . ' đ' : '—' }}</dd>
+                        @if($isManager && empty($selectedEmployeeId))
+                            <dt class="text-gray-500 dark:text-gray-400">Nhân viên</dt>
+                            <dd class="text-gray-900 dark:text-white">{{ $log->employee?->user?->name ?? '—' }}</dd>
+                        @endif
                     </dl>
                     @if($isManager)
                         <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
@@ -110,6 +116,9 @@ $dailySalary = function ($log, $emp) {
             <table class="w-full min-w-[640px] text-left text-sm">
                 <thead class="border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800">
                     <tr>
+                        @if($isManager && empty($selectedEmployeeId))
+                            <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Nhân viên</th>
+                        @endif
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Ngày</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Vào ca</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Ra ca</th>
@@ -123,8 +132,11 @@ $dailySalary = function ($log, $emp) {
                 </thead>
                 <tbody>
                     @forelse($logs as $log)
-                        @php $dayAmt = $dailySalary($log, $employee); @endphp
+                        @php $dayAmt = $dailySalary($log, $log->employee ?? $employee); @endphp
                         <tr class="border-b border-gray-100 dark:border-gray-700/50">
+                            @if($isManager && empty($selectedEmployeeId))
+                                <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $log->employee?->user?->name ?? '—' }}</td>
+                            @endif
                             <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $log->work_date->format('d/m/Y') }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->check_in_at?->format('H:i') ?? '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->check_out_at?->format('H:i') ?? '—' }}</td>
@@ -139,7 +151,7 @@ $dailySalary = function ($log, $emp) {
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ $isManager ? 7 : 6 }}" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có bản ghi chấm công trong khoảng thời gian này.</td>
+                            <td colspan="{{ ($isManager ? 7 : 6) + (($isManager && empty($selectedEmployeeId)) ? 1 : 0) }}" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có bản ghi chấm công trong khoảng thời gian này.</td>
                         </tr>
                     @endforelse
                 </tbody>
