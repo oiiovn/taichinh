@@ -115,10 +115,25 @@ class FoodBuffController extends Controller
             ->first();
         $incomeTargetProgress = null;
         if ($incomeTarget && (int) $incomeTarget->target_amount > 0) {
-            $actualAmount = (float) FoodBuffOrder::query()
-                ->where('user_id', $user->id)
-                ->whereBetween('order_date', [$targetMonthStart->toDateString(), $targetMonthEnd->toDateString()])
-                ->sum('labor_amount');
+            $targetMonthOrdersQuery = FoodBuffOrder::query()
+                ->whereBetween('order_date', [$targetMonthStart->toDateString(), $targetMonthEnd->toDateString()]);
+            if (! $isOnlyThongKeBuffUser) {
+                $targetMonthOrdersQuery->where('user_id', $user->id);
+            }
+            if (! $user->is_admin) {
+                $assignedEmployees = $user->getFoodBuffAssignedEmployees();
+                if ($assignedEmployees !== []) {
+                    $normalizedNames = array_map(
+                        fn ($name) => mb_strtolower(trim((string) $name)),
+                        $assignedEmployees
+                    );
+                    $normalizedNames = array_values(array_unique(array_filter($normalizedNames, fn ($name) => $name !== '')));
+                    if ($normalizedNames !== []) {
+                        $targetMonthOrdersQuery->whereRaw('LOWER(TRIM(customer_name)) IN ('.implode(',', array_fill(0, count($normalizedNames), '?')).')', $normalizedNames);
+                    }
+                }
+            }
+            $actualAmount = (float) $targetMonthOrdersQuery->sum('labor_amount');
             $targetAmount = (float) $incomeTarget->target_amount;
             $percent = $targetAmount > 0 ? min(100, ($actualAmount / $targetAmount) * 100) : 0;
             $incomeTargetProgress = [
