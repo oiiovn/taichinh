@@ -362,7 +362,7 @@
 
         $buffOrdersListEmpty = $currentMonthDays->isEmpty() && $ordersByMonth->isEmpty();
     @endphp
-    <div class="space-y-3" x-data="{ openMonth: null, openDay: null }">
+    <div class="space-y-3" x-data="{ openMonth: null, openDay: null, currentDaysExpanded: false }">
         <p class="text-sm font-semibold text-gray-900 dark:text-white">
             Danh sách đơn
             <span class="ml-1 text-[10px] font-normal italic text-blue-600 dark:text-blue-400">(Được cập nhật sau 22h mỗi ngày hoặc trước 10h ngày hôm sau)</span>
@@ -370,34 +370,52 @@
         @if($buffOrdersListEmpty)
             <p class="py-4 text-center text-xs text-gray-500 dark:text-gray-400">Không có đơn trong kỳ đã chọn.</p>
         @else
-        @foreach($currentMonthDays as $day)
-            <div class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-800">
-                <button
-                    type="button"
-                    class="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left"
-                    @click="openMonth = null; openDay = openDay === '{{ $day['day_key'] }}' ? null : '{{ $day['day_key'] }}'"
-                >
-                    <div class="min-w-0">
-                        <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Ngày</p>
-                        <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ $day['day_text'] }}</p>
-                        <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                            {{ $day['count'] }} đơn •
-                            @if((int) ($day['unreviewed_count'] ?? 0) === 0)
-                                <span class="font-medium text-green-700 dark:text-green-500">Đã hoàn thành đánh giá</span>
-                            @else
-                                <span class="font-medium text-orange-600 dark:text-orange-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
-                            @endif
-                        </p>
-                    </div>
-                    <div class="shrink-0 text-right">
-                        <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tổng thu nhập</p>
-                        <p class="mt-0.5 text-sm font-semibold tabular-nums text-green-600 dark:text-green-400">+ {{ $fmt($day['labor_total']) }} đ</p>
-                        <p class="mt-1 text-xs font-medium text-brand-600 dark:text-brand-400" x-text="openDay === '{{ $day['day_key'] }}' ? 'Thu gọn' : 'Xem chi tiết'"></p>
-                    </div>
-                </button>
-                @include('pages.food.partials.thong-ke-buff-day-orders', ['day' => $day])
+        @foreach($currentMonthDays as $idx => $day)
+            <div x-show="currentDaysExpanded || {{ (int) $idx }} < 2" x-cloak>
+                <div class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-800">
+                    <button
+                        type="button"
+                        class="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left"
+                        @click="openMonth = null; openDay = openDay === '{{ $day['day_key'] }}' ? null : '{{ $day['day_key'] }}'"
+                    >
+                        <div class="min-w-0">
+                            <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Ngày</p>
+                            <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ $day['day_text'] }}</p>
+                            <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                                {{ $day['count'] }} đơn •
+                                @if((int) ($day['unreviewed_count'] ?? 0) === 0)
+                                    <span class="font-medium text-green-700 dark:text-green-500">Đã hoàn thành đánh giá</span>
+                                @else
+                                    <span class="font-medium text-orange-600 dark:text-orange-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
+                                @endif
+                            </p>
+                        </div>
+                        <div class="shrink-0 text-right">
+                            <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tổng thu nhập</p>
+                            <p class="mt-0.5 text-sm font-semibold tabular-nums text-green-600 dark:text-green-400">+ {{ $fmt($day['labor_total']) }} đ</p>
+                            <p class="mt-1 text-xs font-medium text-brand-600 dark:text-brand-400" x-text="openDay === '{{ $day['day_key'] }}' ? 'Thu gọn' : 'Xem chi tiết'"></p>
+                        </div>
+                    </button>
+                    @include('pages.food.partials.thong-ke-buff-day-orders', ['day' => $day])
+                </div>
             </div>
         @endforeach
+        @if($currentMonthDays->count() > 2)
+            <button
+                type="button"
+                class="w-full text-center text-[10px] font-medium text-brand-600 hover:underline dark:text-brand-400"
+                x-show="!currentDaysExpanded"
+                x-cloak
+                @click="currentDaysExpanded = true"
+            >Xem thêm</button>
+            <button
+                type="button"
+                class="w-full text-center text-[10px] font-medium text-brand-600 hover:underline dark:text-brand-400"
+                x-show="currentDaysExpanded"
+                x-cloak
+                @click="currentDaysExpanded = false; openDay = null"
+            >Thu gọn</button>
+        @endif
         @foreach($ordersByMonth as $month)
             <div
                 class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-800"
