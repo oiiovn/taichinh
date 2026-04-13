@@ -52,6 +52,51 @@ $dailySalary = function ($log, $emp) {
             </div>
         @endif
 
+        @if($employeesForSelect->isNotEmpty())
+            <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+                <p class="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Thêm chấm công thủ công</p>
+                <form action="{{ route('food.cham-cong.store-manual') }}" method="post" class="grid grid-cols-1 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                    @csrf
+                    <div class="xl:col-span-2">
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Nhân viên</label>
+                        <select name="employee_id" required class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                            <option value="">Chọn nhân viên</option>
+                            @foreach($employeesForSelect as $e)
+                                <option value="{{ $e->id }}" @selected((int) old('employee_id', (int) ($selectedEmployeeId ?? 0)) === (int) $e->id)>{{ $e->user->name ?? ('NV #' . $e->id) }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Ngày</label>
+                        <input type="date" name="work_date" value="{{ old('work_date', now()->format('Y-m-d')) }}" required class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Vào ca</label>
+                        <input type="time" name="check_in_time" value="{{ old('check_in_time') }}" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Ra ca</label>
+                        <input type="time" name="check_out_time" value="{{ old('check_out_time') }}" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Bắt đầu nghỉ</label>
+                        <input type="time" name="break_start_time" value="{{ old('break_start_time') }}" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Kết thúc nghỉ</label>
+                        <input type="time" name="break_end_time" value="{{ old('break_end_time') }}" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                    </div>
+                    <div class="md:col-span-3 xl:col-span-5">
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Ghi chú</label>
+                        <input type="text" name="note" value="{{ old('note') }}" maxlength="500" placeholder="Tùy chọn" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                    </div>
+                    <div class="md:col-span-3 xl:col-span-1 xl:self-end">
+                        <button type="submit" class="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Thêm mới</button>
+                    </div>
+                </form>
+            </div>
+        @endif
+
         @if($currentUserIsEmployee ?? false)
         <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
             <form action="{{ route('food.cham-cong.store') }}" method="post" class="flex flex-wrap items-end gap-2">

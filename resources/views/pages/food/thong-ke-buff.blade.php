@@ -138,7 +138,7 @@
     @if(!($isOnlyThongKeBuffUser ?? false))
         <form method="POST" action="{{ route('food.thong-ke-buff.thanh-toan-tien-cong') }}" class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
             @csrf
-            <p class="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Thanh toán tiền công (tiền mặt)</p>
+            <p class="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Thanh toán tiền công</p>
             <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
                 <div class="md:col-span-2">
                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">User nhận tiền</label>
@@ -151,11 +151,19 @@
                     @error('paid_user_id')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
                 </div>
                 <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Phương thức</label>
+                    <select name="payment_method" required class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                        <option value="cash" @selected(old('payment_method', 'cash') === 'cash')>Tiền mặt</option>
+                        <option value="bank" @selected(old('payment_method') === 'bank')>Chuyển khoản</option>
+                    </select>
+                    @error('payment_method')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
+                </div>
+                <div>
                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Số tiền</label>
                     <input type="number" min="1" step="1" name="amount" value="{{ old('amount') }}" required class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="VD: 500000">
                     @error('amount')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
                 </div>
-                <div>
+                <div class="md:col-span-4">
                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Ghi chú</label>
                     <input type="text" name="note" value="{{ old('note') }}" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" placeholder="Tùy chọn">
                     @error('note')<p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>@enderror

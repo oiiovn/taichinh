@@ -331,6 +331,7 @@ class FoodBuffController extends Controller
         $validated = $request->validate([
             'paid_user_id' => ['required', 'integer', Rule::exists('users', 'id')],
             'amount' => ['required', 'numeric', 'min:1'],
+            'payment_method' => ['required', Rule::in([FoodBuffLaborPayment::METHOD_CASH, FoodBuffLaborPayment::METHOD_BANK])],
             'note' => ['nullable', 'string', 'max:500'],
         ]);
 
@@ -343,7 +344,7 @@ class FoodBuffController extends Controller
             'payer_user_id' => $user->id,
             'paid_user_id' => (int) $validated['paid_user_id'],
             'amount' => $amount,
-            'payment_method' => FoodBuffLaborPayment::METHOD_CASH,
+            'payment_method' => (string) $validated['payment_method'],
             'note' => $validated['note'] ?? null,
             'paid_at' => now(),
             'created_by_user_id' => $user->id,

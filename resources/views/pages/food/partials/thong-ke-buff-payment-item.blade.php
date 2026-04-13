@@ -5,7 +5,11 @@
     </div>
     <div class="mt-2 space-y-2 text-xs text-gray-700 dark:text-gray-300">
         <div class="font-medium text-gray-900 dark:text-gray-100">
-            {{ $p->payment_method === 'cash' ? 'Tiền mặt' : strtoupper((string) $p->payment_method) }}@if($p->note)<span class="text-gray-400 dark:text-gray-500"> · </span>{{ $p->note }}@endif
+            {{
+                $p->payment_method === 'cash'
+                    ? 'Tiền mặt'
+                    : ($p->payment_method === 'bank' ? 'Chuyển khoản' : strtoupper((string) $p->payment_method))
+            }}@if($p->note)<span class="text-gray-400 dark:text-gray-500"> · </span>{{ $p->note }}@endif
         </div>
     </div>
 </div>

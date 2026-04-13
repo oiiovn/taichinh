@@ -179,4 +179,51 @@ class ChamCongController extends Controller
             'to_date' => $to,
         ])->with('success', 'Đã cập nhật chấm công.');
     }
+
+    public function storeManual(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->canManageFoodChamCong()) {
+            abort(403, 'Chỉ quản lý mới được thêm chấm công thủ công.');
+        }
+
+        $validated = $request->validate([
+            'employee_id' => ['required', 'integer', 'exists:employees,id'],
+            'work_date' => ['required', 'date'],
+            'check_in_time' => ['nullable', 'string', 'max:5'],
+            'check_out_time' => ['nullable', 'string', 'max:5'],
+            'break_start_time' => ['nullable', 'string', 'max:5'],
+            'break_end_time' => ['nullable', 'string', 'max:5'],
+            'note' => ['nullable', 'string', 'max:500'],
+        ]);
+
+        $workDate = Carbon::parse($validated['work_date'])->startOfDay();
+        $timePattern = '/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/';
+        $toDateTime = static function (Carbon $date, ?string $timeText) use ($timePattern) {
+            $time = trim((string) $timeText);
+            if ($time === '' || ! preg_match($timePattern, $time)) {
+                return null;
+            }
+
+            return Carbon::parse($date->format('Y-m-d').' '.$time);
+        };
+
+        $log = AttendanceLog::query()->firstOrNew([
+            'employee_id' => (int) $validated['employee_id'],
+            'work_date' => $workDate,
+        ]);
+
+        $log->check_in_at = $toDateTime($workDate, $validated['check_in_time'] ?? null);
+        $log->check_out_at = $toDateTime($workDate, $validated['check_out_time'] ?? null);
+        $log->break_start_at = $toDateTime($workDate, $validated['break_start_time'] ?? null);
+        $log->break_end_at = $toDateTime($workDate, $validated['break_end_time'] ?? null);
+        $log->note = $validated['note'] ?: null;
+        $log->save();
+
+        return redirect()->route('food.cham-cong', [
+            'employee_id' => (int) $validated['employee_id'],
+            'from_date' => $workDate->format('Y-m-d'),
+            'to_date' => $workDate->format('Y-m-d'),
+        ])->with('success', 'Đã thêm chấm công thủ công.');
+    }
 }

@@ -10,6 +10,7 @@ class FoodBuffLaborPayment extends Model
     protected $table = 'food_buff_labor_payments';
 
     public const METHOD_CASH = 'cash';
+    public const METHOD_BANK = 'bank';
 
     protected $fillable = [
         'payer_user_id',
