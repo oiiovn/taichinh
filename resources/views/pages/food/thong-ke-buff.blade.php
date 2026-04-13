@@ -3,17 +3,17 @@
 @section('foodContent')
 @php
     $fmt = fn ($n) => \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($n);
-    $branchBadgeClasses = [
-        'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
-        'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
-        'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
-        'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300',
-        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
-        'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300',
-        'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
-        'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
-        'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
-        'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300',
+    $branchBadgeStyles = [
+        'background-color:#ffe4e6;color:#be123c;border:1px solid #fecdd3;',
+        'background-color:#ffedd5;color:#c2410c;border:1px solid #fed7aa;',
+        'background-color:#fef3c7;color:#b45309;border:1px solid #fde68a;',
+        'background-color:#ecfccb;color:#4d7c0f;border:1px solid #d9f99d;',
+        'background-color:#d1fae5;color:#047857;border:1px solid #a7f3d0;',
+        'background-color:#cffafe;color:#0e7490;border:1px solid #a5f3fc;',
+        'background-color:#e0f2fe;color:#0369a1;border:1px solid #bae6fd;',
+        'background-color:#e0e7ff;color:#4338ca;border:1px solid #c7d2fe;',
+        'background-color:#ede9fe;color:#6d28d9;border:1px solid #ddd6fe;',
+        'background-color:#fae8ff;color:#a21caf;border:1px solid #f5d0fe;',
     ];
     $foodUserNameMap = collect($payableUsers ?? [])->reduce(function ($carry, $u) {
         $name = trim((string) ($u->name ?? ''));
@@ -428,9 +428,9 @@
                             <div class="mt-1 flex w-full flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap pb-0.5 text-[11px] text-gray-600 dark:text-gray-400">
                                 @foreach($day['branch_counts'] as $branchData)
                                     @php
-                                        $branchBadgeClass = $branchBadgeClasses[abs(crc32(mb_strtolower($branchData['name']))) % count($branchBadgeClasses)];
+                                        $branchBadgeStyle = $branchBadgeStyles[abs(crc32(mb_strtolower($branchData['name']))) % count($branchBadgeStyles)];
                                     @endphp
-                                    <span class="shrink-0 rounded-md px-1.5 py-0.5 {{ $branchBadgeClass }}">
+                                    <span class="shrink-0 rounded-md px-1.5 py-0.5" style="{{ $branchBadgeStyle }}">
                                         {{ $branchData['name'] }}: {{ $branchData['count'] }} đơn
                                     </span>
                                 @endforeach
@@ -515,9 +515,9 @@
                                     <div class="mt-1 flex w-full flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap pb-0.5 text-[10px] text-gray-600 dark:text-gray-400">
                                         @foreach($day['branch_counts'] as $branchData)
                                             @php
-                                                $branchBadgeClass = $branchBadgeClasses[abs(crc32(mb_strtolower($branchData['name']))) % count($branchBadgeClasses)];
+                                                $branchBadgeStyle = $branchBadgeStyles[abs(crc32(mb_strtolower($branchData['name']))) % count($branchBadgeStyles)];
                                             @endphp
-                                            <span class="shrink-0 rounded-md px-1 py-0.5 {{ $branchBadgeClass }}">
+                                            <span class="shrink-0 rounded-md px-1 py-0.5" style="{{ $branchBadgeStyle }}">
                                                 {{ $branchData['name'] }}: {{ $branchData['count'] }} đơn
                                             </span>
                                         @endforeach
