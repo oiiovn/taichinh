@@ -3,6 +3,18 @@
 @section('foodContent')
 @php
     $fmt = fn ($n) => \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($n);
+    $branchBadgeClasses = [
+        'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+        'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300',
+        'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+        'bg-lime-100 text-lime-700 dark:bg-lime-900/40 dark:text-lime-300',
+        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+        'bg-cyan-100 text-cyan-700 dark:bg-cyan-900/40 dark:text-cyan-300',
+        'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+        'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300',
+        'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+        'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-900/40 dark:text-fuchsia-300',
+    ];
     $foodUserNameMap = collect($payableUsers ?? [])->reduce(function ($carry, $u) {
         $name = trim((string) ($u->name ?? ''));
         $email = trim((string) ($u->email ?? ''));
@@ -297,6 +309,19 @@
         $otherWithDate = $withDate->filter(fn ($o) => $o->order_date->format('Y-m') !== $nowYm);
 
         $buildDayRow = function ($items, $dateKey) {
+            $branchCounts = $items
+                ->groupBy(function ($o) {
+                    $name = trim((string) ($o->branch?->name ?? ''));
+
+                    return $name !== '' ? $name : 'Không rõ chi nhánh';
+                })
+                ->map(fn ($group, $branchName) => [
+                    'name' => $branchName,
+                    'count' => $group->count(),
+                ])
+                ->sortByDesc('count')
+                ->values();
+
             if ($dateKey === 'unknown') {
                 return [
                     'day_key' => 'd:unknown',
@@ -304,6 +329,7 @@
                     'count' => $items->count(),
                     'unreviewed_count' => $items->filter(fn ($o) => empty($o->customer_reviewed))->count(),
                     'labor_total' => (float) $items->sum('labor_amount'),
+                    'branch_counts' => $branchCounts,
                     'items' => $items->sortByDesc(fn ($x) => $x->id)->values(),
                     'sort_ts' => 0,
                 ];
@@ -316,6 +342,7 @@
                 'count' => $items->count(),
                 'unreviewed_count' => $items->filter(fn ($o) => empty($o->customer_reviewed))->count(),
                 'labor_total' => (float) $items->sum('labor_amount'),
+                'branch_counts' => $branchCounts,
                 'items' => $items->sortByDesc(fn ($x) => $x->id)->values(),
                 'sort_ts' => $d->copy()->endOfDay()->timestamp,
             ];
@@ -375,26 +402,40 @@
                 <div class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-600 dark:bg-gray-800">
                     <button
                         type="button"
-                        class="flex w-full items-start justify-between gap-3 px-3 py-2.5 text-left"
+                        class="w-full pl-3 pr-1.5 py-2.5 text-left"
                         @click="openMonth = null; openDay = openDay === '{{ $day['day_key'] }}' ? null : '{{ $day['day_key'] }}'"
                     >
-                        <div class="min-w-0">
-                            <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Ngày</p>
-                            <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ $day['day_text'] }}</p>
-                            <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
-                                {{ $day['count'] }} đơn •
-                                @if((int) ($day['unreviewed_count'] ?? 0) === 0)
-                                    <span class="font-medium text-green-700 dark:text-green-500">Đã hoàn thành đánh giá</span>
-                                @else
-                                    <span class="font-medium text-orange-600 dark:text-orange-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
-                                @endif
-                            </p>
+                        <div class="flex items-start justify-between gap-3">
+                            <div class="min-w-0">
+                                <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Ngày</p>
+                                <p class="mt-0.5 text-sm font-semibold text-gray-900 dark:text-white">{{ $day['day_text'] }}</p>
+                                <p class="mt-1 text-xs text-gray-600 dark:text-gray-400">
+                                    {{ $day['count'] }} đơn •
+                                    @if((int) ($day['unreviewed_count'] ?? 0) === 0)
+                                        <span class="font-medium text-green-700 dark:text-green-500">Đã hoàn thành đánh giá</span>
+                                    @else
+                                        <span class="font-medium text-orange-600 dark:text-orange-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
+                                    @endif
+                                </p>
+                            </div>
+                            <div class="shrink-0 text-right">
+                                <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tổng thu nhập</p>
+                                <p class="mt-0.5 text-sm font-semibold tabular-nums text-green-600 dark:text-green-400">+ {{ $fmt($day['labor_total']) }} đ</p>
+                                <p class="mt-1 text-xs font-medium text-brand-600 dark:text-brand-400" x-text="openDay === '{{ $day['day_key'] }}' ? 'Thu gọn' : 'Xem chi tiết'"></p>
+                            </div>
                         </div>
-                        <div class="shrink-0 text-right">
-                            <p class="text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Tổng thu nhập</p>
-                            <p class="mt-0.5 text-sm font-semibold tabular-nums text-green-600 dark:text-green-400">+ {{ $fmt($day['labor_total']) }} đ</p>
-                            <p class="mt-1 text-xs font-medium text-brand-600 dark:text-brand-400" x-text="openDay === '{{ $day['day_key'] }}' ? 'Thu gọn' : 'Xem chi tiết'"></p>
-                        </div>
+                        @if(!empty($day['branch_counts']))
+                            <div class="mt-1 flex w-full flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap pb-0.5 text-[11px] text-gray-600 dark:text-gray-400">
+                                @foreach($day['branch_counts'] as $branchData)
+                                    @php
+                                        $branchBadgeClass = $branchBadgeClasses[abs(crc32(mb_strtolower($branchData['name']))) % count($branchBadgeClasses)];
+                                    @endphp
+                                    <span class="shrink-0 rounded-md px-1.5 py-0.5 {{ $branchBadgeClass }}">
+                                        {{ $branchData['name'] }}: {{ $branchData['count'] }} đơn
+                                    </span>
+                                @endforeach
+                            </div>
+                        @endif
                     </button>
                     @include('pages.food.partials.thong-ke-buff-day-orders', ['day' => $day])
                 </div>
@@ -448,26 +489,40 @@
                         <div class="overflow-hidden rounded-lg border border-gray-200/90 bg-white dark:border-gray-600 dark:bg-gray-800">
                             <button
                                 type="button"
-                                class="flex w-full items-start justify-between gap-2 px-2.5 py-2 text-left"
+                                class="w-full pl-2.5 pr-1 py-2 text-left"
                                 @click="openDay = openDay === '{{ $day['day_key'] }}' ? null : '{{ $day['day_key'] }}'"
                             >
-                                <div class="min-w-0">
-                                    <p class="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Ngày</p>
-                                    <p class="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white">{{ $day['day_text'] }}</p>
-                                    <p class="mt-0.5 text-[11px] text-gray-600 dark:text-gray-400">
-                                        {{ $day['count'] }} đơn •
-                                        @if((int) ($day['unreviewed_count'] ?? 0) === 0)
-                                            <span class="font-medium text-green-700 dark:text-green-500">Đã hoàn thành đánh giá</span>
-                                        @else
-                                            <span class="font-medium text-orange-600 dark:text-orange-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
-                                        @endif
-                                    </p>
+                                <div class="flex items-start justify-between gap-2">
+                                    <div class="min-w-0">
+                                        <p class="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Ngày</p>
+                                        <p class="mt-0.5 text-xs font-semibold text-gray-900 dark:text-white">{{ $day['day_text'] }}</p>
+                                        <p class="mt-0.5 text-[11px] text-gray-600 dark:text-gray-400">
+                                            {{ $day['count'] }} đơn •
+                                            @if((int) ($day['unreviewed_count'] ?? 0) === 0)
+                                                <span class="font-medium text-green-700 dark:text-green-500">Đã hoàn thành đánh giá</span>
+                                            @else
+                                                <span class="font-medium text-orange-600 dark:text-orange-400">{{ (int) ($day['unreviewed_count'] ?? 0) }} chưa đánh giá</span>
+                                            @endif
+                                        </p>
+                                    </div>
+                                    <div class="shrink-0 text-right">
+                                        <p class="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Thu nhập</p>
+                                        <p class="mt-0.5 text-xs font-semibold tabular-nums text-green-600 dark:text-green-400">+ {{ $fmt($day['labor_total']) }} đ</p>
+                                        <p class="mt-0.5 text-[10px] font-medium text-brand-600 dark:text-brand-400" x-text="openDay === '{{ $day['day_key'] }}' ? 'Thu gọn' : 'Xem đơn'"></p>
+                                    </div>
                                 </div>
-                                <div class="shrink-0 text-right">
-                                    <p class="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Thu nhập</p>
-                                    <p class="mt-0.5 text-xs font-semibold tabular-nums text-green-600 dark:text-green-400">+ {{ $fmt($day['labor_total']) }} đ</p>
-                                    <p class="mt-0.5 text-[10px] font-medium text-brand-600 dark:text-brand-400" x-text="openDay === '{{ $day['day_key'] }}' ? 'Thu gọn' : 'Xem đơn'"></p>
-                                </div>
+                                @if(!empty($day['branch_counts']))
+                                    <div class="mt-1 flex w-full flex-nowrap items-center gap-1 overflow-x-auto whitespace-nowrap pb-0.5 text-[10px] text-gray-600 dark:text-gray-400">
+                                        @foreach($day['branch_counts'] as $branchData)
+                                            @php
+                                                $branchBadgeClass = $branchBadgeClasses[abs(crc32(mb_strtolower($branchData['name']))) % count($branchBadgeClasses)];
+                                            @endphp
+                                            <span class="shrink-0 rounded-md px-1 py-0.5 {{ $branchBadgeClass }}">
+                                                {{ $branchData['name'] }}: {{ $branchData['count'] }} đơn
+                                            </span>
+                                        @endforeach
+                                    </div>
+                                @endif
                             </button>
                             @include('pages.food.partials.thong-ke-buff-day-orders', ['day' => $day])
                         </div>
