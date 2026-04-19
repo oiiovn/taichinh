@@ -20,6 +20,8 @@ class FoodSalesReport extends Model
         'total_tien_cong',
         'bonus',
         'doanh_so',
+        'phi_buff',
+        'phi_ads',
         'uploaded_at',
         'note',
     ];
@@ -31,6 +33,8 @@ class FoodSalesReport extends Model
         'total_tien_cong' => 'decimal:0',
         'bonus' => 'decimal:0',
         'doanh_so' => 'decimal:0',
+        'phi_buff' => 'decimal:0',
+        'phi_ads' => 'decimal:0',
     ];
 
     public function user(): BelongsTo
@@ -59,13 +63,16 @@ class FoodSalesReport extends Model
         return (float) $this->total_cost + (float) $this->total_tien_cong + (float) ($this->bonus ?? 0);
     }
 
-    /** Lợi nhuận = doanh_so - quyet_toan (khi đã nhập doanh số) */
+    /** Lợi nhuận = doanh_so - quyet_toan - phi_buff - phi_ads (khi đã nhập doanh số) */
     public function getLoiNhuanAttribute(): ?float
     {
         if ($this->doanh_so === null) {
             return null;
         }
 
-        return (float) $this->doanh_so - $this->quyet_toan;
+        return (float) $this->doanh_so
+            - $this->quyet_toan
+            - (float) ($this->phi_buff ?? 0)
+            - (float) ($this->phi_ads ?? 0);
     }
 }

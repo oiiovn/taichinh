@@ -270,9 +270,9 @@ class FoodController extends Controller
                         return false;
                     }
                 });
-                $tongDoanhSo = $dayReports->sum(fn ($r) => (float) ($r->doanh_so ?? 0));
                 $tongQuyetToan = $dayReports->sum(fn ($r) => (float) $r->quyet_toan);
-                $chartDoanhSoLoiNhuan[] = (int) round($tongDoanhSo - $tongQuyetToan);
+                $tongLoiNhuan = $dayReports->sum(fn ($r) => (float) ($r->loi_nhuan ?? 0));
+                $chartDoanhSoLoiNhuan[] = (int) round($tongLoiNhuan);
                 $chartDoanhSoQuyetToan[] = (int) round($tongQuyetToan);
                 $cursor->addDay();
             }

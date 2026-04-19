@@ -447,17 +447,33 @@ class BaoCaoBanHangController extends Controller
             return response()->json(['success' => false, 'message' => 'Không tìm thấy báo cáo.'], 404);
         }
 
-        $value = $request->input('doanh_so');
-        if ($value !== null && trim((string) $value) !== '') {
-            $report->doanh_so = VndHelper::toStoredAmount($value);
+        $doanhSo = $request->input('doanh_so');
+        if ($doanhSo !== null && trim((string) $doanhSo) !== '') {
+            $report->doanh_so = VndHelper::toStoredAmount($doanhSo);
         } else {
             $report->doanh_so = null;
+        }
+
+        $phiBuff = $request->input('phi_buff');
+        if ($phiBuff !== null && trim((string) $phiBuff) !== '') {
+            $report->phi_buff = VndHelper::toStoredAmount($phiBuff);
+        } else {
+            $report->phi_buff = null;
+        }
+
+        $phiAds = $request->input('phi_ads');
+        if ($phiAds !== null && trim((string) $phiAds) !== '') {
+            $report->phi_ads = VndHelper::toStoredAmount($phiAds);
+        } else {
+            $report->phi_ads = null;
         }
         $report->save();
 
         return response()->json([
             'success' => true,
             'doanh_so' => $report->doanh_so,
+            'phi_buff' => $report->phi_buff,
+            'phi_ads' => $report->phi_ads,
             'loi_nhuan' => $report->loi_nhuan,
         ]);
     }

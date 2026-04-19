@@ -212,6 +212,8 @@
                     <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Ngày báo cáo</th>
                     <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Quyết toán</th>
                     <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Doanh số</th>
+                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Phí buff</th>
+                    <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Ads</th>
                     <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Lợi nhuận</th>
                     <th class="px-4 py-3 font-medium text-gray-900 dark:text-white">Thao tác</th>
                 </tr>
@@ -220,8 +222,18 @@
                 @forelse($reportsDoanhSo ?? [] as $r)
                     <tr class="border-b border-gray-200 dark:border-gray-700" x-data="{
                         doanhSo: {{ json_encode($r->doanh_so !== null ? (int)$r->doanh_so : '') }},
+                        phiBuff: {{ json_encode($r->phi_buff !== null ? (int)$r->phi_buff : '') }},
+                        phiAds: {{ json_encode($r->phi_ads !== null ? (int)$r->phi_ads : '') }},
                         quyetToan: {{ (int) round($r->quyet_toan) }},
-                        get loiNhuan() { var ds = parseInt(this.doanhSo, 10); if (isNaN(ds)) return null; return ds - this.quyetToan; },
+                        get loiNhuan() {
+                            var ds = parseInt(this.doanhSo, 10);
+                            if (isNaN(ds)) return null;
+                            var buff = parseInt(this.phiBuff, 10);
+                            if (isNaN(buff)) buff = 0;
+                            var ads = parseInt(this.phiAds, 10);
+                            if (isNaN(ads)) ads = 0;
+                            return ds - this.quyetToan - buff - ads;
+                        },
                         saving: false,
                         async save() {
                             this.saving = true;
@@ -229,10 +241,18 @@
                                 const res = await fetch('{{ url('/food/bao-cao-ban-hang/' . (int) $r->id . '/doanh-so') }}', {
                                     method: 'PUT',
                                     headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name=csrf-token]')?.content || '', 'Accept': 'application/json' },
-                                    body: JSON.stringify({ doanh_so: this.doanhSo === '' ? null : parseInt(this.doanhSo, 10) })
+                                    body: JSON.stringify({
+                                        doanh_so: this.doanhSo === '' ? null : parseInt(this.doanhSo, 10),
+                                        phi_buff: this.phiBuff === '' ? null : parseInt(this.phiBuff, 10),
+                                        phi_ads: this.phiAds === '' ? null : parseInt(this.phiAds, 10)
+                                    })
                                 });
                                 const data = await res.json();
-                                if (data.success) { this.doanhSo = data.doanh_so ?? ''; }
+                                if (data.success) {
+                                    this.doanhSo = data.doanh_so ?? '';
+                                    this.phiBuff = data.phi_buff ?? '';
+                                    this.phiAds = data.phi_ads ?? '';
+                                }
                                 else { alert(data.message || 'Lưu thất bại'); }
                             } catch (e) { alert('Lỗi kết nối'); }
                             this.saving = false;
@@ -245,13 +265,19 @@
                         <td class="px-4 py-3">
                             <input type="text" x-model="doanhSo" inputmode="numeric" placeholder="Nhập doanh số" class="w-full min-w-[100px] rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
                         </td>
+                        <td class="px-4 py-3">
+                            <input type="text" x-model="phiBuff" inputmode="numeric" placeholder="Nhập phí buff" class="w-full min-w-[100px] rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                        </td>
+                        <td class="px-4 py-3">
+                            <input type="text" x-model="phiAds" inputmode="numeric" placeholder="Nhập phí ads" class="w-full min-w-[100px] rounded-lg border border-gray-200 bg-white px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                        </td>
                         <td class="px-4 py-3" x-text="loiNhuan !== null ? new Intl.NumberFormat('vi-VN').format(loiNhuan) + ' đ' : '—'"></td>
                         <td class="px-4 py-3">
                             <button type="button" @click="save()" :disabled="saving" class="rounded-lg bg-brand-600 px-3 py-1.5 text-sm text-white hover:bg-brand-700 disabled:opacity-50">Lưu</button>
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="7" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có báo cáo nào.</td></tr>
+                    <tr><td colspan="9" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có báo cáo nào.</td></tr>
                 @endforelse
             </tbody>
         </table>
