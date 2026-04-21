@@ -26,6 +26,16 @@ class EnsureFeatureAllowed
 
                 return redirect()->route('food.thong-ke-buff');
             }
+            if ($user instanceof User && $user->isFoodBuffOrderOnlyUser() && \Illuminate\Support\Facades\Route::has('food.dat-don')) {
+                if ($feature === 'food') {
+                    $path = $request->path();
+                    if ($path === 'food' || str_starts_with($path, 'food/dat-don')) {
+                        return $next($request);
+                    }
+                }
+
+                return redirect()->route('food.dat-don');
+            }
             abort(403, 'Bạn chưa được cấp quyền sử dụng tính năng này. Liên hệ quản trị viên.');
         }
 

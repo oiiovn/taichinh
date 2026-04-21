@@ -17,6 +17,7 @@ class FoodBuffOrder extends Model
         'order_time_text',
         'receiver_name',
         'customer_name',
+        'product_name',
         'buff_amount',
         'labor_amount',
         'customer_reviewed',

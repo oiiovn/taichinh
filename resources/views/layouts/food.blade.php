@@ -11,6 +11,8 @@
         $isChiNhanh = ($path === 'food/chi-nhanh');
         $isThongKeBuff = ($path === 'food/thong-ke-buff');
         $isLichDatDon = ($path === 'food/lich-dat-don');
+        $isLichDaXacNhan = ($path === 'food/lich-da-xac-nhan');
+        $isDatDonFood = str_starts_with($path, 'food/dat-don');
         $isFoodReviews = str_starts_with($path, 'food/danh-gia');
         $isBaoCao = str_starts_with($path, 'food/bao-cao-ban-hang');
         $isKhachHang = ($path === 'food/khach-hang');
@@ -34,6 +36,10 @@
             $currentTab = 'thong-ke-buff';
         } elseif ($isLichDatDon) {
             $currentTab = 'lich-dat-don';
+        } elseif ($isLichDaXacNhan) {
+            $currentTab = 'lich-da-xac-nhan';
+        } elseif ($isDatDonFood) {
+            $currentTab = 'dat-don';
         } elseif ($isLuongCuaToi) {
             $currentTab = 'luong-cua-toi';
         } elseif ($isLuong) {
@@ -74,13 +80,16 @@
         $canManageSanPham = $user && method_exists($user, 'canManageFoodSanPham') ? $user->canManageFoodSanPham() : false;
         $canManageBaoCao = $user && method_exists($user, 'canManageFoodBaoCao') ? $user->canManageFoodBaoCao() : false;
         $canManageThongKeBuff = $user && method_exists($user, 'canManageFoodThongKeBuff') ? $user->canManageFoodThongKeBuff() : false;
+        $canCreateFoodBuffOrder = $user && method_exists($user, 'canCreateFoodBuffOrder') ? $user->canCreateFoodBuffOrder() : false;
         $canManageFoodReviews = $user && method_exists($user, 'canManageFoodReviews') ? $user->canManageFoodReviews() : false;
+        $canViewCongNo = $user && ($user->is_admin || $canManageBaoCao);
         $isEmployee = $user && $hasFoodEmployees && $user->employee && method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee();
         $canUseQrChamCong = $user && method_exists($user, 'canUseQrChamCong') && $user->canUseQrChamCong();
         $isOnlyEmployee = $isEmployee && !$canManageAnyFood;
         $isOnlyThongKeBuff = $user
             && !$user->is_admin
             && $canManageThongKeBuff
+            && !$canCreateFoodBuffOrder
             && !$canManageTongQuan
             && !$canManageDoanhSo
             && !$canManageSanPham
@@ -101,10 +110,12 @@
             ['id' => 'bao-cao-ban-hang', 'icon' => 'chart-bar', 'label' => 'Báo cáo bán hàng', 'path' => route('food.bao-cao-ban-hang'), 'show' => $canManageBaoCao],
             ['id' => 'thong-ke-buff', 'icon' => 'charts', 'label' => 'Thống kê seeding', 'path' => route('food.thong-ke-buff'), 'show' => $canManageThongKeBuff && \Illuminate\Support\Facades\Route::has('food.thong-ke-buff')],
             ['id' => 'lich-dat-don', 'icon' => 'calendar', 'label' => 'Lịch đặt đơn', 'path' => route('food.lich-dat-don'), 'show' => $user && $user->is_admin && $canManageThongKeBuff && \Illuminate\Support\Facades\Route::has('food.lich-dat-don')],
+            ['id' => 'dat-don', 'icon' => 'ecommerce', 'label' => 'Đặt đơn ShopeeFood', 'path' => route('food.dat-don'), 'show' => $canCreateFoodBuffOrder && \Illuminate\Support\Facades\Route::has('food.dat-don')],
+            ['id' => 'lich-da-xac-nhan', 'icon' => 'calendar', 'label' => 'Lịch đã xác nhận', 'path' => route('food.lich-da-xac-nhan'), 'show' => ($canCreateFoodBuffOrder || $canManageThongKeBuff) && \Illuminate\Support\Facades\Route::has('food.lich-da-xac-nhan')],
             ['id' => 'food-reviews', 'icon' => 'charts', 'label' => 'Đánh giá', 'path' => route('food.reviews.index'), 'show' => $canManageFoodReviews && \Illuminate\Support\Facades\Route::has('food.reviews.index')],
             ['id' => 'food-reviews-qr', 'icon' => 'check-circle', 'label' => 'QR nhận quà 5 sao', 'path' => route('food.qr-public-review-gift'), 'show' => $canManageFoodReviews && \Illuminate\Support\Facades\Route::has('food.qr-public-review-gift')],
             ['id' => 'khach-hang', 'icon' => 'users', 'label' => 'Khách hàng', 'path' => route('food.khach-hang'), 'show' => $canManageBaoCao],
-            ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no'), 'show' => !$isEmployee],
+            ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no'), 'show' => !$isEmployee && $canViewCongNo],
         ];
         if ($hasFoodEmployees) {
             if (\Illuminate\Support\Facades\Route::has('food.nhan-vien')) {

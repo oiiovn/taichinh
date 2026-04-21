@@ -24,8 +24,14 @@ class AppServiceProvider extends ServiceProvider
     {
         RedirectIfAuthenticated::redirectUsing(function (Request $request) {
             $user = $request->user();
+            if ($user instanceof User && ! $user->is_admin && $user->canManageFoodThongKeBuff()) {
+                return route('food.thong-ke-buff');
+            }
             if ($user instanceof User && $user->isFoodThongKeBuffOnlyUser()) {
                 return route('food.thong-ke-buff');
+            }
+            if ($user instanceof User && $user->isFoodBuffOrderOnlyUser()) {
+                return route('food.dat-don');
             }
 
             return route('dashboard');

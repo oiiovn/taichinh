@@ -119,6 +119,7 @@
             </div>
             <div class="space-y-0.5 px-2 py-1.5 text-gray-900 dark:text-gray-100">
                 <p class="truncate"><span class="text-gray-600 dark:text-gray-400">Chi nhánh:</span> <span class="font-semibold {{ $branchColorClass }}">{{ $branchName }}</span></p>
+                <p class="truncate"><span class="text-gray-600 dark:text-gray-400">Sản phẩm:</span> <span class="font-medium text-gray-900 dark:text-gray-100">{{ $o->product_name ?: 'Quán Ship Bù' }}</span></p>
                 <p class="tabular-nums"><span class="text-gray-600 dark:text-gray-400">Đặt lúc:</span> <span class="font-medium text-gray-900 dark:text-gray-100">{{ $formatBuffOrderDateTime($o) }}</span></p>
                 <p class="break-all"><span class="text-gray-600 dark:text-gray-400">Shopeefood:</span> <span class="font-medium text-gray-950 dark:text-white">{{ $customerDisplay }}</span></p>
                 @if(!is_null($o->review_rating))

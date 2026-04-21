@@ -20,6 +20,146 @@ use Illuminate\View\View;
 
 class FoodBuffController extends Controller
 {
+    public function datDonPage(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+        if (! $user->is_admin && ! $user->canCreateFoodBuffOrder()) {
+            abort(403, 'Bạn không có quyền tạo đơn Food thủ công.');
+        }
+
+        $from = $request->input('from_date')
+            ? Carbon::parse($request->input('from_date'))->startOfDay()
+            : now()->copy()->startOfDay();
+        $to = $request->input('to_date')
+            ? Carbon::parse($request->input('to_date'))->endOfDay()
+            : now()->copy()->endOfDay();
+        if ($from->gt($to)) {
+            [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+        }
+
+        $orders = FoodBuffOrder::query()
+            ->with('branch')
+            ->where('user_id', $user->id)
+            ->whereBetween('order_date', [$from->toDateString(), $to->toDateString()])
+            ->orderByDesc('order_date')
+            ->orderByDesc('id')
+            ->get();
+
+        $branches = FoodBranch::query()->orderBy('name')->get();
+        $customerOptions = $user->getFoodBuffAssignedEmployees();
+        $lastForm = $request->session()->get('food_dat_don_last_form', []);
+        if (! is_array($lastForm)) {
+            $lastForm = [];
+        }
+        $cooldownUntil = $request->session()->get('food_dat_don_cooldown_until');
+        $cooldownRemaining = 0;
+        if (is_string($cooldownUntil) && $cooldownUntil !== '') {
+            try {
+                $remain = now()->diffInSeconds(Carbon::parse($cooldownUntil), false);
+                $cooldownRemaining = max(0, (int) $remain);
+            } catch (\Throwable $e) {
+                $cooldownRemaining = 0;
+            }
+        }
+
+        return view('pages.food.dat-don', [
+            'title' => 'Đặt đơn ShopeeFood',
+            'from' => $from,
+            'to' => $to,
+            'orders' => $orders,
+            'branches' => $branches,
+            'defaultProductName' => 'Quán Ship Bù',
+            'customerOptions' => $customerOptions,
+            'lastForm' => $lastForm,
+            'cooldownRemaining' => $cooldownRemaining,
+        ]);
+    }
+
+    public function storeDatDon(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+        if (! $user->is_admin && ! $user->canCreateFoodBuffOrder()) {
+            abort(403, 'Bạn không có quyền tạo đơn Food thủ công.');
+        }
+        $cooldownUntil = $request->session()->get('food_dat_don_cooldown_until');
+        if (is_string($cooldownUntil) && $cooldownUntil !== '') {
+            try {
+                $remain = now()->diffInSeconds(Carbon::parse($cooldownUntil), false);
+                if ($remain > 0) {
+                    return redirect()->back()->with('success', 'Đã tạo đơn thành công');
+                }
+            } catch (\Throwable $e) {
+                // ignore invalid value
+            }
+        }
+
+        $customerOptions = $user->getFoodBuffAssignedEmployees();
+        if ($customerOptions === []) {
+            return redirect()->back()->with('error', 'Chưa có danh sách Shopeefood để chọn. Vui lòng nhờ admin cấu hình.');
+        }
+
+        $validated = $request->validate([
+            'food_branch_id' => ['required', 'integer', Rule::exists('food_branches', 'id')],
+            'order_date' => ['required', 'date'],
+            'customer_name' => ['required', 'string', Rule::in($customerOptions)],
+            'receiver_name' => ['nullable', 'string', 'max:255'],
+            'product_name' => ['required', 'string', Rule::in(['Quán Ship Bù'])],
+        ]);
+
+        $orderDate = Carbon::parse($validated['order_date'])->toDateString();
+        $branchId = (int) $validated['food_branch_id'];
+        if (! $user->is_admin) {
+            $allowedCount = $this->confirmedOrderQuotaForBranch($user->id, $orderDate, $branchId);
+            if ($allowedCount <= 0) {
+                return redirect()->back()->with('error', 'Bạn chưa có lịch đặt đơn đã xác nhận cho ngày/chi nhánh này.');
+            }
+            $createdCount = FoodBuffOrder::query()
+                ->where('user_id', $user->id)
+                ->whereDate('order_date', $orderDate)
+                ->where('food_branch_id', $branchId)
+                ->count();
+            if ($createdCount >= $allowedCount) {
+                return redirect()->back()->with('error', 'Bạn đã tạo đủ số đơn theo lịch đã xác nhận cho ngày/chi nhánh này.');
+            }
+        }
+        $invoiceCode = $this->nextManualInvoiceCode($user->id, $orderDate);
+
+        FoodBuffOrder::query()->create([
+            'user_id' => $user->id,
+            'food_branch_id' => $branchId,
+            'invoice_code' => $invoiceCode,
+            'order_date' => $orderDate,
+            'order_time_text' => now()->format('H:i:s'),
+            'receiver_name' => trim((string) ($validated['receiver_name'] ?? '')) ?: null,
+            'customer_name' => trim((string) $validated['customer_name']),
+            'product_name' => 'Quán Ship Bù',
+            'buff_amount' => 20000,
+            'labor_amount' => 10000,
+        ]);
+
+        $request->session()->put('food_dat_don_last_form', [
+            'food_branch_id' => $branchId,
+            'order_date' => $orderDate,
+            'customer_name' => trim((string) $validated['customer_name']),
+            'labor_amount' => 10000,
+            'product_name' => 'Quán Ship Bù',
+        ]);
+        $request->session()->put('food_dat_don_cooldown_until', now()->addSeconds(30)->toDateTimeString());
+
+        return redirect()->route('food.dat-don')->with('success', 'Đã tạo đơn Food thủ công.');
+    }
+
+    public function destroyDatDon(Request $request, FoodBuffOrder $foodBuffOrder): RedirectResponse
+    {
+        abort(403, 'Không có quyền xóa đơn ở mục này.');
+    }
+
     public function index(Request $request): View|RedirectResponse
     {
         $user = $request->user();
@@ -50,7 +190,7 @@ class FoodBuffController extends Controller
             ->with('branch')
             ->whereBetween('order_date', [$from->toDateString(), $to->toDateString()]);
 
-        if (! $isOnlyThongKeBuffUser) {
+        if (! $isOnlyThongKeBuffUser && ! $user->is_admin) {
             $query->where('user_id', $user->id);
         }
 
@@ -117,7 +257,7 @@ class FoodBuffController extends Controller
         if ($incomeTarget && (int) $incomeTarget->target_amount > 0) {
             $targetMonthOrdersQuery = FoodBuffOrder::query()
                 ->whereBetween('order_date', [$targetMonthStart->toDateString(), $targetMonthEnd->toDateString()]);
-            if (! $isOnlyThongKeBuffUser) {
+            if (! $isOnlyThongKeBuffUser && ! $user->is_admin) {
                 $targetMonthOrdersQuery->where('user_id', $user->id);
             }
             if (! $user->is_admin) {
@@ -197,6 +337,52 @@ class FoodBuffController extends Controller
             'allScheduleBranches' => $allScheduleBranches,
             'scheduleAssignableUsers' => $scheduleAssignableUsers,
             'buffSchedulesAdminMonitor' => $buffSchedulesAdminMonitor,
+        ]);
+    }
+
+    public function confirmedSchedulesPage(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+        if (! $user->is_admin && ! $user->canCreateFoodBuffOrder() && ! $user->canManageFoodThongKeBuff()) {
+            abort(403, 'Bạn không có quyền xem lịch đã xác nhận.');
+        }
+
+        $from = $request->input('from_date')
+            ? Carbon::parse($request->input('from_date'))->startOfDay()
+            : now()->copy()->subDays(30)->startOfDay();
+        $to = $request->input('to_date')
+            ? Carbon::parse($request->input('to_date'))->endOfDay()
+            : now()->copy()->addDays(30)->endOfDay();
+        if ($from->gt($to)) {
+            [$from, $to] = [$to->copy()->startOfDay(), $from->copy()->endOfDay()];
+        }
+
+        $branchNameById = $this->branchNameByIdArray();
+        $schedules = FoodBuffOrderSchedule::query()
+            ->with([
+                'creator:id,name,is_admin',
+                'acknowledgments' => fn ($q) => $q->where('user_id', $user->id),
+                'assignees:id,name,email',
+            ])
+            ->whereDate('schedule_date', '>=', $from->toDateString())
+            ->whereDate('schedule_date', '<=', $to->toDateString())
+            ->whereHas('assignees', fn ($q) => $q->where('users.id', $user->id))
+            ->whereHas('acknowledgments', fn ($q) => $q->where('user_id', $user->id))
+            ->orderByDesc('schedule_date')
+            ->orderByDesc('id')
+            ->limit(10)
+            ->get()
+            ->map(fn (FoodBuffOrderSchedule $s) => $this->mapFoodBuffOrderScheduleBlock($s, $branchNameById, $user))
+            ->values();
+
+        return view('pages.food.lich-da-xac-nhan', [
+            'title' => 'Lịch đã xác nhận',
+            'from' => $from,
+            'to' => $to,
+            'schedules' => $schedules,
         ]);
     }
 
@@ -365,9 +551,6 @@ class FoodBuffController extends Controller
         }
         if (! $user->is_admin) {
             abort(403, 'Chỉ quản trị viên mới đánh dấu đánh giá.');
-        }
-        if ((int) $foodBuffOrder->user_id !== (int) $user->id) {
-            abort(403, 'Bạn không có quyền thao tác đơn này.');
         }
 
         $foodBuffOrder->update([
@@ -590,6 +773,57 @@ class FoodBuffController extends Controller
     private function normalizedAssigneeIdList(array $ids): array
     {
         return collect($ids)->map(fn ($id) => (int) $id)->unique()->sort()->values()->all();
+    }
+
+    private function nextManualInvoiceCode(int $userId, string $orderDate): string
+    {
+        $maxCurrent = FoodBuffOrder::query()
+            ->where('user_id', $userId)
+            ->where('invoice_code', 'like', 'HDS_____')
+            ->pluck('invoice_code')
+            ->map(function (string $code): int {
+                if (preg_match('/^HDS(\d{5})$/', $code, $m)) {
+                    return (int) $m[1];
+                }
+
+                return 0;
+            })
+            ->max() ?? 0;
+
+        for ($i = 1; $i <= 99999; $i++) {
+            $next = ($maxCurrent + $i) % 100000;
+            $candidate = 'HDS'.str_pad((string) $next, 5, '0', STR_PAD_LEFT);
+            $exists = FoodBuffOrder::query()
+                ->where('user_id', $userId)
+                ->whereDate('order_date', $orderDate)
+                ->where('invoice_code', $candidate)
+                ->exists();
+            if (! $exists) {
+                return $candidate;
+            }
+        }
+
+        return 'HDS'.now()->format('His');
+    }
+
+    private function confirmedOrderQuotaForBranch(int $userId, string $orderDate, int $branchId): int
+    {
+        $schedules = FoodBuffOrderSchedule::query()
+            ->whereDate('schedule_date', $orderDate)
+            ->whereHas('assignees', fn ($q) => $q->where('users.id', $userId))
+            ->whereHas('acknowledgments', fn ($q) => $q->where('user_id', $userId))
+            ->get();
+
+        $total = 0;
+        foreach ($schedules as $schedule) {
+            foreach (($schedule->branch_targets ?? []) as $target) {
+                if ((int) ($target['food_branch_id'] ?? 0) === $branchId) {
+                    $total += max(0, (int) ($target['order_count'] ?? 0));
+                }
+            }
+        }
+
+        return $total;
     }
 
     private function isOnlyThongKeBuffUser(User $user): bool

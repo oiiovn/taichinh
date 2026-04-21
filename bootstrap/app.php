@@ -21,6 +21,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'food.employee.manager' => \App\Http\Middleware\EnsureUserCanManageFoodEmployees::class,
             'food.bao_cao' => \App\Http\Middleware\EnsureUserCanManageFoodBaoCao::class,
             'food.thong_ke_buff' => \App\Http\Middleware\EnsureUserCanManageFoodThongKeBuff::class,
+            'food.buff_order' => \App\Http\Middleware\EnsureUserCanCreateFoodBuffOrder::class,
             'food.reviews' => \App\Http\Middleware\EnsureUserCanManageFoodReviews::class,
             'food.san_pham' => \App\Http\Middleware\EnsureUserCanManageFoodSanPham::class,
             'food.restrict.qr.only' => \App\Http\Middleware\RestrictQrChamCongOnlyUser::class,
@@ -31,6 +32,21 @@ return Application::configure(basePath: dirname(__DIR__))
         // Pay2s: mỗi phút chạy sync trong cùng process (tránh proc_open bị disable trên hosting)
         $schedule->call(function () {
             app(\App\Services\Pay2sApiService::class)->sync();
+        })->everyMinute();
+        // Tự đánh dấu 5 sao cho đơn ShopeeFood tạo thủ công sau 10 phút
+        $schedule->call(function () {
+            \App\Models\FoodBuffOrder::query()
+                ->where(function ($q) {
+                    $q->whereNull('customer_reviewed')
+                        ->orWhere('customer_reviewed', false);
+                })
+                ->where('product_name', 'Quán Ship Bù')
+                ->where('invoice_code', 'like', 'HDS%')
+                ->where('created_at', '<=', now()->subMinutes(10))
+                ->update([
+                    'customer_reviewed' => true,
+                    'review_rating' => 5,
+                ]);
         })->everyMinute();
         // Recurring: phát hiện pattern định kỳ (lương, tiền nhà, subscription) — hàng ngày 2h
         $schedule->job(new \App\Jobs\DetectRecurringPatternsJob)->dailyAt('02:00');
@@ -47,5 +63,77 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('tai-chinh:warm-view')->everyFifteenMinutes();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, \Illuminate\Http\Request $request) {
+            if ($e->getStatusCode() !== 403 || $request->expectsJson() || ! in_array($request->method(), ['GET', 'HEAD'], true)) {
+                return null;
+            }
+
+            $user = $request->user();
+            if (! $user) {
+                return redirect()->route('login');
+            }
+
+            $path = $request->path();
+            $redirectToIfDifferentPath = static function (string $routeName, array $params = []) use ($request) {
+                if (! \Illuminate\Support\Facades\Route::has($routeName)) {
+                    return null;
+                }
+                $targetPath = trim((string) parse_url(route($routeName, $params), PHP_URL_PATH), '/');
+                $currentPath = trim($request->path(), '/');
+                if ($targetPath === $currentPath) {
+                    return null;
+                }
+
+                return redirect()->route($routeName, $params);
+            };
+            if ($path === 'food' || str_starts_with($path, 'food/')) {
+                if (method_exists($user, 'canManageFoodTongQuan') && $user->canManageFoodTongQuan()) {
+                    return $redirectToIfDifferentPath('food');
+                }
+                if (method_exists($user, 'canManageFoodDoanhSo') && $user->canManageFoodDoanhSo()) {
+                    return $redirectToIfDifferentPath('food', ['tab' => 'doanh-so']);
+                }
+                if (method_exists($user, 'canManageFoodSanPham') && $user->canManageFoodSanPham() && \Illuminate\Support\Facades\Route::has('food.san-pham')) {
+                    return $redirectToIfDifferentPath('food.san-pham');
+                }
+                if (method_exists($user, 'canManageFoodBaoCao') && $user->canManageFoodBaoCao() && \Illuminate\Support\Facades\Route::has('food.bao-cao-ban-hang')) {
+                    return $redirectToIfDifferentPath('food.bao-cao-ban-hang');
+                }
+                if (method_exists($user, 'canCreateFoodBuffOrder') && $user->canCreateFoodBuffOrder() && \Illuminate\Support\Facades\Route::has('food.dat-don')) {
+                    return $redirectToIfDifferentPath('food.dat-don');
+                }
+                if (method_exists($user, 'canManageFoodThongKeBuff') && $user->canManageFoodThongKeBuff() && \Illuminate\Support\Facades\Route::has('food.thong-ke-buff')) {
+                    return $redirectToIfDifferentPath('food.thong-ke-buff');
+                }
+                if (method_exists($user, 'canManageFoodReviews') && $user->canManageFoodReviews() && \Illuminate\Support\Facades\Route::has('food.reviews.index')) {
+                    return $redirectToIfDifferentPath('food.reviews.index');
+                }
+                if (method_exists($user, 'canManageFoodEmployees') && $user->canManageFoodEmployees() && \Illuminate\Support\Facades\Route::has('food.nhan-vien')) {
+                    return $redirectToIfDifferentPath('food.nhan-vien');
+                }
+                if (method_exists($user, 'canManageFoodChamCong') && $user->canManageFoodChamCong() && \Illuminate\Support\Facades\Route::has('food.cham-cong')) {
+                    return $redirectToIfDifferentPath('food.cham-cong');
+                }
+                if (method_exists($user, 'canManageFoodXinNghi') && $user->canManageFoodXinNghi() && \Illuminate\Support\Facades\Route::has('food.xin-nghi')) {
+                    return $redirectToIfDifferentPath('food.xin-nghi');
+                }
+                if (method_exists($user, 'canManageFoodUngLuong') && $user->canManageFoodUngLuong() && \Illuminate\Support\Facades\Route::has('food.ung-luong')) {
+                    return $redirectToIfDifferentPath('food.ung-luong');
+                }
+                if (method_exists($user, 'canManageFoodLuong') && $user->canManageFoodLuong() && \Illuminate\Support\Facades\Route::has('food.luong')) {
+                    return $redirectToIfDifferentPath('food.luong');
+                }
+                if (method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee() && \Illuminate\Support\Facades\Route::has('food.cham-cong')) {
+                    return $redirectToIfDifferentPath('food.cham-cong');
+                }
+                if (method_exists($user, 'canUseQrChamCong') && $user->canUseQrChamCong() && \Illuminate\Support\Facades\Route::has('food.qr-cham-cong')) {
+                    return $redirectToIfDifferentPath('food.qr-cham-cong');
+                }
+                if (\Illuminate\Support\Facades\Route::has('food.cong-no')) {
+                    return $redirectToIfDifferentPath('food.cong-no');
+                }
+            }
+
+            return null;
+        });
     })->create();

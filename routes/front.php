@@ -18,8 +18,24 @@ Route::middleware('auth')->group(function () {
     Route::get('/thong-bao/{broadcast}', [\App\Http\Controllers\BroadcastViewController::class, 'show'])->name('thong-bao.show');
     Route::post('/thong-bao/{broadcast}/mark-read', [\App\Http\Controllers\BroadcastViewController::class, 'markRead'])->name('thong-bao.mark-read');
 
-    // Tạm thời: trang chủ điều hướng đến Tài chính → Chiến lược
-    Route::get('/', function () {
+    // Trang chủ điều hướng theo quyền user
+    Route::get('/', function (\Illuminate\Http\Request $request) {
+        $user = $request->user();
+        if ($user) {
+            if (! $user->is_admin && method_exists($user, 'canManageFoodThongKeBuff') && $user->canManageFoodThongKeBuff()) {
+                return redirect()->route('food.thong-ke-buff');
+            }
+            if (method_exists($user, 'canCreateFoodBuffOrder') && $user->canCreateFoodBuffOrder()) {
+                return redirect()->route('food.dat-don');
+            }
+            if (method_exists($user, 'canManageAnyFood') && $user->canManageAnyFood()) {
+                return redirect()->route('food');
+            }
+            if (method_exists($user, 'canUseFeature') && $user->canUseFeature('tai_chinh')) {
+                return redirect()->route('tai-chinh', ['tab' => 'chien-luoc']);
+            }
+        }
+
         return redirect()->route('tai-chinh', ['tab' => 'chien-luoc']);
     })->name('dashboard');
 
@@ -254,6 +270,13 @@ Route::middleware('auth')->group(function () {
             Route::post('/food/thong-ke-buff/thanh-toan-tien-cong', [\App\Http\Controllers\Food\FoodBuffController::class, 'storeLaborCashPayment'])->name('food.thong-ke-buff.thanh-toan-tien-cong');
             Route::patch('/food/thong-ke-buff/don/{foodBuffOrder}/danh-gia', [\App\Http\Controllers\Food\FoodBuffController::class, 'toggleCustomerReviewed'])->name('food.thong-ke-buff.order.reviewed');
             Route::delete('/food/thong-ke-buff/don/{foodBuffOrder}', [\App\Http\Controllers\Food\FoodBuffController::class, 'destroyBuffOrder'])->name('food.thong-ke-buff.order.destroy');
+        });
+
+        Route::middleware(['food.buff_order'])->group(function () {
+            Route::get('/food/dat-don', [\App\Http\Controllers\Food\FoodBuffController::class, 'datDonPage'])->name('food.dat-don');
+            Route::get('/food/lich-da-xac-nhan', [\App\Http\Controllers\Food\FoodBuffController::class, 'confirmedSchedulesPage'])->name('food.lich-da-xac-nhan');
+            Route::post('/food/dat-don', [\App\Http\Controllers\Food\FoodBuffController::class, 'storeDatDon'])->name('food.dat-don.store');
+            Route::delete('/food/dat-don/{foodBuffOrder}', [\App\Http\Controllers\Food\FoodBuffController::class, 'destroyDatDon'])->name('food.dat-don.destroy');
         });
 
         Route::middleware(['food.bao_cao'])->group(function () {

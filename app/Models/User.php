@@ -36,6 +36,7 @@ class User extends Authenticatable
         'can_manage_food_san_pham',
         'can_manage_food_bao_cao',
         'can_manage_food_thong_ke_buff',
+        'can_create_food_buff_order',
         'can_manage_food_reviews',
         'can_use_food_employee',
         'can_use_qr_cham_cong',
@@ -109,6 +110,7 @@ class User extends Authenticatable
             'can_manage_food_san_pham' => 'boolean',
             'can_manage_food_bao_cao' => 'boolean',
             'can_manage_food_thong_ke_buff' => 'boolean',
+            'can_create_food_buff_order' => 'boolean',
             'can_manage_food_reviews' => 'boolean',
             'can_use_food_employee' => 'boolean',
             'can_use_qr_cham_cong' => 'boolean',
@@ -188,6 +190,11 @@ class User extends Authenticatable
         return (bool) $this->is_admin || (bool) $this->can_manage_food_thong_ke_buff;
     }
 
+    public function canCreateFoodBuffOrder(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_create_food_buff_order;
+    }
+
     public function canManageFoodReviews(): bool
     {
         return (bool) $this->is_admin || (bool) $this->can_manage_food_reviews;
@@ -224,6 +231,7 @@ class User extends Authenticatable
             || (bool) $this->can_manage_food_san_pham
             || (bool) $this->can_manage_food_bao_cao
             || (bool) $this->can_manage_food_thong_ke_buff
+            || (bool) $this->can_create_food_buff_order
             || (bool) $this->can_manage_food_reviews
             || (bool) $this->can_manage_food_employees
             || (bool) $this->can_manage_food_cham_cong
@@ -236,6 +244,26 @@ class User extends Authenticatable
     {
         return ! $this->is_admin
             && $this->canManageFoodThongKeBuff()
+            && ! $this->canCreateFoodBuffOrder()
+            && ! $this->canManageFoodTongQuan()
+            && ! $this->canManageFoodDoanhSo()
+            && ! $this->canManageFoodSanPham()
+            && ! $this->canManageFoodBaoCao()
+            && ! $this->canManageFoodReviews()
+            && ! $this->canManageFoodEmployees()
+            && ! $this->canManageFoodChamCong()
+            && ! $this->canManageFoodXinNghi()
+            && ! $this->canManageFoodUngLuong()
+            && ! $this->canManageFoodLuong()
+            && ! $this->canUseFoodEmployee()
+            && ! $this->canUseQrChamCong();
+    }
+
+    public function isFoodBuffOrderOnlyUser(): bool
+    {
+        return ! $this->is_admin
+            && $this->canCreateFoodBuffOrder()
+            && ! $this->canManageFoodThongKeBuff()
             && ! $this->canManageFoodTongQuan()
             && ! $this->canManageFoodDoanhSo()
             && ! $this->canManageFoodSanPham()

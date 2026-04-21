@@ -364,6 +364,9 @@ class FoodController extends Controller
 
     private function redirectToFirstAllowedFood($user): \Illuminate\Http\RedirectResponse
     {
+        if (! $user->is_admin && method_exists($user, 'canManageFoodThongKeBuff') && $user->canManageFoodThongKeBuff()) {
+            return redirect()->route('food.thong-ke-buff');
+        }
         if ($user->canManageFoodTongQuan()) {
             return redirect()->route('food');
         }
@@ -378,6 +381,9 @@ class FoodController extends Controller
         }
         if (method_exists($user, 'canManageFoodThongKeBuff') && $user->canManageFoodThongKeBuff()) {
             return redirect()->route('food.thong-ke-buff');
+        }
+        if (method_exists($user, 'canCreateFoodBuffOrder') && $user->canCreateFoodBuffOrder()) {
+            return redirect()->route('food.dat-don');
         }
         if ($user->canManageFoodEmployees()) {
             return redirect()->route('food.nhan-vien');

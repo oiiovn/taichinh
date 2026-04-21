@@ -15,8 +15,14 @@ class AuthController extends Controller
     {
         if (Auth::check()) {
             $user = Auth::user();
+            if ($user instanceof User && ! $user->is_admin && $user->canManageFoodThongKeBuff()) {
+                return redirect()->route('food.thong-ke-buff');
+            }
             if ($user instanceof User && $user->isFoodThongKeBuffOnlyUser()) {
                 return redirect()->route('food.thong-ke-buff');
+            }
+            if ($user instanceof User && $user->isFoodBuffOrderOnlyUser()) {
+                return redirect()->route('food.dat-don');
             }
 
             return redirect()->route('dashboard');
@@ -61,9 +67,14 @@ class AuthController extends Controller
             }
 
             $user = Auth::user();
-            $home = ($user instanceof User && $user->isFoodThongKeBuffOnlyUser())
-                ? route('food.thong-ke-buff')
-                : route('dashboard');
+            $home = route('dashboard');
+            if ($user instanceof User && ! $user->is_admin && $user->canManageFoodThongKeBuff()) {
+                $home = route('food.thong-ke-buff');
+            } elseif ($user instanceof User && $user->isFoodThongKeBuffOnlyUser()) {
+                $home = route('food.thong-ke-buff');
+            } elseif ($user instanceof User && $user->isFoodBuffOrderOnlyUser()) {
+                $home = route('food.dat-don');
+            }
 
             return redirect()->intended($home);
         }

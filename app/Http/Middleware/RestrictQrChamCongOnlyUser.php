@@ -22,6 +22,23 @@ class RestrictQrChamCongOnlyUser
         $hasOnlyThongKeBuff = ! $user->is_admin
             && method_exists($user, 'canManageFoodThongKeBuff')
             && $user->canManageFoodThongKeBuff()
+            && (! method_exists($user, 'canCreateFoodBuffOrder') || ! $user->canCreateFoodBuffOrder())
+            && ! (method_exists($user, 'canManageFoodTongQuan') && $user->canManageFoodTongQuan())
+            && ! (method_exists($user, 'canManageFoodDoanhSo') && $user->canManageFoodDoanhSo())
+            && ! (method_exists($user, 'canManageFoodSanPham') && $user->canManageFoodSanPham())
+            && ! (method_exists($user, 'canManageFoodBaoCao') && $user->canManageFoodBaoCao())
+            && ! (method_exists($user, 'canManageFoodReviews') && $user->canManageFoodReviews())
+            && ! (method_exists($user, 'canManageFoodEmployees') && $user->canManageFoodEmployees())
+            && ! (method_exists($user, 'canManageFoodChamCong') && $user->canManageFoodChamCong())
+            && ! (method_exists($user, 'canManageFoodXinNghi') && $user->canManageFoodXinNghi())
+            && ! (method_exists($user, 'canManageFoodUngLuong') && $user->canManageFoodUngLuong())
+            && ! (method_exists($user, 'canManageFoodLuong') && $user->canManageFoodLuong())
+            && ! (method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee())
+            && ! (method_exists($user, 'canUseQrChamCong') && $user->canUseQrChamCong());
+        $hasOnlyDatDonFood = ! $user->is_admin
+            && method_exists($user, 'canCreateFoodBuffOrder')
+            && $user->canCreateFoodBuffOrder()
+            && ! (method_exists($user, 'canManageFoodThongKeBuff') && $user->canManageFoodThongKeBuff())
             && ! (method_exists($user, 'canManageFoodTongQuan') && $user->canManageFoodTongQuan())
             && ! (method_exists($user, 'canManageFoodDoanhSo') && $user->canManageFoodDoanhSo())
             && ! (method_exists($user, 'canManageFoodSanPham') && $user->canManageFoodSanPham())
@@ -35,7 +52,7 @@ class RestrictQrChamCongOnlyUser
             && ! (method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee())
             && ! (method_exists($user, 'canUseQrChamCong') && $user->canUseQrChamCong());
 
-        if (! $hasOnlyQr && ! $hasOnlyThongKeBuff) {
+        if (! $hasOnlyQr && ! $hasOnlyThongKeBuff && ! $hasOnlyDatDonFood) {
             return $next($request);
         }
 
@@ -52,6 +69,16 @@ class RestrictQrChamCongOnlyUser
             }
 
             return redirect()->route('food.thong-ke-buff');
+        }
+        if ($hasOnlyDatDonFood) {
+            if ($path === 'food/dat-don' || str_starts_with($path, 'food/dat-don/')) {
+                return $next($request);
+            }
+            if ($path === 'food') {
+                return $next($request);
+            }
+
+            return redirect()->route('food.dat-don');
         }
 
         $allowed = in_array($path, ['food', 'food/qr-cham-cong', 'food/qr-cham-cong/do', 'food/qr-cham-cong/refresh'], true);
