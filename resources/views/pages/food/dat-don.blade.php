@@ -33,6 +33,22 @@
 
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Đặt đơn ShopeeFood</h2>
 
+    @if(($todayScheduleQuotaByBranch ?? collect())->isNotEmpty())
+        <div class="rounded-xl border border-blue-200 bg-blue-50 p-4 dark:border-blue-800 dark:bg-blue-900/20">
+            <p class="text-sm font-semibold text-blue-900 dark:text-blue-100">Lịch đặt đơn hôm nay</p>
+            <div class="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                @foreach($todayScheduleQuotaByBranch as $quota)
+                    @php
+                        $quotaBadgeStyle = $branchBadgeStyles[abs(crc32(mb_strtolower((string) $quota['branch_name']))) % count($branchBadgeStyles)];
+                    @endphp
+                    <span class="inline-flex items-center rounded-md px-2 py-1 font-medium" style="{{ $quotaBadgeStyle }}">
+                        {{ $quota['branch_name'] }}: {{ $quota['order_count'] }} đơn
+                    </span>
+                @endforeach
+            </div>
+        </div>
+    @endif
+
     <form method="POST" action="{{ route('food.dat-don.store') }}" x-data="{ cooldown: {{ $cooldownRemaining }} }" x-init="if (cooldown > 0) { const t = setInterval(() => { cooldown = Math.max(0, cooldown - 1); if (cooldown === 0) clearInterval(t); }, 1000); }" class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
         @csrf
         <div class="grid grid-cols-1 gap-3 md:grid-cols-3">

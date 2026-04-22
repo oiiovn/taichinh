@@ -50,6 +50,33 @@ class FoodBuffController extends Controller
 
         $branches = FoodBranch::query()->orderBy('name')->get();
         $customerOptions = $user->getFoodBuffAssignedEmployees();
+        $todayDate = now()->toDateString();
+        $todaySchedules = FoodBuffOrderSchedule::query()
+            ->whereDate('schedule_date', $todayDate)
+            ->whereHas('assignees', fn ($q) => $q->where('users.id', $user->id))
+            ->whereHas('acknowledgments', fn ($q) => $q->where('user_id', $user->id))
+            ->get();
+
+        $quotaMap = [];
+        foreach ($todaySchedules as $schedule) {
+            foreach (($schedule->branch_targets ?? []) as $target) {
+                $branchId = (int) ($target['food_branch_id'] ?? 0);
+                $count = max(0, (int) ($target['order_count'] ?? 0));
+                if ($branchId <= 0 || $count <= 0) {
+                    continue;
+                }
+                $quotaMap[$branchId] = ($quotaMap[$branchId] ?? 0) + $count;
+            }
+        }
+
+        $todayScheduleQuotaByBranch = collect($quotaMap)
+            ->map(fn ($count, $branchId) => [
+                'branch_id' => (int) $branchId,
+                'branch_name' => (string) ($branches->firstWhere('id', (int) $branchId)?->name ?? ('Chi nhánh #'.$branchId)),
+                'order_count' => (int) $count,
+            ])
+            ->sortByDesc('order_count')
+            ->values();
         $lastForm = $request->session()->get('food_dat_don_last_form', []);
         if (! is_array($lastForm)) {
             $lastForm = [];
@@ -73,6 +100,7 @@ class FoodBuffController extends Controller
             'branches' => $branches,
             'defaultProductName' => 'Quán Ship Bù',
             'customerOptions' => $customerOptions,
+            'todayScheduleQuotaByBranch' => $todayScheduleQuotaByBranch,
             'lastForm' => $lastForm,
             'cooldownRemaining' => $cooldownRemaining,
         ]);
