@@ -57,11 +57,11 @@
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Thông tin đơn</p>
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Ngày đặt <span class="text-red-500">*</span></label>
-                <div class="relative">
+                <div class="relative min-w-0 max-w-full overflow-hidden">
                     <span class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z"/></svg>
                     </span>
-                    <input type="date" name="order_date" value="{{ $defaultOrderDate }}" required class="w-full rounded-xl border border-gray-200 bg-white py-3 pl-12 pr-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-orange-900/40">
+                    <input type="date" name="order_date" value="{{ $defaultOrderDate }}" required class="block w-full min-w-0 max-w-full rounded-xl border border-gray-200 bg-white py-3 pl-12 pr-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-orange-900/40">
                 </div>
             </div>
             <div>
