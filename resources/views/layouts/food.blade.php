@@ -159,7 +159,7 @@
         <div class="xl:w-72 shrink-0 relative">
             {{-- Mobile: nút 3 gạch, nhấn vào xổ menu --}}
             <div class="xl:hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-                <button type="button" @click="menuOpen = !menuOpen" class="flex w-full items-center gap-3 rounded-xl px-4 py-3.5 text-left text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
+                <button type="button" @click="menuOpen = !menuOpen" class="inline-flex items-center gap-3 rounded-xl px-4 py-3.5 text-left text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
                     <span class="flex shrink-0 text-gray-500 dark:text-gray-400" aria-hidden="true">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                     </span>
