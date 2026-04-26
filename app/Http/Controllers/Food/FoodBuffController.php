@@ -441,7 +441,7 @@ class FoodBuffController extends Controller
             ->whereHas('acknowledgments', fn ($q) => $q->where('user_id', $user->id))
             ->orderByDesc('schedule_date')
             ->orderByDesc('id')
-            ->limit(10)
+            ->limit(4)
             ->get()
             ->map(fn (FoodBuffOrderSchedule $s) => $this->mapFoodBuffOrderScheduleBlock($s, $branchNameById, $user))
             ->values();
