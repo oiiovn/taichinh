@@ -18,6 +18,7 @@ class FoodBuffOrder extends Model
         'receiver_name',
         'customer_name',
         'product_name',
+        'apply_freeship',
         'buff_amount',
         'labor_amount',
         'customer_reviewed',
@@ -29,6 +30,7 @@ class FoodBuffOrder extends Model
         'order_date' => 'date',
         'buff_amount' => 'decimal:0',
         'labor_amount' => 'decimal:0',
+        'apply_freeship' => 'boolean',
         'customer_reviewed' => 'boolean',
         'review_rating' => 'integer',
     ];

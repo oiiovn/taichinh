@@ -20,6 +20,7 @@
     $defaultBranchId = old('food_branch_id', $lastForm['food_branch_id'] ?? '');
     $defaultCustomerName = old('customer_name', $lastForm['customer_name'] ?? '');
     $defaultProduct = old('product_name', $lastForm['product_name'] ?? $defaultProductName ?? 'Quán Ship Bù');
+    $defaultApplyFreeship = (bool) old('apply_freeship', $lastForm['apply_freeship'] ?? true);
     $cooldownRemaining = max(0, (int) ($cooldownRemaining ?? 0));
 @endphp
 
@@ -43,7 +44,7 @@
                         $quotaBadgeStyle = $branchBadgeStyles[abs(crc32(mb_strtolower((string) $quota['branch_name']))) % count($branchBadgeStyles)];
                     @endphp
                     <span class="inline-flex items-center rounded-md px-2 py-1 font-medium" style="{{ $quotaBadgeStyle }}">
-                        {{ $quota['branch_name'] }}: {{ $quota['order_count'] }} đơn
+                        {{ $quota['branch_name'] }}: {{ (int) ($quota['created_count'] ?? 0) }}/{{ (int) ($quota['order_count'] ?? 0) }} đơn
                     </span>
                 @endforeach
             </div>
@@ -52,18 +53,10 @@
 
     <form method="POST" action="{{ route('food.dat-don.store') }}" x-data="{ cooldown: {{ $cooldownRemaining }} }" x-init="if (cooldown > 0) { const t = setInterval(() => { cooldown = Math.max(0, cooldown - 1); if (cooldown === 0) clearInterval(t); }, 1000); }" class="rounded-2xl border border-gray-200 bg-white p-5 pb-24 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:pb-5">
         @csrf
+        <input type="hidden" name="order_date" value="{{ $defaultOrderDate }}">
         <div class="space-y-5">
             <div class="space-y-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-900/30">
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Thông tin đơn</p>
-            <div>
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Ngày đặt <span class="text-red-500">*</span></label>
-                <div class="relative min-w-0 max-w-full overflow-hidden">
-                    <span class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
-                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10m-11 9h12a2 2 0 002-2V7a2 2 0 00-2-2H6a2 2 0 00-2 2v11a2 2 0 002 2z"/></svg>
-                    </span>
-                    <input type="date" name="order_date" value="{{ $defaultOrderDate }}" required class="block w-full min-w-0 max-w-full rounded-xl border border-gray-200 bg-white py-3 pl-12 pr-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-orange-900/40">
-                </div>
-            </div>
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Chi nhánh <span class="text-red-500">*</span></label>
                 <div class="relative">
@@ -79,10 +72,6 @@
                 </div>
             </div>
             <div>
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Mã đơn <span class="text-red-500">*</span></label>
-                <input type="text" value="Tự sinh tự động" readonly class="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400">
-            </div>
-            <div>
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">ShopeeFood <span class="text-red-500">*</span></label>
                 <select name="customer_name" required class="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-orange-900/40">
                     <option value="">Chọn tài khoản ShopeeFood</option>
@@ -95,11 +84,17 @@
 
             <div class="space-y-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-900/30">
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Thông tin sản phẩm</p>
-            <div>
-                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Sản phẩm <span class="text-red-500">*</span></label>
-                <select name="product_name" required class="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-orange-900/40">
-                    <option value="Quán Ship Bù" @selected($defaultProduct === 'Quán Ship Bù')>Quán Ship Bù</option>
-                </select>
+            <div class="flex items-end gap-3">
+                <div class="min-w-0 flex-1">
+                    <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Sản phẩm <span class="text-red-500">*</span></label>
+                    <select name="product_name" required class="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-orange-900/40">
+                        <option value="Quán Ship Bù" @selected($defaultProduct === 'Quán Ship Bù')>Quán Ship Bù</option>
+                    </select>
+                </div>
+                <label class="mb-1 inline-flex shrink-0 items-center gap-2 rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm font-medium text-gray-700 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300">
+                    <input type="checkbox" name="apply_freeship" value="1" @checked($defaultApplyFreeship) class="h-4 w-4 appearance-none rounded-full border-2 border-orange-400 bg-white checked:border-orange-500 checked:bg-orange-500 focus:ring-2 focus:ring-orange-500/40">
+                    <span>Áp freeship</span>
+                </label>
             </div>
             <div>
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Thu nhập <span class="text-red-500">*</span></label>
@@ -121,21 +116,6 @@
         </div>
     </form>
 
-    <form method="GET" action="{{ route('food.dat-don') }}" class="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Bộ lọc</p>
-        <div class="flex flex-wrap items-end gap-2">
-            <div class="min-w-[140px] flex-1">
-                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Từ ngày</label>
-                <input type="date" name="from_date" value="{{ $from->format('Y-m-d') }}" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-blue-900/40">
-            </div>
-            <div class="min-w-[140px] flex-1">
-                <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Đến ngày</label>
-                <input type="date" name="to_date" value="{{ $to->format('Y-m-d') }}" class="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-blue-900/40">
-            </div>
-            <button type="submit" class="rounded-xl border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-gray-700">Lọc</button>
-        </div>
-    </form>
-
     <div class="space-y-3">
         @forelse($orders as $o)
             @php
@@ -146,7 +126,12 @@
                 <div class="flex items-start justify-between gap-3">
                     <div>
                         <p class="text-xs text-gray-500 dark:text-gray-400">Mã đơn</p>
-                        <p class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ $o->invoice_code }}</p>
+                        <div class="mt-0.5 flex items-center gap-2">
+                            <p class="font-mono text-sm font-semibold text-gray-900 dark:text-white">{{ $o->invoice_code }}</p>
+                            @if((int) ($o->branch_day_sequence ?? 0) > 0)
+                                <span class="inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-semibold" style="{{ $branchBadgeStyle }}">#{{ (int) $o->branch_day_sequence }}</span>
+                            @endif
+                        </div>
                     </div>
                     <p class="text-xs text-gray-500 dark:text-gray-400">{{ $o->order_date?->format('d/m/Y') ?? '—' }}{{ $o->order_time_text ? ' '.$o->order_time_text : '' }}</p>
                 </div>
@@ -157,7 +142,7 @@
                         <span class="ml-1 inline-block rounded-md px-1.5 py-0.5 text-xs" style="{{ $branchBadgeStyle }}">{{ $branchName }}</span>
                     </p>
                     <p class="text-gray-900 dark:text-white"><span class="text-gray-500 dark:text-gray-400">Shopeefood:</span> {{ $o->customer_name }}</p>
-                    <p class="text-green-600 dark:text-green-400"><span class="text-gray-500 dark:text-gray-400">Thu nhập:</span> {{ $fmt($o->labor_amount) }} đ</p>
+                    <p><span class="text-gray-500 dark:text-gray-400">Thu nhập:</span> <span class="font-bold text-green-600 dark:text-green-400">{{ $fmt($o->labor_amount) }} đ</span></p>
                 </div>
             </div>
         @empty

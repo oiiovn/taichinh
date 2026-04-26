@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -48,6 +49,24 @@ class FoodBuffController extends Controller
             ->orderByDesc('id')
             ->get();
 
+        $sequenceMap = [];
+        $sequenceCounters = [];
+        $ordersForSequence = $orders->sortBy(function (FoodBuffOrder $order) {
+            $date = $order->order_date?->format('Y-m-d') ?? '0000-00-00';
+            $time = trim((string) ($order->order_time_text ?? ''));
+            $time = $time !== '' ? $time : '00:00:00';
+
+            return $date.'|'.$time.'|'.str_pad((string) $order->id, 10, '0', STR_PAD_LEFT);
+        })->values();
+        foreach ($ordersForSequence as $order) {
+            $groupKey = ($order->order_date?->format('Y-m-d') ?? 'unknown').'|'.((int) ($order->food_branch_id ?? 0));
+            $sequenceCounters[$groupKey] = ($sequenceCounters[$groupKey] ?? 0) + 1;
+            $sequenceMap[$order->id] = $sequenceCounters[$groupKey];
+        }
+        foreach ($orders as $order) {
+            $order->setAttribute('branch_day_sequence', (int) ($sequenceMap[$order->id] ?? 0));
+        }
+
         $branches = FoodBranch::query()->orderBy('name')->get();
         $customerOptions = $user->getFoodBuffAssignedEmployees();
         $todayDate = now()->toDateString();
@@ -70,10 +89,25 @@ class FoodBuffController extends Controller
         }
 
         $todayScheduleQuotaByBranch = collect($quotaMap)
+            ->map(function ($count, $branchId) use ($todayDate, $user) {
+                $branchId = (int) $branchId;
+                $createdCount = FoodBuffOrder::query()
+                    ->where('user_id', $user->id)
+                    ->whereDate('order_date', $todayDate)
+                    ->where('food_branch_id', $branchId)
+                    ->count();
+
+                return [
+                    'branch_id' => $branchId,
+                    'order_count' => (int) $count,
+                    'created_count' => (int) $createdCount,
+                ];
+            })
             ->map(fn ($count, $branchId) => [
-                'branch_id' => (int) $branchId,
-                'branch_name' => (string) ($branches->firstWhere('id', (int) $branchId)?->name ?? ('Chi nhánh #'.$branchId)),
-                'order_count' => (int) $count,
+                'branch_id' => (int) ($count['branch_id'] ?? 0),
+                'branch_name' => (string) ($branches->firstWhere('id', (int) ($count['branch_id'] ?? 0))?->name ?? ('Chi nhánh #'.((int) ($count['branch_id'] ?? 0)))),
+                'order_count' => (int) ($count['order_count'] ?? 0),
+                'created_count' => (int) ($count['created_count'] ?? 0),
             ])
             ->sortByDesc('order_count')
             ->values();
@@ -138,6 +172,7 @@ class FoodBuffController extends Controller
             'customer_name' => ['required', 'string', Rule::in($customerOptions)],
             'receiver_name' => ['nullable', 'string', 'max:255'],
             'product_name' => ['required', 'string', Rule::in(['Quán Ship Bù'])],
+            'apply_freeship' => ['nullable', 'boolean'],
         ]);
 
         $orderDate = Carbon::parse($validated['order_date'])->toDateString();
@@ -158,7 +193,7 @@ class FoodBuffController extends Controller
         }
         $invoiceCode = $this->nextManualInvoiceCode($user->id, $orderDate);
 
-        FoodBuffOrder::query()->create([
+        $payload = [
             'user_id' => $user->id,
             'food_branch_id' => $branchId,
             'invoice_code' => $invoiceCode,
@@ -169,7 +204,11 @@ class FoodBuffController extends Controller
             'product_name' => 'Quán Ship Bù',
             'buff_amount' => 20000,
             'labor_amount' => 10000,
-        ]);
+        ];
+        if (Schema::hasColumn('food_buff_orders', 'apply_freeship')) {
+            $payload['apply_freeship'] = $request->boolean('apply_freeship');
+        }
+        FoodBuffOrder::query()->create($payload);
 
         $request->session()->put('food_dat_don_last_form', [
             'food_branch_id' => $branchId,
@@ -177,6 +216,7 @@ class FoodBuffController extends Controller
             'customer_name' => trim((string) $validated['customer_name']),
             'labor_amount' => 10000,
             'product_name' => 'Quán Ship Bù',
+            'apply_freeship' => $request->boolean('apply_freeship'),
         ]);
         $request->session()->put('food_dat_don_cooldown_until', now()->addSeconds(30)->toDateTimeString());
 
