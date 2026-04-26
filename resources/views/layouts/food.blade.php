@@ -158,16 +158,15 @@
         @if($showFoodMenu)
         <div class="xl:w-72 shrink-0 relative">
             {{-- Mobile: nút 3 gạch, nhấn vào xổ menu --}}
-            <div class="xl:hidden rounded-xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-                <button type="button" @click="menuOpen = !menuOpen" class="inline-flex items-center gap-3 rounded-xl px-4 py-3.5 text-left text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-2 focus:ring-brand-500/20">
-                    <span class="flex shrink-0 text-gray-500 dark:text-gray-400" aria-hidden="true">
+            <div class="xl:hidden fixed left-3 top-20 z-50 inline-block">
+                <button type="button" @click="menuOpen = !menuOpen" class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-white/10 text-gray-700 shadow-[0_4px_10px_rgba(15,23,42,0.08)] backdrop-blur-xl transition hover:bg-white/20 active:scale-95 dark:border-white/10 dark:bg-gray-900/10 dark:text-gray-200 dark:shadow-[0_4px_10px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-white/25">
+                    <span class="flex shrink-0 text-gray-700 dark:text-gray-200" aria-hidden="true">
                         <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
                     </span>
-                    <span class="text-sm font-medium">Menu</span>
                 </button>
             </div>
             {{-- Mobile: menu xổ ra (Alpine x-show) --}}
-            <div class="xl:hidden absolute left-0 right-0 top-full z-50 mt-1"
+            <div class="xl:hidden fixed left-3 right-3 top-[6.75rem] z-50"
                 x-show="menuOpen"
                 x-transition:enter="transition ease-out duration-200"
                 x-transition:enter-start="opacity-0 -translate-y-2"
