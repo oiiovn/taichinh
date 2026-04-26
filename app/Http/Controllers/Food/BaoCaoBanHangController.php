@@ -404,10 +404,18 @@ class BaoCaoBanHangController extends Controller
         }
 
         $onlyTienCong = $request->boolean('only_tien_cong');
+        $onlyTienCongKhungGio = $request->boolean('only_tien_cong_khung_gio');
+        if ($onlyTienCongKhungGio) {
+            $onlyTienCong = true;
+        }
         $bonus = (float) ($report->bonus ?? 0);
-        $baseAmount = $onlyTienCong
-            ? (float) $report->total_tien_cong + $bonus
-            : (float) $report->total_cost + (float) $report->total_tien_cong + $bonus;
+        if ($onlyTienCongKhungGio) {
+            $baseAmount = $this->calculateLaborAmountByTimeWindow($report, '16:30', '22:00');
+        } else {
+            $baseAmount = $onlyTienCong
+                ? (float) $report->total_tien_cong + $bonus
+                : (float) $report->total_cost + (float) $report->total_tien_cong + $bonus;
+        }
 
         $deductionAmount = (float) $request->input('deduction_amount', 0);
         if ($deductionAmount < 0 || $deductionAmount > $baseAmount) {
@@ -427,6 +435,7 @@ class BaoCaoBanHangController extends Controller
             ],
             [
                 'only_tien_cong' => $onlyTienCong,
+                'only_tien_cong_khung_gio' => $onlyTienCongKhungGio,
                 'deduction_amount' => $deductionAmount,
                 'addition_amount' => $additionAmount,
             ]
@@ -587,5 +596,74 @@ class BaoCaoBanHangController extends Controller
         $num = (int) $m[1] + 1;
 
         return 'BC'.str_pad((string) $num, 5, '0', STR_PAD_LEFT);
+    }
+
+    private function calculateLaborAmountByTimeWindow(FoodSalesReport $report, string $fromTime, string $toTime): float
+    {
+        $fromMinutes = $this->minutesFromTimeString($fromTime);
+        $toMinutes = $this->minutesFromTimeString($toTime);
+        if ($fromMinutes === null || $toMinutes === null) {
+            return 0.0;
+        }
+
+        $items = $report->relationLoaded('items')
+            ? $report->items
+            : $report->items()->get();
+
+        $orders = [];
+        foreach ($items as $item) {
+            $invoice = trim((string) ($item->ma_hoa_don ?? ''));
+            if ($invoice === '') {
+                $invoice = '_';
+            }
+            if (! isset($orders[$invoice])) {
+                $orders[$invoice] = [
+                    'order_minutes' => null,
+                    'total_cost' => 0.0,
+                ];
+            }
+
+            $parsedTime = $this->parseThoiGian((string) ($item->thoi_gian ?? ''));
+            if ($parsedTime) {
+                $minutes = ((int) $parsedTime->format('H') * 60) + (int) $parsedTime->format('i');
+                if ($orders[$invoice]['order_minutes'] === null || $minutes > $orders[$invoice]['order_minutes']) {
+                    $orders[$invoice]['order_minutes'] = $minutes;
+                }
+            }
+
+            $giaVon = (float) ($item->gia_von_unit ?? 0);
+            $sl = (float) ($item->sl ?? $item->sl_ban ?? 0);
+            $orders[$invoice]['total_cost'] += $giaVon * $sl;
+        }
+
+        $totalLabor = 0.0;
+        foreach ($orders as $order) {
+            $minutes = $order['order_minutes'];
+            if ($minutes === null || $minutes < $fromMinutes || $minutes > $toMinutes) {
+                continue;
+            }
+
+            $totalLabor += $order['total_cost'] > self::NGUONG_VON_TIEN_CONG_CAO
+                ? self::TIEN_CONG_CAO
+                : self::TIEN_CONG_THAP;
+        }
+
+        return $totalLabor;
+    }
+
+    private function minutesFromTimeString(string $time): ?int
+    {
+        $time = trim($time);
+        if (! preg_match('/^(\d{1,2}):(\d{2})$/', $time, $matches)) {
+            return null;
+        }
+
+        $hour = (int) $matches[1];
+        $minute = (int) $matches[2];
+        if ($hour < 0 || $hour > 23 || $minute < 0 || $minute > 59) {
+            return null;
+        }
+
+        return ($hour * 60) + $minute;
     }
 }

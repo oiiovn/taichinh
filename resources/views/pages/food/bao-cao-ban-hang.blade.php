@@ -16,6 +16,7 @@
     noteText: '',
     reportsBase: @js($reportsBase),
     onlyTienCong: false,
+    onlyTienCongKhungGio: false,
     deductionAmount: 0,
     additionAmount: 0,
     get baseAmount() {
@@ -120,7 +121,7 @@
                         <td class="px-4 py-2">
                             <a href="{{ route('food.bao-cao-ban-hang.show', $r) }}" class="text-brand-600 hover:underline dark:text-brand-400">Chi tiết</a>
                             <span class="mx-1 text-gray-300 dark:text-gray-600">|</span>
-                            <button type="button" @click="congNoReportId = {{ $r->id }}; congNoOpen = true; deductionAmount = 0; additionAmount = 0; onlyTienCong = false" class="text-amber-600 hover:underline dark:text-amber-400">Xử lý công nợ</button>
+                            <button type="button" @click="congNoReportId = {{ $r->id }}; congNoOpen = true; deductionAmount = 0; additionAmount = 0; onlyTienCong = false; onlyTienCongKhungGio = false" class="text-amber-600 hover:underline dark:text-amber-400">Xử lý công nợ</button>
                             <span class="mx-1 text-gray-300 dark:text-gray-600">|</span>
                             <form action="{{ route('food.bao-cao-ban-hang.destroy', $r) }}" method="POST" class="inline" onsubmit="return confirm('Xóa báo cáo {{ $r->report_code }}?');">
                                 @csrf
@@ -173,6 +174,10 @@
                     <label class="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                         <input type="checkbox" name="only_tien_cong" value="1" class="rounded border-gray-300" x-model="onlyTienCong">
                         Chỉ trả tiền công
+                    </label>
+                    <label class="mt-2 flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                        <input type="checkbox" name="only_tien_cong_khung_gio" value="1" class="rounded border-gray-300" x-model="onlyTienCongKhungGio" @change="if (onlyTienCongKhungGio) onlyTienCong = true">
+                        Chỉ trả công đơn từ 16:30-22:00
                     </label>
                 </div>
                 <div class="mb-4" x-show="congNoReportId && reportsBase[congNoReportId]">

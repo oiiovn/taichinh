@@ -177,6 +177,9 @@ class FoodBuffController extends Controller
 
         $orderDate = Carbon::parse($validated['order_date'])->toDateString();
         $branchId = (int) $validated['food_branch_id'];
+        if (! $this->isWithinBranchOrderWindow($branchId, now())) {
+            return redirect()->back()->with('error', 'Quán chưa mở cửa');
+        }
         if (! $user->is_admin) {
             $allowedCount = $this->confirmedOrderQuotaForBranch($user->id, $orderDate, $branchId);
             if ($allowedCount <= 0) {
@@ -909,5 +912,18 @@ class FoodBuffController extends Controller
             && ! $user->canManageFoodLuong()
             && ! $user->canUseFoodEmployee()
             && ! $user->canUseQrChamCong();
+    }
+
+    private function isWithinBranchOrderWindow(int $branchId, Carbon $at): bool
+    {
+        $branchName = (string) (FoodBranch::query()->where('id', $branchId)->value('name') ?? '');
+        $normalizedBranchName = mb_strtolower(trim($branchName));
+        $isTanSon = str_contains($normalizedBranchName, 'tân sơn') || str_contains($normalizedBranchName, 'tan son');
+
+        $currentMinutes = ((int) $at->format('H') * 60) + (int) $at->format('i');
+        $startMinutes = $isTanSon ? (8 * 60 + 30) : (12 * 60);
+        $endMinutes = 22 * 60;
+
+        return $currentMinutes >= $startMinutes && $currentMinutes < $endMinutes;
     }
 }
