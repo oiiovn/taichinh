@@ -719,7 +719,7 @@ class FoodBuffController extends Controller
 
     /**
      * @param  array<int, string>  $branchNameById
-     * @return array{id: int, date_label: string, lines: list<array{branch_name: string, order_count: int}>, assignees: list<array{name: string, email: string, is_me: bool, has_acknowledged: bool, acknowledged_at_label: string|null}>, giver_line: string}
+     * @return array{id: int, date_label: string, lines: list<array{branch_name: string, order_count: int}>, assignees: list<array{name: string, email: string, is_me: bool, has_acknowledged: bool, acknowledged_at_label: string|null}>, giver_line: string|null}
      */
     private function mapFoodBuffOrderScheduleBlock(FoodBuffOrderSchedule $sched, array $branchNameById, User $viewer): array
     {
@@ -746,11 +746,9 @@ class FoodBuffController extends Controller
         })->values()->all();
 
         $creator = $sched->creator;
-        $giverLine = '—';
-        if ($creator) {
-            $giverLine = $creator->is_admin
-                ? 'Quản lý: Hạnh Nhân'
-                : 'Người tạo: '.$creator->name;
+        $giverLine = null;
+        if ($creator && ! $creator->is_admin) {
+            $giverLine = 'Người tạo: '.$creator->name;
         }
 
         return [

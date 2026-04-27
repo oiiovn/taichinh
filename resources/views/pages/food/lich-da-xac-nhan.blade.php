@@ -16,7 +16,9 @@
                         <p class="text-sm text-gray-700 dark:text-gray-300">- {{ $line['branch_name'] }}: {{ $line['order_count'] }} đơn</p>
                     @endforeach
                 </div>
-                <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $block['giver_line'] }}</p>
+                @if(!empty($block['giver_line']))
+                    <p class="mt-2 text-xs text-gray-500 dark:text-gray-400">{{ $block['giver_line'] }}</p>
+                @endif
             </div>
         @empty
             <p class="rounded-xl border border-gray-200 bg-white px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400">Không có lịch đã xác nhận trong kỳ lọc.</p>

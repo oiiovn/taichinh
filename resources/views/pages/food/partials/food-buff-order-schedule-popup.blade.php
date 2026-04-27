@@ -42,7 +42,7 @@
             <div class="mt-5 space-y-4">
                 @foreach($dayGroups as $dateLabel => $dayBlocks)
                     @php
-                        $giverVariants = $dayBlocks->pluck('giver_line')->unique()->values();
+                        $giverVariants = $dayBlocks->pluck('giver_line')->filter(fn ($v) => filled($v))->unique()->values();
                         $singleGiver = $giverVariants->count() === 1;
                     @endphp
                     <div class="rounded-xl border-2 border-amber-200 bg-gradient-to-b from-amber-50 to-white p-4 dark:border-amber-800 dark:from-amber-950/80 dark:to-gray-900">
@@ -58,7 +58,7 @@
                         <div class="mt-3 space-y-3">
                             @foreach($dayBlocks as $block)
                                 <div class="rounded-lg border border-amber-200/90 bg-white/80 px-3 py-3 shadow-sm dark:border-amber-900/60 dark:bg-gray-900/50">
-                                    @if(! $singleGiver)
+                                    @if(! $singleGiver && filled($block['giver_line'] ?? null))
                                         <p class="mb-2 text-sm">
                                             <span class="text-gray-500 dark:text-gray-400">Người giao đơn ·</span>
                                             <span class="font-semibold text-gray-900 dark:text-white">{{ $block['giver_line'] ?? '—' }}</span>
