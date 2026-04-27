@@ -68,7 +68,7 @@ class FoodBuffController extends Controller
         }
 
         $branches = FoodBranch::query()->orderBy('name')->get();
-        $customerOptions = $user->getFoodBuffAssignedEmployees();
+        $customerOptions = $this->filterDatDonCustomerOptions($user->getFoodBuffAssignedEmployees());
         $todayDate = now()->toDateString();
         $todaySchedules = FoodBuffOrderSchedule::query()
             ->whereDate('schedule_date', $todayDate)
@@ -161,7 +161,7 @@ class FoodBuffController extends Controller
             }
         }
 
-        $customerOptions = $user->getFoodBuffAssignedEmployees();
+        $customerOptions = $this->filterDatDonCustomerOptions($user->getFoodBuffAssignedEmployees());
         if ($customerOptions === []) {
             return redirect()->back()->with('error', 'Chưa có danh sách Shopeefood để chọn. Vui lòng nhờ admin cấu hình.');
         }
@@ -923,5 +923,22 @@ class FoodBuffController extends Controller
         $endMinutes = 22 * 60;
 
         return $currentMinutes >= $startMinutes && $currentMinutes < $endMinutes;
+    }
+
+    /**
+     * @param  array<int, string>  $customerOptions
+     * @return array<int, string>
+     */
+    private function filterDatDonCustomerOptions(array $customerOptions): array
+    {
+        $allowedNames = [
+            'Tuyết Nhi',
+            'Anh Vũ',
+        ];
+
+        return array_values(array_filter(
+            $customerOptions,
+            fn ($name) => in_array(trim((string) $name), $allowedNames, true)
+        ));
     }
 }

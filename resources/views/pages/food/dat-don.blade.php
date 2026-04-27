@@ -17,8 +17,17 @@
     ];
     $lastForm = is_array($lastForm ?? null) ? $lastForm : [];
     $defaultOrderDate = old('order_date', $lastForm['order_date'] ?? now()->format('Y-m-d'));
-    $defaultBranchId = old('food_branch_id', $lastForm['food_branch_id'] ?? '');
-    $defaultCustomerName = old('customer_name', $lastForm['customer_name'] ?? '');
+    $quotaByBranch = collect($todayScheduleQuotaByBranch ?? []);
+    $suggestedBranchId = (int) ($quotaByBranch
+        ->filter(fn ($q) => (int) ($q['created_count'] ?? 0) < (int) ($q['order_count'] ?? 0))
+        ->sortByDesc(fn ($q) => (int) ($q['order_count'] ?? 0) - (int) ($q['created_count'] ?? 0))
+        ->pluck('branch_id')
+        ->first() ?? 0);
+    $lastFormBranchId = (int) ($lastForm['food_branch_id'] ?? 0);
+    $lastFormBranchHasRemainingQuota = $quotaByBranch
+        ->contains(fn ($q) => (int) ($q['branch_id'] ?? 0) === $lastFormBranchId && (int) ($q['created_count'] ?? 0) < (int) ($q['order_count'] ?? 0));
+    $defaultBranchId = old('food_branch_id', $lastFormBranchHasRemainingQuota ? $lastFormBranchId : ($suggestedBranchId > 0 ? $suggestedBranchId : ($lastForm['food_branch_id'] ?? '')));
+    $defaultCustomerName = old('customer_name', $lastForm['customer_name'] ?? 'Tuyết Nhi');
     $defaultProduct = old('product_name', $lastForm['product_name'] ?? $defaultProductName ?? 'Quán Ship Bù');
     $defaultApplyFreeship = (bool) old('apply_freeship', $lastForm['apply_freeship'] ?? true);
     $cooldownRemaining = max(0, (int) ($cooldownRemaining ?? 0));
