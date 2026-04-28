@@ -466,7 +466,8 @@ class FoodBuffController extends Controller
         }
 
         $validated = $request->validate([
-            'schedule_date' => ['required', 'date'],
+            'schedule_from_date' => ['required', 'date'],
+            'schedule_to_date' => ['required', 'date'],
             'assignee_user_ids' => ['required', 'array', 'min:1'],
             'assignee_user_ids.*' => ['integer', Rule::exists('users', 'id')],
             'targets' => ['required', 'array', 'min:1'],
@@ -490,33 +491,48 @@ class FoodBuffController extends Controller
             ->values()
             ->all();
 
-        $dateStr = Carbon::parse($validated['schedule_date'])->toDateString();
-        $existing = $this->findBuffScheduleSameDayAndAssignees($dateStr, $assigneeIds);
+        $dateList = $this->buildDateRangeList(
+            (string) $validated['schedule_from_date'],
+            (string) $validated['schedule_to_date']
+        );
+        if ($dateList === []) {
+            return redirect()->back()->with('error', 'Khoảng ngày không hợp lệ.');
+        }
 
-        if ($existing) {
-            $existing->update([
+        $createdCount = 0;
+        $updatedCount = 0;
+        foreach ($dateList as $dateStr) {
+            $existing = $this->findBuffScheduleSameDayAndAssignees($dateStr, $assigneeIds);
+            if ($existing) {
+                $existing->update([
+                    'branch_targets' => $targets,
+                    'created_by_user_id' => $user->id,
+                ]);
+                $existing->assignees()->sync($assigneeIds);
+                FoodBuffOrderScheduleAcknowledgment::query()
+                    ->where('food_buff_order_schedule_id', $existing->id)
+                    ->delete();
+                $updatedCount++;
+                continue;
+            }
+
+            $schedule = FoodBuffOrderSchedule::query()->create([
+                'schedule_date' => $dateStr,
                 'branch_targets' => $targets,
                 'created_by_user_id' => $user->id,
             ]);
-            $existing->assignees()->sync($assigneeIds);
-            FoodBuffOrderScheduleAcknowledgment::query()
-                ->where('food_buff_order_schedule_id', $existing->id)
-                ->delete();
-
-            return redirect()->back()->with(
-                'success',
-                'Đã cập nhật lịch đặt đơn (cùng ngày và cùng người nhận). Người nhận cần xác nhận lại.'
-            );
+            $schedule->assignees()->sync($assigneeIds);
+            $createdCount++;
         }
 
-        $schedule = FoodBuffOrderSchedule::query()->create([
-            'schedule_date' => $dateStr,
-            'branch_targets' => $targets,
-            'created_by_user_id' => $user->id,
-        ]);
-        $schedule->assignees()->sync($assigneeIds);
+        if ($createdCount > 0 && $updatedCount > 0) {
+            return redirect()->back()->with('success', "Đã tạo {$createdCount} lịch và cập nhật {$updatedCount} lịch. Người nhận cần xác nhận lại lịch đã cập nhật.");
+        }
+        if ($updatedCount > 0) {
+            return redirect()->back()->with('success', "Đã cập nhật {$updatedCount} lịch. Người nhận cần xác nhận lại.");
+        }
 
-        return redirect()->back()->with('success', 'Đã tạo lịch đặt đơn và gửi tới người được chọn.');
+        return redirect()->back()->with('success', "Đã tạo {$createdCount} lịch đặt đơn và gửi tới người được chọn.");
     }
 
     public function destroyOrderSchedule(Request $request, FoodBuffOrderSchedule $foodBuffOrderSchedule): RedirectResponse
@@ -808,12 +824,20 @@ class FoodBuffController extends Controller
 
                 return [
                     'id' => $s->id,
+                    'date_sort' => $s->schedule_date->format('Y-m-d'),
                     'date_label' => $s->schedule_date->format('d/m/Y'),
                     'summary' => $summary,
                     'assignees' => $assigneeRows,
                     'has_pending' => $assigneeRows->contains(fn (array $r) => $r['status'] === 'pending'),
+                    'is_today' => $s->schedule_date->format('Y-m-d') === $todayStrMonitor,
                 ];
-            });
+            })
+            ->sortBy([
+                ['is_today', 'desc'],
+                ['date_sort', 'desc'],
+                ['id', 'desc'],
+            ])
+            ->values();
     }
 
     /**
@@ -843,6 +867,32 @@ class FoodBuffController extends Controller
     private function normalizedAssigneeIdList(array $ids): array
     {
         return collect($ids)->map(fn ($id) => (int) $id)->unique()->sort()->values()->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function buildDateRangeList(string $fromDate, string $toDate): array
+    {
+        try {
+            $from = Carbon::parse($fromDate)->startOfDay();
+            $to = Carbon::parse($toDate)->startOfDay();
+        } catch (\Throwable $e) {
+            return [];
+        }
+
+        if ($from->gt($to)) {
+            [$from, $to] = [$to, $from];
+        }
+
+        $dates = [];
+        $cursor = $from->copy();
+        while ($cursor->lte($to)) {
+            $dates[] = $cursor->toDateString();
+            $cursor->addDay();
+        }
+
+        return $dates;
     }
 
     private function nextManualInvoiceCode(int $userId, string $orderDate): string

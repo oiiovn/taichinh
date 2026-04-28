@@ -105,10 +105,17 @@
             </div>
             <form method="POST" action="{{ route('food.lich-dat-don.store') }}" class="mt-4 space-y-4">
                 @csrf
-                <div>
-                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Ngày áp dụng</label>
-                    <input type="date" name="schedule_date" value="{{ old('schedule_date', now()->format('Y-m-d')) }}" required class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-                    @error('schedule_date')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Từ ngày</label>
+                        <input type="date" name="schedule_from_date" value="{{ old('schedule_from_date', now()->format('Y-m-d')) }}" required class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                        @error('schedule_from_date')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Đến ngày</label>
+                        <input type="date" name="schedule_to_date" value="{{ old('schedule_to_date', now()->format('Y-m-d')) }}" required class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                        @error('schedule_to_date')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
+                    </div>
                 </div>
                 <div>
                     <div class="mb-1 flex items-center justify-between gap-2">
