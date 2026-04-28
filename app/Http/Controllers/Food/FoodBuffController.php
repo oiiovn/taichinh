@@ -149,6 +149,9 @@ class FoodBuffController extends Controller
         if (! $user->is_admin && ! $user->canCreateFoodBuffOrder()) {
             abort(403, 'Bạn không có quyền tạo đơn Food thủ công.');
         }
+
+        return redirect()->back()->with('error', 'Sory Service bị gián đoạn');
+
         $cooldownUntil = $request->session()->get('food_dat_don_cooldown_until');
         if (is_string($cooldownUntil) && $cooldownUntil !== '') {
             try {
