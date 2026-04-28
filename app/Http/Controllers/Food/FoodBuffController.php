@@ -674,9 +674,6 @@ class FoodBuffController extends Controller
         if (! $user->is_admin) {
             abort(403, 'Chỉ quản trị viên mới được xóa đơn.');
         }
-        if ((int) $foodBuffOrder->user_id !== (int) $user->id) {
-            abort(403, 'Bạn không có quyền xóa đơn này.');
-        }
 
         $code = (string) ($foodBuffOrder->invoice_code ?? '');
         $foodBuffOrder->delete();
