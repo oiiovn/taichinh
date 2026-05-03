@@ -250,6 +250,8 @@ class FoodController extends Controller
         $reportsDoanhSo = FoodSalesReport::query()
             ->with('branch')
             ->where('user_id', $user->id)
+            ->whereDate('report_date', '>=', $from->toDateString())
+            ->whereDate('report_date', '<=', $to->toDateString())
             ->orderByDesc('report_date')
             ->orderByDesc('uploaded_at')
             ->get();
@@ -280,6 +282,22 @@ class FoodController extends Controller
 
         $danhMucThu = UserCategory::where('user_id', $user->id)->where('type', 'income')->orderBy('name')->get();
         $danhMucChi = UserCategory::where('user_id', $user->id)->where('type', 'expense')->orderBy('name')->get();
+        $profitByBranch = $reportsDoanhSo
+            ->groupBy(fn ($r) => trim((string) ($r->branch?->name ?? 'Không rõ chi nhánh')))
+            ->map(function ($items, $branchName) {
+                $loiNhuan = (float) $items->sum(fn ($r) => (float) ($r->loi_nhuan ?? 0));
+                $quyetToan = (float) $items->sum(fn ($r) => (float) $r->quyet_toan);
+                $countReports = (int) $items->count();
+
+                return [
+                    'branch_name' => (string) $branchName,
+                    'loi_nhuan' => $loiNhuan,
+                    'quyet_toan' => $quyetToan,
+                    'report_count' => $countReports,
+                ];
+            })
+            ->sortByDesc('loi_nhuan')
+            ->values();
 
         return view('pages.food', [
             'title' => 'Food',
@@ -293,6 +311,7 @@ class FoodController extends Controller
             'fromDateInput' => $from->format('Y-m-d'),
             'toDateInput' => $to->format('Y-m-d'),
             'reportsDoanhSo' => $reportsDoanhSo,
+            'profitByBranch' => $profitByBranch,
             'chartDoanhSoDates' => $chartDoanhSoDates,
             'chartDoanhSoLoiNhuan' => $chartDoanhSoLoiNhuan,
             'chartDoanhSoQuyetToan' => $chartDoanhSoQuyetToan,

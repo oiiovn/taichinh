@@ -203,6 +203,39 @@
         <div id="food-doanhso-chart" class="min-h-[280px] w-full" data-dates="{{ json_encode($chartDoanhSoDates) }}" data-quyettoan="{{ json_encode($chartDoanhSoQuyetToan) }}" data-loinhuan="{{ json_encode($chartDoanhSoLoiNhuan) }}"></div>
     </div>
 
+    @php
+        $profitByBranch = $profitByBranch ?? collect();
+    @endphp
+    <div class="mb-8 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <p class="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Báo cáo lợi nhuận theo chi nhánh</p>
+        @if($profitByBranch->isNotEmpty())
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-[520px] text-left text-sm">
+                    <thead class="border-b border-gray-200 dark:border-gray-700">
+                        <tr>
+                            <th class="px-2 py-2 font-medium text-gray-900 dark:text-white">Chi nhánh</th>
+                            <th class="px-2 py-2 font-medium text-gray-900 dark:text-white">Số báo cáo</th>
+                            <th class="px-2 py-2 font-medium text-gray-900 dark:text-white">Quyết toán</th>
+                            <th class="px-2 py-2 font-medium text-gray-900 dark:text-white">Lợi nhuận</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($profitByBranch as $row)
+                            <tr class="border-b border-gray-100 dark:border-gray-700/60">
+                                <td class="px-2 py-2 text-gray-800 dark:text-gray-200">{{ $row['branch_name'] }}</td>
+                                <td class="px-2 py-2 text-gray-700 dark:text-gray-300">{{ $row['report_count'] }}</td>
+                                <td class="px-2 py-2 text-gray-700 dark:text-gray-300">{{ $fmt($row['quyet_toan']) }} đ</td>
+                                <td class="px-2 py-2 font-semibold {{ $row['loi_nhuan'] >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">{{ $fmt($row['loi_nhuan']) }} đ</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <p class="text-sm text-gray-500 dark:text-gray-400">Không có dữ liệu lợi nhuận theo chi nhánh trong kỳ lọc.</p>
+        @endif
+    </div>
+
     <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
         <table class="w-full min-w-[640px] text-left text-sm">
             <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
