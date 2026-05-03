@@ -113,6 +113,13 @@ class FoodController extends Controller
             return redirect()->route('food', $request->only(['period', 'from_date', 'to_date']));
         }
         if ($request->input('tab') === 'doanh-so') {
+            $hasDoanhSoPeriod = $request->has('period');
+            $hasDoanhSoDateRange = $request->filled('from_date') && $request->filled('to_date');
+            if (! $hasDoanhSoPeriod && ! $hasDoanhSoDateRange) {
+                $period = self::PERIOD_MONTH;
+                [$from, $to] = $this->getDateRange($period);
+            }
+
             return $this->indexDoanhSo($request, $user, $period, $from, $to);
         }
 
