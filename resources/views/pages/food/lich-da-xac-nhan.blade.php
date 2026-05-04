@@ -12,6 +12,7 @@
                     <p class="text-xs text-green-600 dark:text-green-400">Đã xác nhận</p>
                 </div>
                 <div class="mt-2 space-y-1">
+                    <p class="text-sm font-medium text-gray-800 dark:text-gray-200">Kênh đặt: {{ $block['order_channel'] ?? 'WEB' }}</p>
                     @foreach($block['lines'] as $line)
                         <p class="text-sm text-gray-700 dark:text-gray-300">- {{ $line['branch_name'] }}: {{ $line['order_count'] }} đơn</p>
                     @endforeach

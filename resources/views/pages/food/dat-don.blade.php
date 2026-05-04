@@ -31,6 +31,13 @@
     $defaultProduct = old('product_name', $lastForm['product_name'] ?? $defaultProductName ?? 'Quán Ship Bù');
     $defaultApplyFreeship = (bool) old('apply_freeship', $lastForm['apply_freeship'] ?? true);
     $cooldownRemaining = max(0, (int) ($cooldownRemaining ?? 0));
+    $channelByBranch = collect($todayScheduleChannelByBranch ?? [])
+        ->mapWithKeys(fn ($channel, $branchId) => [(string) ((int) $branchId) => (string) ($channel ?: 'WEB')])
+        ->all();
+    $defaultOrderChannel = old(
+        'order_channel',
+        $channelByBranch[(string) ((int) $defaultBranchId)] ?? ($lastForm['order_channel'] ?? 'WEB')
+    );
 @endphp
 
 <div class="min-h-[calc(100vh-140px)] bg-[#f7f7f8] p-2 dark:bg-gray-900/20 sm:p-4">
@@ -60,19 +67,24 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('food.dat-don.store') }}" x-data="{ cooldown: {{ $cooldownRemaining }} }" x-init="if (cooldown > 0) { const t = setInterval(() => { cooldown = Math.max(0, cooldown - 1); if (cooldown === 0) clearInterval(t); }, 1000); }" class="rounded-2xl border border-gray-200 bg-white p-5 pb-24 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:pb-5">
+    <form method="POST" action="{{ route('food.dat-don.store') }}" x-data="{ cooldown: {{ $cooldownRemaining }}, selectedBranchId: '{{ (int) $defaultBranchId }}', orderChannel: '{{ $defaultOrderChannel === 'ShopeeFood' ? 'ShopeeFood' : 'WEB' }}', channelByBranch: {{ \Illuminate\Support\Js::from($channelByBranch) }}, updateOrderChannel() { const key = String(parseInt(this.selectedBranchId || '0', 10)); this.orderChannel = this.channelByBranch[key] === 'ShopeeFood' ? 'ShopeeFood' : 'WEB'; } }" x-init="updateOrderChannel(); if (cooldown > 0) { const t = setInterval(() => { cooldown = Math.max(0, cooldown - 1); if (cooldown === 0) clearInterval(t); }, 1000); }" class="rounded-2xl border border-gray-200 bg-white p-5 pb-24 shadow-sm dark:border-gray-700 dark:bg-gray-800 sm:pb-5">
         @csrf
         <input type="hidden" name="order_date" value="{{ $defaultOrderDate }}">
         <div class="space-y-5">
             <div class="space-y-3 rounded-2xl border border-gray-100 bg-gray-50/70 p-4 dark:border-gray-700 dark:bg-gray-900/30">
                 <p class="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Thông tin đơn</p>
             <div>
+                <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Kênh đặt đơn</label>
+                <input type="hidden" name="order_channel" :value="orderChannel">
+                <input type="text" :value="orderChannel" readonly class="w-full cursor-not-allowed rounded-xl border border-gray-200 bg-gray-50 px-3 py-3 text-sm text-gray-700 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-300">
+            </div>
+            <div>
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">Chi nhánh <span class="text-red-500">*</span></label>
                 <div class="relative">
                     <span class="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400">
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 21h18M5 21V7l8-4 6 3v15M9 9h.01M9 13h.01M9 17h.01M13 9h.01M13 13h.01M13 17h.01"/></svg>
                     </span>
-                <select name="food_branch_id" required class="w-full rounded-xl border border-gray-200 bg-white py-3 pl-12 pr-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-orange-900/40">
+                <select name="food_branch_id" x-model="selectedBranchId" @change="updateOrderChannel()" required class="w-full rounded-xl border border-gray-200 bg-white py-3 pl-12 pr-3 text-sm text-gray-900 outline-none transition focus:border-orange-400 focus:ring-4 focus:ring-orange-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-orange-900/40">
                     <option value="">Chọn chi nhánh</option>
                     @foreach($branches as $branch)
                         <option value="{{ $branch->id }}" @selected((int) $defaultBranchId === (int) $branch->id)>{{ $branch->name }}</option>
@@ -118,10 +130,14 @@
         </div>
         <p class="mt-4 text-xs text-amber-600 dark:text-amber-400" x-show="cooldown > 0" x-cloak>Vui lòng chờ <span x-text="cooldown"></span> giây để tạo đơn tiếp theo.</p>
         <div class="mt-4 hidden sm:block">
-            <button type="submit" :disabled="cooldown > 0" class="w-full rounded-xl bg-[#EE4D2D] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#d94324] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-60">Tạo đơn ngay</button>
+            <button type="submit" :disabled="cooldown > 0 || orderChannel === 'ShopeeFood'" class="w-full rounded-xl bg-[#EE4D2D] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#d94324] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-60">
+                <span x-text="orderChannel === 'ShopeeFood' ? 'Đặt trên ShopeeFood' : 'Tạo đơn ngay'"></span>
+            </button>
         </div>
         <div class="fixed inset-x-0 bottom-0 z-20 border-t border-gray-200 bg-white/95 p-3 backdrop-blur dark:border-gray-700 dark:bg-gray-900/95 sm:hidden">
-            <button type="submit" :disabled="cooldown > 0" class="w-full rounded-xl bg-[#EE4D2D] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#d94324] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-60">Tạo đơn ngay</button>
+            <button type="submit" :disabled="cooldown > 0 || orderChannel === 'ShopeeFood'" class="w-full rounded-xl bg-[#EE4D2D] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#d94324] active:translate-y-[1px] disabled:cursor-not-allowed disabled:opacity-60">
+                <span x-text="orderChannel === 'ShopeeFood' ? 'Đặt trên ShopeeFood' : 'Tạo đơn ngay'"></span>
+            </button>
         </div>
     </form>
 

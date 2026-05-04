@@ -14,6 +14,7 @@ class FoodBuffOrderSchedule extends Model
     protected $fillable = [
         'schedule_date',
         'branch_targets',
+        'order_channel',
         'created_by_user_id',
     ];
 

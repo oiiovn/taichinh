@@ -77,7 +77,9 @@ class FoodBuffController extends Controller
             ->get();
 
         $quotaMap = [];
+        $channelMap = [];
         foreach ($todaySchedules as $schedule) {
+            $scheduleChannel = (string) ($schedule->order_channel ?: 'WEB');
             foreach (($schedule->branch_targets ?? []) as $target) {
                 $branchId = (int) ($target['food_branch_id'] ?? 0);
                 $count = max(0, (int) ($target['order_count'] ?? 0));
@@ -85,6 +87,11 @@ class FoodBuffController extends Controller
                     continue;
                 }
                 $quotaMap[$branchId] = ($quotaMap[$branchId] ?? 0) + $count;
+                if (! isset($channelMap[$branchId])) {
+                    $channelMap[$branchId] = $scheduleChannel;
+                } elseif ($scheduleChannel === 'ShopeeFood') {
+                    $channelMap[$branchId] = 'ShopeeFood';
+                }
             }
         }
 
@@ -135,6 +142,7 @@ class FoodBuffController extends Controller
             'defaultProductName' => 'Quán Ship Bù',
             'customerOptions' => $customerOptions,
             'todayScheduleQuotaByBranch' => $todayScheduleQuotaByBranch,
+            'todayScheduleChannelByBranch' => $channelMap,
             'lastForm' => $lastForm,
             'cooldownRemaining' => $cooldownRemaining,
         ]);
@@ -178,6 +186,9 @@ class FoodBuffController extends Controller
 
         $orderDate = Carbon::parse($validated['order_date'])->toDateString();
         $branchId = (int) $validated['food_branch_id'];
+        if ($this->isBlockedByShopeeFoodSchedule($user->id, $orderDate, $branchId)) {
+            return redirect()->back()->with('error', 'Lịch của bạn đang để kênh ShopeeFood, không thể tạo đơn ở màn này.');
+        }
         if (! $this->isWithinBranchOrderWindow($branchId, now())) {
             return redirect()->back()->with('error', 'Quán chưa mở cửa');
         }
@@ -217,6 +228,7 @@ class FoodBuffController extends Controller
         $request->session()->put('food_dat_don_last_form', [
             'food_branch_id' => $branchId,
             'order_date' => $orderDate,
+            'order_channel' => (string) $request->input('order_channel', 'WEB'),
             'customer_name' => trim((string) $validated['customer_name']),
             'labor_amount' => 10000,
             'product_name' => 'Quán Ship Bù',
@@ -468,12 +480,14 @@ class FoodBuffController extends Controller
         $validated = $request->validate([
             'schedule_from_date' => ['required', 'date'],
             'schedule_to_date' => ['required', 'date'],
+            'order_channel' => ['required', 'string', Rule::in(['WEB', 'ShopeeFood'])],
             'assignee_user_ids' => ['required', 'array', 'min:1'],
             'assignee_user_ids.*' => ['integer', Rule::exists('users', 'id')],
             'targets' => ['required', 'array', 'min:1'],
             'targets.*.food_branch_id' => ['required', 'integer', Rule::exists('food_branches', 'id')],
             'targets.*.order_count' => ['required', 'integer', 'min:1', 'max:999'],
         ]);
+        $orderChannel = (string) $validated['order_channel'];
 
         $assigneeIds = array_values(array_unique(array_map('intval', $validated['assignee_user_ids'])));
         $assignees = User::query()->whereIn('id', $assigneeIds)->get();
@@ -506,6 +520,7 @@ class FoodBuffController extends Controller
             if ($existing) {
                 $existing->update([
                     'branch_targets' => $targets,
+                    'order_channel' => $orderChannel,
                     'created_by_user_id' => $user->id,
                 ]);
                 $existing->assignees()->sync($assigneeIds);
@@ -519,6 +534,7 @@ class FoodBuffController extends Controller
             $schedule = FoodBuffOrderSchedule::query()->create([
                 'schedule_date' => $dateStr,
                 'branch_targets' => $targets,
+                'order_channel' => $orderChannel,
                 'created_by_user_id' => $user->id,
             ]);
             $schedule->assignees()->sync($assigneeIds);
@@ -733,7 +749,7 @@ class FoodBuffController extends Controller
 
     /**
      * @param  array<int, string>  $branchNameById
-     * @return array{id: int, date_label: string, lines: list<array{branch_name: string, order_count: int}>, assignees: list<array{name: string, email: string, is_me: bool, has_acknowledged: bool, acknowledged_at_label: string|null}>, giver_line: string|null}
+     * @return array{id: int, date_label: string, order_channel: string, lines: list<array{branch_name: string, order_count: int}>, assignees: list<array{name: string, email: string, is_me: bool, has_acknowledged: bool, acknowledged_at_label: string|null}>, giver_line: string|null}
      */
     private function mapFoodBuffOrderScheduleBlock(FoodBuffOrderSchedule $sched, array $branchNameById, User $viewer): array
     {
@@ -768,6 +784,7 @@ class FoodBuffController extends Controller
         return [
             'id' => $sched->id,
             'date_label' => $sched->schedule_date->format('d/m/Y'),
+            'order_channel' => (string) ($sched->order_channel ?: 'WEB'),
             'lines' => $lines,
             'assignees' => $assignees,
             'giver_line' => $giverLine,
@@ -941,6 +958,26 @@ class FoodBuffController extends Controller
         }
 
         return $total;
+    }
+
+    private function isBlockedByShopeeFoodSchedule(int $userId, string $orderDate, int $branchId): bool
+    {
+        $schedules = FoodBuffOrderSchedule::query()
+            ->whereDate('schedule_date', $orderDate)
+            ->where('order_channel', 'ShopeeFood')
+            ->whereHas('assignees', fn ($q) => $q->where('users.id', $userId))
+            ->whereHas('acknowledgments', fn ($q) => $q->where('user_id', $userId))
+            ->get();
+
+        foreach ($schedules as $schedule) {
+            foreach (($schedule->branch_targets ?? []) as $target) {
+                if ((int) ($target['food_branch_id'] ?? 0) === $branchId && (int) ($target['order_count'] ?? 0) > 0) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     private function isOnlyThongKeBuffUser(User $user): bool

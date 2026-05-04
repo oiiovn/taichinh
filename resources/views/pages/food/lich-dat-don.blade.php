@@ -9,6 +9,7 @@
     class="space-y-6"
     x-data="{
         showCreateSchedule: false,
+        scheduleChannel: '{{ old('order_channel', 'WEB') === 'ShopeeFood' ? 'ShopeeFood' : 'WEB' }}',
         branchOptions: {{ \Illuminate\Support\Js::from($scheduleBranchOptions) }},
         scheduleRows: [{ food_branch_id: '', order_count: 1 }],
         addScheduleRow() { this.scheduleRows.push({ food_branch_id: '', order_count: 1 }); },
@@ -116,6 +117,13 @@
                         <input type="date" name="schedule_to_date" value="{{ old('schedule_to_date', now()->format('Y-m-d')) }}" required class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
                         @error('schedule_to_date')<p class="mt-1 text-xs text-red-600">{{ $message }}</p>@enderror
                     </div>
+                </div>
+                <div>
+                    <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Kênh đặt đơn</label>
+                    <select name="order_channel" x-model="scheduleChannel" required class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
+                        <option value="WEB">WEB</option>
+                        <option value="ShopeeFood">ShopeeFood</option>
+                    </select>
                 </div>
                 <div>
                     <div class="mb-1 flex items-center justify-between gap-2">
