@@ -35,6 +35,9 @@
         @include('pages.tai-chinh.loans.partials.form', ['inModal' => true])
     </x-ui.modal-form>
 </div>
+@if(($position['receivable_exposure'] ?? 0) > 0)
+    <p class="mt-2 text-theme-xs text-gray-500 dark:text-gray-400">Lịch thanh toán nợ tháng 4 được thanh toán ngày 6/5.</p>
+@endif
 
 {{-- TẦNG 1 — FINANCIAL POSITION --}}
 @php

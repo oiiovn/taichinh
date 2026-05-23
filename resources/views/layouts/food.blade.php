@@ -122,19 +122,19 @@
                 $navItems[] = ['id' => 'nhan-vien', 'icon' => 'users', 'label' => 'Nhân viên', 'path' => route('food.nhan-vien'), 'show' => $canManageNhanVien];
             }
             if (\Illuminate\Support\Facades\Route::has('food.cham-cong')) {
-                $navItems[] = ['id' => 'cham-cong', 'icon' => 'check-circle', 'label' => 'Chấm công', 'path' => route('food.cham-cong'), 'show' => $canManageChamCong || $isOnlyEmployee];
+                $navItems[] = ['id' => 'cham-cong', 'icon' => 'check-circle', 'label' => 'Chấm công', 'path' => route('food.cham-cong'), 'show' => $canManageChamCong || $isEmployee];
             }
             if (\Illuminate\Support\Facades\Route::has('food.xin-nghi')) {
-                $navItems[] = ['id' => 'xin-nghi', 'icon' => 'calendar', 'label' => 'Xin nghỉ', 'path' => route('food.xin-nghi'), 'show' => $canManageXinNghi || $isOnlyEmployee];
+                $navItems[] = ['id' => 'xin-nghi', 'icon' => 'calendar', 'label' => 'Xin nghỉ', 'path' => route('food.xin-nghi'), 'show' => $canManageXinNghi || $isEmployee];
             }
             if (\Illuminate\Support\Facades\Route::has('food.ung-luong')) {
-                $navItems[] = ['id' => 'ung-luong', 'icon' => 'card', 'label' => 'Ứng lương', 'path' => route('food.ung-luong'), 'show' => $canManageUngLuong || $isOnlyEmployee];
+                $navItems[] = ['id' => 'ung-luong', 'icon' => 'card', 'label' => 'Ứng lương', 'path' => route('food.ung-luong'), 'show' => $canManageUngLuong || $isEmployee];
             }
             if (\Illuminate\Support\Facades\Route::has('food.luong')) {
                 $navItems[] = ['id' => 'luong', 'icon' => 'chart-bar', 'label' => 'Bảng lương', 'path' => route('food.luong'), 'show' => $canManageLuong];
             }
             if (\Illuminate\Support\Facades\Route::has('food.luong-cua-toi')) {
-                $navItems[] = ['id' => 'luong-cua-toi', 'icon' => 'chart-bar', 'label' => 'Lương của tôi', 'path' => route('food.luong-cua-toi'), 'show' => $isOnlyEmployee];
+                $navItems[] = ['id' => 'luong-cua-toi', 'icon' => 'chart-bar', 'label' => 'Lương của tôi', 'path' => route('food.luong-cua-toi'), 'show' => $isEmployee && ! $canManageLuong];
             }
         }
         if ($canUseQrChamCong && \Illuminate\Support\Facades\Route::has('food.qr-cham-cong')) {
