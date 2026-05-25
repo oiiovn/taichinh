@@ -255,7 +255,6 @@ class User extends Authenticatable
             && ! $this->canManageFoodXinNghi()
             && ! $this->canManageFoodUngLuong()
             && ! $this->canManageFoodLuong()
-            && ! $this->canUseFoodEmployee()
             && ! $this->canUseQrChamCong();
     }
 

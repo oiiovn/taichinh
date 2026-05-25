@@ -993,7 +993,6 @@ class FoodBuffController extends Controller
             && ! $user->canManageFoodXinNghi()
             && ! $user->canManageFoodUngLuong()
             && ! $user->canManageFoodLuong()
-            && ! $user->canUseFoodEmployee()
             && ! $user->canUseQrChamCong();
     }
 

@@ -22,6 +22,20 @@ class EnsureFeatureAllowed
                     if ($path === 'food' || str_starts_with($path, 'food/thong-ke-buff')) {
                         return $next($request);
                     }
+                    if ($user->canUseFoodEmployee()) {
+                        foreach (['food/cham-cong', 'food/xin-nghi', 'food/ung-luong', 'food/luong-cua-toi'] as $prefix) {
+                            if ($path === $prefix || str_starts_with($path, $prefix.'/')) {
+                                return $next($request);
+                            }
+                        }
+                    }
+                    if ($user->canCreateFoodBuffOrder()) {
+                        foreach (['food/dat-don', 'food/lich-da-xac-nhan'] as $prefix) {
+                            if ($path === $prefix || str_starts_with($path, $prefix.'/')) {
+                                return $next($request);
+                            }
+                        }
+                    }
                 }
 
                 return redirect()->route('food.thong-ke-buff');

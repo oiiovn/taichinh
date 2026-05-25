@@ -100,7 +100,6 @@
             && !$canManageXinNghi
             && !$canManageUngLuong
             && !$canManageLuong
-            && !$isEmployee
             && !$canUseQrChamCong;
         $navItems = [
             ['id' => 'tong-quan', 'icon' => 'dashboard', 'label' => 'Tổng quan', 'path' => route('food'), 'show' => $canManageTongQuan],
@@ -149,7 +148,14 @@
             }
         }
         if ($isOnlyThongKeBuff) {
-            $navItems = array_values(array_filter($navItems, fn ($item) => $item['id'] === 'thong-ke-buff'));
+            $onlyThongKeNavIds = ['thong-ke-buff'];
+            if ($isEmployee) {
+                $onlyThongKeNavIds = array_merge($onlyThongKeNavIds, ['cham-cong', 'xin-nghi', 'ung-luong', 'luong-cua-toi']);
+            }
+            if ($canCreateFoodBuffOrder) {
+                $onlyThongKeNavIds = array_merge($onlyThongKeNavIds, ['dat-don', 'lich-da-xac-nhan']);
+            }
+            $navItems = array_values(array_filter($navItems, fn ($item) => in_array($item['id'], $onlyThongKeNavIds, true)));
         }
         $showFoodMenu = count($navItems) > 1;
     @endphp
