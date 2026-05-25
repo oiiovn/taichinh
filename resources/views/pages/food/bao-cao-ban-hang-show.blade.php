@@ -171,10 +171,11 @@
                             Tổng: {{ $fmtNguyen($detail['base']) }} đ
                             @if((float)($detail['deduction'] ?? 0) > 0)
                                 — Trừ: {{ $fmtNguyen($detail['deduction']) }} đ
-                                → Còn công nợ: <strong class="text-amber-600 dark:text-amber-400">{{ $fmtNguyen($detail['debt']) }} đ</strong>
-                            @else
-                                → Còn công nợ: <strong>{{ $fmtNguyen($detail['debt']) }} đ</strong>
                             @endif
+                            @if((float)($detail['addition'] ?? 0) > 0)
+                                + Cộng: {{ $fmtNguyen($detail['addition']) }} đ
+                            @endif
+                            → Còn công nợ: <strong class="text-amber-600 dark:text-amber-400">{{ $fmtNguyen($detail['debt']) }} đ</strong>
                         </div>
                     </li>
                 @endforeach

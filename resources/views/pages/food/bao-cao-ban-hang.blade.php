@@ -101,8 +101,17 @@
                                     <span class="{{ $d->payment ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400' }}">
                                         {{ $d->debtor?->name }}: {{ $d->payment ? 'Đã thanh toán' : 'Chưa thanh toán' }}
                                     </span>
-                                    @if((float)($det['deduction'] ?? 0) > 0)
-                                        <span class="block text-xs text-gray-500 dark:text-gray-400">Tổng {{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['base']) }} − Trừ {{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['deduction']) }} = {{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['debt']) }} đ</span>
+                                    @php
+                                        $hasDeduction = (float) ($det['deduction'] ?? 0) > 0;
+                                        $hasAddition = (float) ($det['addition'] ?? 0) > 0;
+                                    @endphp
+                                    @if($hasDeduction || $hasAddition)
+                                        <span class="block text-xs text-gray-500 dark:text-gray-400">
+                                            Tổng {{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['base']) }}
+                                            @if($hasDeduction) − Trừ {{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['deduction']) }} @endif
+                                            @if($hasAddition) + Cộng {{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['addition']) }} @endif
+                                            = {{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['debt']) }} đ
+                                        </span>
                                     @else
                                         <span class="block text-xs text-gray-500 dark:text-gray-400">{{ \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($det['debt']) }} đ</span>
                                     @endif
