@@ -42,7 +42,39 @@
                 <dt class="text-xs text-gray-500 dark:text-gray-400">Tổng lương ước tính</dt>
                 <dd class="text-xl font-semibold text-brand-600 dark:text-brand-400">{{ $fmt($payroll['gross_salary']) }} đ</dd>
             </div>
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400">Đã nhận (đã ghi nhận tháng này)</dt>
+                <dd class="text-xl font-semibold text-green-600 dark:text-green-400">{{ $fmt($totalPaid) }} đ</dd>
+            </div>
         </dl>
+    </div>
+
+    <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <h3 class="mb-3 text-sm font-semibold text-gray-800 dark:text-gray-200">Lịch sử thanh toán đã ghi nhận</h3>
+        @if($payments->isEmpty())
+            <p class="text-sm text-gray-500 dark:text-gray-400">Chưa có khoản thanh toán nào được ghi nhận cho tháng này.</p>
+        @else
+            <ul class="space-y-3">
+                @foreach($payments as $pay)
+                    <li class="rounded-lg border border-gray-100 p-3 text-sm dark:border-gray-700">
+                        <div class="flex flex-wrap items-baseline justify-between gap-2">
+                            <span class="font-medium text-gray-900 dark:text-white">{{ $paymentTypes[$pay->payment_type] ?? $pay->payment_type }}</span>
+                            <span class="text-lg font-semibold text-green-600 dark:text-green-400">+{{ $fmt($pay->amount) }} đ</span>
+                        </div>
+                        <p class="mt-1 text-gray-600 dark:text-gray-400">
+                            {{ $paymentMethods[$pay->payment_method] ?? $pay->payment_method }}
+                            · {{ $pay->paid_at?->format('d/m/Y H:i') }}
+                        </p>
+                        @if($pay->note)
+                            <p class="mt-1 text-gray-700 dark:text-gray-300">{{ $pay->note }}</p>
+                        @endif
+                        @if($pay->creator)
+                            <p class="mt-1 text-xs text-gray-500">Ghi nhận bởi: {{ $pay->creator->name }}</p>
+                        @endif
+                    </li>
+                @endforeach
+            </ul>
+        @endif
     </div>
 </div>
 @endsection

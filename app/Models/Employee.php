@@ -57,6 +57,11 @@ class Employee extends Model
         return $this->hasMany(SalaryAdvance::class)->orderBy('created_at', 'desc');
     }
 
+    public function salaryPayments(): HasMany
+    {
+        return $this->hasMany(EmployeeSalaryPayment::class)->orderByDesc('paid_at');
+    }
+
     public function salaryRates(): HasMany
     {
         return $this->hasMany(EmployeeSalaryRate::class)->orderBy('effective_from');

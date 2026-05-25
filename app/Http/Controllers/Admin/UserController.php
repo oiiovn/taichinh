@@ -62,6 +62,7 @@ class UserController extends Controller
             'can_manage_food_xin_nghi' => ['boolean'],
             'can_manage_food_ung_luong' => ['boolean'],
             'can_manage_food_luong' => ['boolean'],
+            'can_record_food_salary_payment' => ['boolean'],
             'can_manage_food_tong_quan' => ['boolean'],
             'can_manage_food_doanh_so' => ['boolean'],
             'can_manage_food_san_pham' => ['boolean'],
@@ -84,6 +85,7 @@ class UserController extends Controller
         $validated['can_manage_food_xin_nghi'] = $request->boolean('can_manage_food_xin_nghi');
         $validated['can_manage_food_ung_luong'] = $request->boolean('can_manage_food_ung_luong');
         $validated['can_manage_food_luong'] = $request->boolean('can_manage_food_luong');
+        $validated['can_record_food_salary_payment'] = $request->boolean('can_record_food_salary_payment');
         $validated['can_manage_food_tong_quan'] = $request->boolean('can_manage_food_tong_quan');
         $validated['can_manage_food_doanh_so'] = $request->boolean('can_manage_food_doanh_so');
         $validated['can_manage_food_san_pham'] = $request->boolean('can_manage_food_san_pham');
@@ -127,6 +129,7 @@ class UserController extends Controller
             'can_manage_food_xin_nghi' => ['boolean'],
             'can_manage_food_ung_luong' => ['boolean'],
             'can_manage_food_luong' => ['boolean'],
+            'can_record_food_salary_payment' => ['boolean'],
             'can_manage_food_tong_quan' => ['boolean'],
             'can_manage_food_doanh_so' => ['boolean'],
             'can_manage_food_san_pham' => ['boolean'],
@@ -154,6 +157,7 @@ class UserController extends Controller
         $validated['can_manage_food_xin_nghi'] = $request->boolean('can_manage_food_xin_nghi');
         $validated['can_manage_food_ung_luong'] = $request->boolean('can_manage_food_ung_luong');
         $validated['can_manage_food_luong'] = $request->boolean('can_manage_food_luong');
+        $validated['can_record_food_salary_payment'] = $request->boolean('can_record_food_salary_payment');
         $validated['can_manage_food_tong_quan'] = $request->boolean('can_manage_food_tong_quan');
         $validated['can_manage_food_doanh_so'] = $request->boolean('can_manage_food_doanh_so');
         $validated['can_manage_food_san_pham'] = $request->boolean('can_manage_food_san_pham');
@@ -187,6 +191,7 @@ class UserController extends Controller
             'can_create_food_buff_order',
             'can_manage_food_reviews',
             'food_buff_assigned_employees',
+            'can_record_food_salary_payment',
         ];
         foreach ($optionalColumns as $col) {
             if (array_key_exists($col, $validated) && ! Schema::hasColumn('users', $col)) {

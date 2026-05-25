@@ -140,6 +140,11 @@
                             <input type="checkbox" name="can_manage_food_luong" value="1" {{ old('can_manage_food_luong', $user->can_manage_food_luong) ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
                             <span class="text-sm text-gray-700 dark:text-gray-300">Quản lý bảng lương</span>
                         </label>
+                        <label class="flex cursor-pointer items-center gap-2">
+                            <input type="hidden" name="can_record_food_salary_payment" value="0">
+                            <input type="checkbox" name="can_record_food_salary_payment" value="1" {{ old('can_record_food_salary_payment', $user->can_record_food_salary_payment) ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">Ghi nhận đã trả lương (thủ công)</span>
+                        </label>
                         <label class="flex items-center gap-2 mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
                             <input type="hidden" name="can_use_food_employee" value="0">
                             <input type="checkbox" name="can_use_food_employee" value="1" {{ old('can_use_food_employee', $user->can_use_food_employee) ? 'checked' : '' }} class="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500">

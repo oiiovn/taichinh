@@ -75,6 +75,8 @@
         $canManageXinNghi = $user && method_exists($user, 'canManageFoodXinNghi') ? $user->canManageFoodXinNghi() : false;
         $canManageUngLuong = $user && method_exists($user, 'canManageFoodUngLuong') ? $user->canManageFoodUngLuong() : false;
         $canManageLuong = $user && method_exists($user, 'canManageFoodLuong') ? $user->canManageFoodLuong() : false;
+        $canViewFoodPayroll = $user && method_exists($user, 'canViewFoodPayroll') ? $user->canViewFoodPayroll() : false;
+        $canRecordFoodSalaryPayment = $user && method_exists($user, 'canRecordFoodSalaryPayment') ? $user->canRecordFoodSalaryPayment() : false;
         $canManageTongQuan = $user && method_exists($user, 'canManageFoodTongQuan') ? $user->canManageFoodTongQuan() : false;
         $canManageDoanhSo = $user && method_exists($user, 'canManageFoodDoanhSo') ? $user->canManageFoodDoanhSo() : false;
         $canManageSanPham = $user && method_exists($user, 'canManageFoodSanPham') ? $user->canManageFoodSanPham() : false;
@@ -130,7 +132,7 @@
                 $navItems[] = ['id' => 'ung-luong', 'icon' => 'card', 'label' => 'Ứng lương', 'path' => route('food.ung-luong'), 'show' => $canManageUngLuong || $isEmployee];
             }
             if (\Illuminate\Support\Facades\Route::has('food.luong')) {
-                $navItems[] = ['id' => 'luong', 'icon' => 'chart-bar', 'label' => 'Bảng lương', 'path' => route('food.luong'), 'show' => $canManageLuong];
+                $navItems[] = ['id' => 'luong', 'icon' => 'chart-bar', 'label' => 'Bảng lương', 'path' => route('food.luong'), 'show' => $canViewFoodPayroll];
             }
             if (\Illuminate\Support\Facades\Route::has('food.luong-cua-toi')) {
                 $navItems[] = ['id' => 'luong-cua-toi', 'icon' => 'chart-bar', 'label' => 'Lương của tôi', 'path' => route('food.luong-cua-toi'), 'show' => $isEmployee && ! $canManageLuong];

@@ -31,6 +31,7 @@ class User extends Authenticatable
         'can_manage_food_xin_nghi',
         'can_manage_food_ung_luong',
         'can_manage_food_luong',
+        'can_record_food_salary_payment',
         'can_manage_food_tong_quan',
         'can_manage_food_doanh_so',
         'can_manage_food_san_pham',
@@ -105,6 +106,7 @@ class User extends Authenticatable
             'can_manage_food_xin_nghi' => 'boolean',
             'can_manage_food_ung_luong' => 'boolean',
             'can_manage_food_luong' => 'boolean',
+            'can_record_food_salary_payment' => 'boolean',
             'can_manage_food_tong_quan' => 'boolean',
             'can_manage_food_doanh_so' => 'boolean',
             'can_manage_food_san_pham' => 'boolean',
@@ -151,6 +153,17 @@ class User extends Authenticatable
     public function canManageFoodLuong(): bool
     {
         return (bool) $this->is_admin || (bool) $this->can_manage_food_luong;
+    }
+
+    /** Ghi nhận thủ công đã trả lương / thưởng cho nhân viên (hiển thị trên bảng lương & Lương của tôi). */
+    public function canRecordFoodSalaryPayment(): bool
+    {
+        return (bool) $this->is_admin || (bool) $this->can_record_food_salary_payment || (bool) $this->can_manage_food_luong;
+    }
+
+    public function canViewFoodPayroll(): bool
+    {
+        return $this->canManageFoodLuong() || $this->canRecordFoodSalaryPayment();
     }
 
     /** Được dùng phần nhân viên (chấm công, xin nghỉ, ứng lương, lương của tôi). Cần có bản ghi Employee + quyền này. */
@@ -237,7 +250,8 @@ class User extends Authenticatable
             || (bool) $this->can_manage_food_cham_cong
             || (bool) $this->can_manage_food_xin_nghi
             || (bool) $this->can_manage_food_ung_luong
-            || (bool) $this->can_manage_food_luong;
+            || (bool) $this->can_manage_food_luong
+            || (bool) $this->can_record_food_salary_payment;
     }
 
     public function isFoodThongKeBuffOnlyUser(): bool
