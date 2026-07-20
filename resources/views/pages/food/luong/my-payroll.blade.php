@@ -39,8 +39,25 @@
                 <dd class="text-lg font-medium text-gray-900 dark:text-white">{{ $fmt($payroll['salary_rate']) }} đ</dd>
             </div>
             <div>
-                <dt class="text-xs text-gray-500 dark:text-gray-400">Tổng lương ước tính</dt>
-                <dd class="text-xl font-semibold text-brand-600 dark:text-brand-400">{{ $fmt($payroll['gross_salary']) }} đ</dd>
+                <dt class="text-xs text-gray-500 dark:text-gray-400">Lương gộp (ước tính)</dt>
+                <dd class="text-lg font-medium text-gray-900 dark:text-white">{{ $fmt($payroll['gross_salary']) }} đ</dd>
+            </div>
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400">Phạt đi trễ</dt>
+                <dd class="text-lg font-medium {{ ($payroll['late_penalty'] ?? 0) > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-900 dark:text-white' }}">
+                    @if(($payroll['late_penalty'] ?? 0) > 0)
+                        −{{ $fmt($payroll['late_penalty']) }} đ
+                        @if(($payroll['late_minutes'] ?? 0) > 0)
+                            <span class="text-sm font-normal text-gray-500">({{ $payroll['late_minutes'] }} phút)</span>
+                        @endif
+                    @else
+                        —
+                    @endif
+                </dd>
+            </div>
+            <div>
+                <dt class="text-xs text-gray-500 dark:text-gray-400">Thực nhận ước tính</dt>
+                <dd class="text-xl font-semibold text-brand-600 dark:text-brand-400">{{ $fmt($payroll['net_salary'] ?? $payroll['gross_salary']) }} đ</dd>
             </div>
             <div>
                 <dt class="text-xs text-gray-500 dark:text-gray-400">Đã nhận (đã ghi nhận tháng này)</dt>

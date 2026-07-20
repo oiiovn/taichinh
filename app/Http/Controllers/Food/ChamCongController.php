@@ -114,6 +114,8 @@ class ChamCongController extends Controller
         switch ($validated['action']) {
             case 'check_in':
                 $log->update(['check_in_at' => $log->check_in_at ?? $now]);
+                $log->refresh();
+                $employee->applyLatePenaltyNote($log);
                 $msg = 'Đã ghi nhận giờ vào.';
                 break;
             case 'check_out':
@@ -168,6 +170,10 @@ class ChamCongController extends Controller
         $log->break_end_at = ($t !== '' && preg_match($timePattern, $t)) ? Carbon::parse($workDate->format('Y-m-d').' '.$t) : null;
         $log->note = $validated['note'] ?: null;
         $log->save();
+        $log->loadMissing('employee');
+        if ($log->employee) {
+            $log->employee->applyLatePenaltyNote($log);
+        }
 
         $employeeId = $log->employee_id;
         $from = $workDate->format('Y-m-d');
@@ -219,6 +225,11 @@ class ChamCongController extends Controller
         $log->break_end_at = $toDateTime($workDate, $validated['break_end_time'] ?? null);
         $log->note = $validated['note'] ?: null;
         $log->save();
+
+        $employee = Employee::query()->find((int) $validated['employee_id']);
+        if ($employee) {
+            $employee->applyLatePenaltyNote($log);
+        }
 
         return redirect()->route('food.cham-cong', [
             'employee_id' => (int) $validated['employee_id'],

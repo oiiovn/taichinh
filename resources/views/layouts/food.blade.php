@@ -159,6 +159,44 @@
             }
             $navItems = array_values(array_filter($navItems, fn ($item) => in_array($item['id'], $onlyThongKeNavIds, true)));
         }
+        $navItemsById = collect($navItems)->keyBy('id');
+        $menuGroupDefs = [
+            ['key' => 'tong-quan', 'label' => 'Tổng quan', 'ids' => ['tong-quan', 'doanh-so', 'bao-cao-ban-hang', 'cong-no']],
+            ['key' => 'don-hang', 'label' => 'Đơn hàng & Seeding', 'ids' => ['dat-don', 'lich-da-xac-nhan', 'lich-dat-don', 'thong-ke-buff', 'food-reviews', 'food-reviews-qr']],
+            ['key' => 'danh-muc', 'label' => 'Danh mục', 'ids' => ['san-pham', 'chi-nhanh', 'khach-hang']],
+            ['key' => 'nhan-su', 'label' => 'Nhân sự', 'ids' => ['nhan-vien', 'cham-cong', 'xin-nghi', 'ung-luong', 'luong', 'luong-cua-toi', 'qr-cham-cong']],
+        ];
+        $navGroups = [];
+        $groupedIds = [];
+        foreach ($menuGroupDefs as $groupDef) {
+            $items = [];
+            foreach ($groupDef['ids'] as $id) {
+                $groupedIds[] = $id;
+                if ($navItemsById->has($id)) {
+                    $items[] = $navItemsById->get($id);
+                }
+            }
+            if ($items !== []) {
+                $navGroups[] = [
+                    'key' => $groupDef['key'],
+                    'label' => $groupDef['label'],
+                    'items' => $items,
+                    'open' => collect($items)->contains(fn ($item) => $item['id'] === $currentTab),
+                ];
+            }
+        }
+        $ungrouped = array_values(array_filter($navItems, fn ($item) => ! in_array($item['id'], $groupedIds, true)));
+        if ($ungrouped !== []) {
+            $navGroups[] = [
+                'key' => 'other',
+                'label' => null,
+                'items' => $ungrouped,
+                'open' => collect($ungrouped)->contains(fn ($item) => $item['id'] === $currentTab),
+            ];
+        }
+        if ($navGroups !== [] && ! collect($navGroups)->contains(fn ($g) => $g['open'])) {
+            $navGroups[0]['open'] = true;
+        }
         $showFoodMenu = count($navItems) > 1;
     @endphp
     <div class="flex flex-col xl:flex-row gap-4 xl:gap-6" x-data="{ menuOpen: false }">
@@ -185,35 +223,12 @@
                 @click.outside="menuOpen = false"
                 style="display: none;">
                 <nav class="rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900 px-4 py-3 text-gray-900 dark:text-white">
-                    <ul class="space-y-0.5">
-                        @foreach($navItems as $item)
-                            @php $isActive = $currentTab === $item['id']; @endphp
-                            <li>
-                                <a href="{{ $item['path'] }}"
-                                    @click="menuOpen = false"
-                                    class="menu-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors {{ $isActive ? 'menu-item-active bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400' : 'menu-item-inactive text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5' }}">
-                                    <span class="flex shrink-0 w-6 h-6 [&_svg]:w-6 [&_svg]:h-6">{!! \App\Helpers\MenuHelper::getIconSvg($item['icon']) !!}</span>
-                                    <span>{{ $item['label'] }}</span>
-                                </a>
-                            </li>
-                        @endforeach
-                    </ul>
+                    @include('pages.food.partials.food-menu-list', ['closeOnClick' => true])
                 </nav>
             </div>
             {{-- Desktop: menu luôn hiện --}}
             <nav class="hidden xl:block rounded-xl border border-gray-200 bg-white text-gray-900 shadow-theme-sm dark:border-gray-800 dark:bg-gray-900 dark:text-white px-4 py-5 xl:px-5 xl:py-6 min-h-[60vh] xl:min-h-0">
-                <ul class="space-y-0.5">
-                    @foreach($navItems as $item)
-                        @php $isActive = $currentTab === $item['id']; @endphp
-                        <li>
-                            <a href="{{ $item['path'] }}"
-                                class="menu-item flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors {{ $isActive ? 'menu-item-active bg-brand-50 text-brand-500 dark:bg-brand-500/[0.12] dark:text-brand-400' : 'menu-item-inactive text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5' }}">
-                                <span class="flex shrink-0 w-6 h-6 [&_svg]:w-6 [&_svg]:h-6">{!! \App\Helpers\MenuHelper::getIconSvg($item['icon']) !!}</span>
-                                <span>{{ $item['label'] }}</span>
-                            </a>
-                        </li>
-                    @endforeach
-                </ul>
+                @include('pages.food.partials.food-menu-list')
             </nav>
         </div>
         @endif

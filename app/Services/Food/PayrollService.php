@@ -12,7 +12,17 @@ class PayrollService
      * Tính lương cho nhân viên trong khoảng thời gian.
      * Mức lương theo từng ngày lấy từ lịch sử (employee_salary_rates); nếu không có thì dùng mức trên employees.
      *
-     * @return array{work_days: int, work_minutes: int, leave_days_approved: int, gross_salary: float, salary_type: string, salary_rate: float}
+     * @return array{
+     *   work_days: int,
+     *   work_minutes: int,
+     *   leave_days_approved: int,
+     *   gross_salary: float,
+     *   late_penalty: float,
+     *   net_salary: float,
+     *   late_minutes: int,
+     *   salary_type: string,
+     *   salary_rate: float
+     * }
      */
     public function calculateForPeriod(Employee $employee, Carbon $from, Carbon $to): array
     {
@@ -41,6 +51,8 @@ class PayrollService
             ->sum(fn ($lr) => $this->countLeaveDaysInRange($lr->from_date, $lr->to_date, $from, $to));
 
         $grossSalary = 0.0;
+        $latePenalty = 0.0;
+        $lateMinutesTotal = 0;
 
         $cursor = $from->copy()->startOfDay();
         $endDay = $to->copy()->startOfDay();
@@ -61,15 +73,24 @@ class PayrollService
             } elseif ($r['type'] === Employee::SALARY_TYPE_DAY) {
                 $grossSalary += $r['rate'];
             }
+
+            $lateMins = $employee->lateMinutesForCheckIn($log->check_in_at);
+            $lateMinutesTotal += $lateMins;
+            $latePenalty += $employee->latePenaltyForMinutes($lateMins);
         }
 
+        $grossSalary = round($grossSalary, 2);
+        $latePenalty = round($latePenalty, 2);
         $firstRate = $employee->applicableRateForDate($from);
 
         return [
             'work_days' => $workDays,
             'work_minutes' => $workMinutes,
             'leave_days_approved' => $leaveDaysApproved,
-            'gross_salary' => round($grossSalary, 2),
+            'gross_salary' => $grossSalary,
+            'late_penalty' => $latePenalty,
+            'late_minutes' => $lateMinutesTotal,
+            'net_salary' => round(max(0, $grossSalary - $latePenalty), 2),
             'salary_type' => $firstRate['type'],
             'salary_rate' => $firstRate['rate'],
         ];

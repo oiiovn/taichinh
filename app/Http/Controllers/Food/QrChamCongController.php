@@ -100,6 +100,8 @@ class QrChamCongController extends Controller
         $now = now();
         if (! $log->check_in_at) {
             $log->update(['check_in_at' => $now]);
+            $log->refresh();
+            $employee->applyLatePenaltyNote($log);
 
             return redirect()->route('food.cham-cong')->with('success', 'Đã ghi nhận giờ vào ca.');
         }

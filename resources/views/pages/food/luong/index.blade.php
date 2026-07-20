@@ -75,7 +75,9 @@
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Nhân viên</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Hình thức</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Số ngày công</th>
-                    <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Tổng lương (ước)</th>
+                    <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Lương gộp</th>
+                    <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Phạt đi trễ</th>
+                    <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Thực nhận (ước)</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Đã trả (tháng)</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Chi tiết đã trả</th>
                 </tr>
@@ -87,7 +89,18 @@
                         <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $emp->user->name ?? '—' }}</td>
                         <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ \App\Models\Employee::salaryTypeLabels()[$p['salary_type']] ?? $p['salary_type'] }}</td>
                         <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $p['work_days'] }}</td>
-                        <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $fmt($p['gross_salary']) }} đ</td>
+                        <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $fmt($p['gross_salary']) }} đ</td>
+                        <td class="px-4 py-2 {{ ($p['late_penalty'] ?? 0) > 0 ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300' }}">
+                            @if(($p['late_penalty'] ?? 0) > 0)
+                                −{{ $fmt($p['late_penalty']) }} đ
+                                @if(($p['late_minutes'] ?? 0) > 0)
+                                    <span class="block text-xs font-normal text-gray-500">({{ $p['late_minutes'] }} phút)</span>
+                                @endif
+                            @else
+                                —
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $fmt($p['net_salary'] ?? $p['gross_salary']) }} đ</td>
                         <td class="px-4 py-2 font-semibold text-green-600 dark:text-green-400">{{ $fmt($row['total_paid']) }} đ</td>
                         <td class="px-4 py-2 text-xs text-gray-600 dark:text-gray-400">
                             @forelse($row['payments'] as $pay)
@@ -106,7 +119,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có nhân viên.</td>
+                        <td colspan="8" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có nhân viên.</td>
                     </tr>
                 @endforelse
             </tbody>

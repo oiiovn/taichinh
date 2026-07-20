@@ -11,12 +11,14 @@ export default defineConfig({
         tailwindcss(),
     ],
     server: {
+        port: 5174,
+        strictPort: true,
         host: true,
         hmr: {
             host: 'localhost',
-            port: 5173,
+            port: 5174,
             protocol: 'ws',
-            clientPort: 5173,
+            clientPort: 5174,
         },
     },
 });

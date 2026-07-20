@@ -55,8 +55,19 @@ class NhanVienController extends Controller
             'salary_type' => ['required', 'string', 'in:hour,day,month'],
             'salary_rate' => ['required', 'numeric', 'min:0'],
             'start_date' => ['nullable', 'date'],
+            'apply_late_penalty' => ['boolean'],
+            'shift_start_time' => ['nullable', 'date_format:H:i'],
         ]);
         $validated['active'] = true;
+        $validated['apply_late_penalty'] = $request->boolean('apply_late_penalty');
+        if ($validated['apply_late_penalty']) {
+            $request->validate([
+                'shift_start_time' => ['required', 'date_format:H:i'],
+            ]);
+            $validated['shift_start_time'] = $request->input('shift_start_time');
+        } else {
+            $validated['shift_start_time'] = null;
+        }
         $employee = Employee::create($validated);
         EmployeeSalaryRate::query()->create([
             'employee_id' => $employee->id,
@@ -94,8 +105,19 @@ class NhanVienController extends Controller
             'start_date' => ['nullable', 'date'],
             'active' => ['boolean'],
             'salary_effective_from' => ['nullable', 'date'],
+            'apply_late_penalty' => ['boolean'],
+            'shift_start_time' => ['nullable', 'date_format:H:i'],
         ]);
         $validated['active'] = $request->boolean('active');
+        $validated['apply_late_penalty'] = $request->boolean('apply_late_penalty');
+        if ($validated['apply_late_penalty']) {
+            $request->validate([
+                'shift_start_time' => ['required', 'date_format:H:i'],
+            ]);
+            $validated['shift_start_time'] = $request->input('shift_start_time');
+        } else {
+            $validated['shift_start_time'] = null;
+        }
 
         $oldRate = round((float) $nhanVien->salary_rate, 2);
         $oldType = (string) $nhanVien->salary_type;

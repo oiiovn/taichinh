@@ -3,6 +3,12 @@
 @section('foodContent')
 @php
 $fmt = fn ($n) => \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($n);
+$formatWorkDate = function ($date) {
+    $d = \Carbon\Carbon::parse($date);
+    $thu = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'][$d->dayOfWeek] ?? '';
+
+    return $d->format('d/m/Y').($thu !== '' ? ' ('.$thu.')' : '');
+};
 $dailySalary = function ($log, $emp) {
     if (! $emp) {
         return null;
@@ -11,19 +17,48 @@ $dailySalary = function ($log, $emp) {
     $ar = $emp->applicableRateForDate($d);
     $r = (float) $ar['rate'];
     $t = $ar['type'] ?? \App\Models\Employee::SALARY_TYPE_HOUR;
+    $gross = null;
     if ($t === \App\Models\Employee::SALARY_TYPE_HOUR) {
         $mins = $log->work_minutes ?? null;
+        $gross = $mins !== null ? ($mins / 60) * $r : null;
+    } elseif ($t === \App\Models\Employee::SALARY_TYPE_DAY) {
+        $gross = $log->check_in_at && $log->check_out_at ? $r : null;
+    } elseif ($t === \App\Models\Employee::SALARY_TYPE_MONTH) {
+        $gross = $log->check_in_at && $log->check_out_at ? $r / 30 : null;
+    }
+    if ($gross === null) {
+        return null;
+    }
+    $penalty = 0;
+    if ($emp->usesLatePenalty()) {
+        $lateMins = $emp->lateMinutesForCheckIn($log->check_in_at);
+        $penalty = $emp->latePenaltyForMinutes($lateMins);
+    }
 
-        return $mins !== null ? ($mins / 60) * $r : null;
+    return max(0, $gross - $penalty);
+};
+$lateInfo = function ($log, $emp) {
+    if (! $emp || ! $emp->usesLatePenalty()) {
+        return ['minutes' => 0, 'penalty' => 0];
     }
-    if ($t === \App\Models\Employee::SALARY_TYPE_DAY) {
-        return $log->check_in_at && $log->check_out_at ? $r : null;
-    }
-    if ($t === \App\Models\Employee::SALARY_TYPE_MONTH) {
-        return $log->check_in_at && $log->check_out_at ? $r / 30 : null;
+    $mins = $emp->lateMinutesForCheckIn($log->check_in_at);
+
+    return ['minutes' => $mins, 'penalty' => $emp->latePenaltyForMinutes($mins)];
+};
+$displayNote = function ($log, $emp) use ($lateInfo) {
+    $note = trim((string) ($log->note ?? ''));
+    $li = $lateInfo($log, $emp);
+    if ($emp && $li['minutes'] > 0 && $li['penalty'] > 0) {
+        $auto = $emp->formatLatePenaltyNote($li['minutes'], $li['penalty']);
+        if ($note === '') {
+            return $auto;
+        }
+        if (! str_contains($note, 'Đi trễ')) {
+            return $note.' | '.$auto;
+        }
     }
 
-    return null;
+    return $note !== '' ? $note : null;
 };
 @endphp
 <div class="space-y-6" x-data="{ editOpen: false, editLog: null }">
@@ -124,27 +159,58 @@ $dailySalary = function ($log, $emp) {
         {{-- Mobile: card từng hàng --}}
         <div class="space-y-3 md:hidden">
             @forelse($logs as $log)
+                @php
+                    $empCard = $log->employee ?? $employee;
+                    $amt = $dailySalary($log, $empCard);
+                    $li = $lateInfo($log, $empCard);
+                    $noteText = $displayNote($log, $empCard);
+                    $isOff = ! $log->check_in_at && ! $log->check_out_at;
+                @endphp
                 <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/50">
                     <div class="flex items-center justify-between gap-2 border-b border-gray-100 pb-3 dark:border-gray-700">
-                        <span class="font-medium text-gray-900 dark:text-white">{{ $log->work_date->format('d/m/Y') }}</span>
-                        @if($log->work_minutes !== null)
-                            <span class="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">{{ $log->work_minutes }} phút</span>
-                        @endif
+                        <span class="font-medium text-gray-900 dark:text-white">{{ $formatWorkDate($log->work_date) }}</span>
+                        <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                            @if($isOff)
+                                <span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-700 dark:text-slate-300">OFF</span>
+                            @elseif($log->work_minutes !== null)
+                                <span class="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">{{ $log->work_minutes }} phút</span>
+                            @endif
+                        </div>
                     </div>
+                    @if(! $isOff || $noteText || ($isManager && empty($selectedEmployeeId) && $log->employee?->user?->name) || $li['penalty'] > 0)
                     <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-                        <dt class="text-gray-500 dark:text-gray-400">Vào ca</dt>
-                        <dd class="text-gray-900 dark:text-white">{{ $log->check_in_at?->format('H:i') ?? '—' }}</dd>
-                        <dt class="text-gray-500 dark:text-gray-400">Ra ca</dt>
-                        <dd class="text-gray-900 dark:text-white">{{ $log->check_out_at?->format('H:i') ?? '—' }}</dd>
-                        <dt class="text-gray-500 dark:text-gray-400">Nghỉ</dt>
-                        <dd class="text-gray-900 dark:text-white">{{ $log->break_start_at ? $log->break_start_at->format('H:i') . ' – ' . ($log->break_end_at?->format('H:i') ?? '—') : '—' }}</dd>
-                        <dt class="text-gray-500 dark:text-gray-400">Lương ngày</dt>
-                        <dd class="text-gray-900 dark:text-white font-medium">{{ ($amt = $dailySalary($log, $log->employee ?? $employee)) !== null ? $fmt($amt) . ' đ' : '—' }}</dd>
-                        @if($isManager && empty($selectedEmployeeId))
+                        @if($log->check_in_at)
+                            <dt class="text-gray-500 dark:text-gray-400">Vào ca</dt>
+                            <dd class="text-gray-900 dark:text-white">{{ $log->check_in_at->format('H:i') }}</dd>
+                        @endif
+                        @if($log->check_out_at)
+                            <dt class="text-gray-500 dark:text-gray-400">Ra ca</dt>
+                            <dd class="text-gray-900 dark:text-white">{{ $log->check_out_at->format('H:i') }}</dd>
+                        @endif
+                        @if($log->break_start_at)
+                            <dt class="text-gray-500 dark:text-gray-400">Nghỉ</dt>
+                            <dd class="text-gray-900 dark:text-white">{{ $log->break_start_at->format('H:i') }} – {{ $log->break_end_at?->format('H:i') ?? '—' }}</dd>
+                        @endif
+                        @if($amt !== null)
+                            <dt class="text-gray-500 dark:text-gray-400">Lương ngày</dt>
+                            <dd class="text-gray-900 dark:text-white font-medium">{{ $fmt($amt) }} đ</dd>
+                        @endif
+                        @if($li['penalty'] > 0)
+                            <dt class="text-gray-500 dark:text-gray-400">Phút trễ</dt>
+                            <dd class="text-gray-900 dark:text-white">{{ $li['minutes'] }} phút</dd>
+                            <dt class="text-gray-500 dark:text-gray-400">Phạt đi trễ</dt>
+                            <dd class="text-red-600 dark:text-red-400 font-medium">{{ $fmt($li['penalty']) }} đ</dd>
+                        @endif
+                        @if($isManager && empty($selectedEmployeeId) && $log->employee?->user?->name)
                             <dt class="text-gray-500 dark:text-gray-400">Nhân viên</dt>
-                            <dd class="text-gray-900 dark:text-white">{{ $log->employee?->user?->name ?? '—' }}</dd>
+                            <dd class="text-gray-900 dark:text-white">{{ $log->employee->user->name }}</dd>
+                        @endif
+                        @if(filled($noteText))
+                            <dt class="col-span-2 text-gray-500 dark:text-gray-400">Ghi chú</dt>
+                            <dd class="col-span-2 text-gray-900 dark:text-white">{{ $noteText }}</dd>
                         @endif
                     </dl>
+                    @endif
                     @if($isManager)
                         <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
                             <button type="button" @click="editOpen = true; editLog = { id: {{ $log->id }}, work_date: '{{ $log->work_date->format('Y-m-d') }}', check_in_time: '{{ $log->check_in_at?->format('H:i') ?? '' }}', check_out_time: '{{ $log->check_out_at?->format('H:i') ?? '' }}', break_start_time: '{{ $log->break_start_at?->format('H:i') ?? '' }}', break_end_time: '{{ $log->break_end_at?->format('H:i') ?? '' }}', note: {{ json_encode($log->note ?? '') }} }" class="text-sm font-medium text-brand-600 hover:underline dark:text-brand-400">Sửa</button>
@@ -170,6 +236,9 @@ $dailySalary = function ($log, $emp) {
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Nghỉ (bắt đầu – kết thúc)</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Số phút làm</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Lương ngày</th>
+                        <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Phút trễ</th>
+                        <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Phạt đi trễ</th>
+                        <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Ghi chú</th>
                         @if($isManager)
                             <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Thao tác</th>
                         @endif
@@ -177,17 +246,24 @@ $dailySalary = function ($log, $emp) {
                 </thead>
                 <tbody>
                     @forelse($logs as $log)
-                        @php $dayAmt = $dailySalary($log, $log->employee ?? $employee); @endphp
+                        @php
+                            $empRow = $log->employee ?? $employee;
+                            $dayAmt = $dailySalary($log, $empRow);
+                            $li = $lateInfo($log, $empRow);
+                        @endphp
                         <tr class="border-b border-gray-100 dark:border-gray-700/50">
                             @if($isManager && empty($selectedEmployeeId))
                                 <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $log->employee?->user?->name ?? '—' }}</td>
                             @endif
-                            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $log->work_date->format('d/m/Y') }}</td>
+                            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $formatWorkDate($log->work_date) }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->check_in_at?->format('H:i') ?? '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->check_out_at?->format('H:i') ?? '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->break_start_at ? $log->break_start_at->format('H:i') . ' – ' . ($log->break_end_at?->format('H:i') ?? '—') : '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->work_minutes !== null ? $log->work_minutes . ' phút' : '—' }}</td>
                             <td class="px-4 py-2 text-gray-900 dark:text-white font-medium">{{ $dayAmt !== null ? $fmt($dayAmt) . ' đ' : '—' }}</td>
+                            <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ ($empRow && $empRow->usesLatePenalty() && $li['minutes'] > 0) ? $li['minutes'] . ' phút' : '—' }}</td>
+                            <td class="px-4 py-2 {{ $li['penalty'] > 0 ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300' }}">{{ ($empRow && $empRow->usesLatePenalty() && $li['penalty'] > 0) ? $fmt($li['penalty']) . ' đ' : '—' }}</td>
+                            <td class="px-4 py-2 text-gray-700 dark:text-gray-300 max-w-[220px] break-words">{{ ($dn = $displayNote($log, $empRow)) ? $dn : '—' }}</td>
                             @if($isManager)
                                 <td class="px-4 py-2">
                                     <button type="button" @click="editOpen = true; editLog = { id: {{ $log->id }}, work_date: '{{ $log->work_date->format('Y-m-d') }}', check_in_time: '{{ $log->check_in_at?->format('H:i') ?? '' }}', check_out_time: '{{ $log->check_out_at?->format('H:i') ?? '' }}', break_start_time: '{{ $log->break_start_at?->format('H:i') ?? '' }}', break_end_time: '{{ $log->break_end_at?->format('H:i') ?? '' }}', note: {{ json_encode($log->note ?? '') }} }" class="text-brand-600 hover:underline dark:text-brand-400 text-sm">Sửa</button>
@@ -196,7 +272,7 @@ $dailySalary = function ($log, $emp) {
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="{{ ($isManager ? 7 : 6) + (($isManager && empty($selectedEmployeeId)) ? 1 : 0) }}" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có bản ghi chấm công trong khoảng thời gian này.</td>
+                            <td colspan="{{ ($isManager ? 10 : 9) + (($isManager && empty($selectedEmployeeId)) ? 1 : 0) }}" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có bản ghi chấm công trong khoảng thời gian này.</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -265,23 +341,53 @@ $dailySalary = function ($log, $emp) {
         </div>
         <div class="space-y-3 md:hidden">
             @forelse($logs as $log)
+                @php
+                    $amt = $dailySalary($log, $employee);
+                    $li = $lateInfo($log, $employee);
+                    $noteText = $displayNote($log, $employee);
+                    $isOff = ! $log->check_in_at && ! $log->check_out_at;
+                @endphp
                 <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800/50">
                     <div class="flex items-center justify-between gap-2 border-b border-gray-100 pb-3 dark:border-gray-700">
-                        <span class="font-medium text-gray-900 dark:text-white">{{ $log->work_date->format('d/m/Y') }}</span>
-                        @if($log->work_minutes !== null)
-                            <span class="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">{{ $log->work_minutes }} phút</span>
-                        @endif
+                        <span class="font-medium text-gray-900 dark:text-white">{{ $formatWorkDate($log->work_date) }}</span>
+                        <div class="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                            @if($isOff)
+                                <span class="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-700 dark:text-slate-300">OFF</span>
+                            @elseif($log->work_minutes !== null)
+                                <span class="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-medium text-brand-700 dark:bg-brand-900/30 dark:text-brand-300">{{ $log->work_minutes }} phút</span>
+                            @endif
+                        </div>
                     </div>
+                    @if(! $isOff || $noteText || $li['penalty'] > 0)
                     <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
-                        <dt class="text-gray-500 dark:text-gray-400">Vào ca</dt>
-                        <dd class="text-gray-900 dark:text-white">{{ $log->check_in_at?->format('H:i') ?? '—' }}</dd>
-                        <dt class="text-gray-500 dark:text-gray-400">Ra ca</dt>
-                        <dd class="text-gray-900 dark:text-white">{{ $log->check_out_at?->format('H:i') ?? '—' }}</dd>
-                        <dt class="text-gray-500 dark:text-gray-400">Nghỉ</dt>
-                        <dd class="text-gray-900 dark:text-white">{{ $log->break_start_at ? $log->break_start_at->format('H:i') . ' – ' . ($log->break_end_at?->format('H:i') ?? '—') : '—' }}</dd>
-                        <dt class="text-gray-500 dark:text-gray-400">Lương ngày</dt>
-                        <dd class="text-gray-900 dark:text-white font-medium">{{ ($amt = $dailySalary($log, $employee)) !== null ? $fmt($amt) . ' đ' : '—' }}</dd>
+                        @if($log->check_in_at)
+                            <dt class="text-gray-500 dark:text-gray-400">Vào ca</dt>
+                            <dd class="text-gray-900 dark:text-white">{{ $log->check_in_at->format('H:i') }}</dd>
+                        @endif
+                        @if($log->check_out_at)
+                            <dt class="text-gray-500 dark:text-gray-400">Ra ca</dt>
+                            <dd class="text-gray-900 dark:text-white">{{ $log->check_out_at->format('H:i') }}</dd>
+                        @endif
+                        @if($log->break_start_at)
+                            <dt class="text-gray-500 dark:text-gray-400">Nghỉ</dt>
+                            <dd class="text-gray-900 dark:text-white">{{ $log->break_start_at->format('H:i') }} – {{ $log->break_end_at?->format('H:i') ?? '—' }}</dd>
+                        @endif
+                        @if($amt !== null)
+                            <dt class="text-gray-500 dark:text-gray-400">Lương ngày</dt>
+                            <dd class="text-gray-900 dark:text-white font-medium">{{ $fmt($amt) }} đ</dd>
+                        @endif
+                        @if($li['penalty'] > 0)
+                            <dt class="text-gray-500 dark:text-gray-400">Phút trễ</dt>
+                            <dd class="text-gray-900 dark:text-white">{{ $li['minutes'] }} phút</dd>
+                            <dt class="text-gray-500 dark:text-gray-400">Phạt đi trễ</dt>
+                            <dd class="text-red-600 dark:text-red-400 font-medium">{{ $fmt($li['penalty']) }} đ</dd>
+                        @endif
+                        @if(filled($noteText))
+                            <dt class="col-span-2 text-gray-500 dark:text-gray-400">Ghi chú</dt>
+                            <dd class="col-span-2 text-gray-900 dark:text-white">{{ $noteText }}</dd>
+                        @endif
                     </dl>
+                    @endif
                 </div>
             @empty
                 <p class="rounded-xl border border-gray-200 bg-gray-50 px-4 py-6 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400">Chưa có bản ghi chấm công trong khoảng thời gian này.</p>
@@ -297,22 +403,31 @@ $dailySalary = function ($log, $emp) {
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Nghỉ (bắt đầu – kết thúc)</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Số phút làm</th>
                         <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Lương ngày</th>
+                        <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Phút trễ</th>
+                        <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Phạt đi trễ</th>
+                        <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Ghi chú</th>
                     </tr>
                 </thead>
                 <tbody>
                     @forelse($logs as $log)
-                        @php $dayAmt = $dailySalary($log, $employee); @endphp
+                        @php
+                            $dayAmt = $dailySalary($log, $employee);
+                            $li = $lateInfo($log, $employee);
+                        @endphp
                         <tr class="border-b border-gray-100 dark:border-gray-700/50">
-                            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $log->work_date->format('d/m/Y') }}</td>
+                            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $formatWorkDate($log->work_date) }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->check_in_at?->format('H:i') ?? '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->check_out_at?->format('H:i') ?? '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->break_start_at ? $log->break_start_at->format('H:i') . ' – ' . ($log->break_end_at?->format('H:i') ?? '—') : '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->work_minutes !== null ? $log->work_minutes . ' phút' : '—' }}</td>
                             <td class="px-4 py-2 text-gray-900 dark:text-white font-medium">{{ $dayAmt !== null ? $fmt($dayAmt) . ' đ' : '—' }}</td>
+                            <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ ($employee->usesLatePenalty() && $li['minutes'] > 0) ? $li['minutes'] . ' phút' : '—' }}</td>
+                            <td class="px-4 py-2 {{ $li['penalty'] > 0 ? 'text-red-600 dark:text-red-400 font-medium' : 'text-gray-700 dark:text-gray-300' }}">{{ ($employee->usesLatePenalty() && $li['penalty'] > 0) ? $fmt($li['penalty']) . ' đ' : '—' }}</td>
+                            <td class="px-4 py-2 text-gray-700 dark:text-gray-300 max-w-[220px] break-words">{{ ($dn = $displayNote($log, $employee)) ? $dn : '—' }}</td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có bản ghi chấm công trong khoảng thời gian này.</td>
+                            <td colspan="9" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có bản ghi chấm công trong khoảng thời gian này.</td>
                         </tr>
                     @endforelse
                 </tbody>
