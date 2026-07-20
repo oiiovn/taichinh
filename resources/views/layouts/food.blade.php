@@ -1,7 +1,7 @@
 @extends('layouts.app')
 
 @section('contentWrapperClass')
-    w-full p-3 sm:p-4 md:p-5
+    w-full p-0 sm:p-4 md:p-5
 @endsection
 
 @section('content')
@@ -198,43 +198,84 @@
             $navGroups[0]['open'] = true;
         }
         $showFoodMenu = count($navItems) > 1;
+        $currentNavLabel = collect($navItems)->firstWhere('id', $currentTab)['label']
+            ?? collect($navGroups)->flatMap(fn ($g) => $g['items'])->firstWhere('id', $currentTab)['label']
+            ?? 'Food';
     @endphp
-    <div class="flex flex-col xl:flex-row gap-4 xl:gap-6" x-data="{ menuOpen: false }">
-        {{-- Cột menu con --}}
+    <div class="flex flex-col xl:flex-row gap-0 xl:gap-6"
+        x-data="{ menuOpen: false }"
+        @keydown.escape.window="menuOpen = false">
+
+        {{-- Mobile app top bar --}}
         @if($showFoodMenu)
-        <div class="xl:w-72 shrink-0 relative">
-            {{-- Mobile: nút 3 gạch, nhấn vào xổ menu --}}
-            <div class="xl:hidden fixed left-3 top-20 z-50 inline-block">
-                <button type="button" @click="menuOpen = !menuOpen" class="inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/30 bg-white/10 text-gray-700 shadow-[0_4px_10px_rgba(15,23,42,0.08)] backdrop-blur-xl transition hover:bg-white/20 active:scale-95 dark:border-white/10 dark:bg-gray-900/10 dark:text-gray-200 dark:shadow-[0_4px_10px_rgba(0,0,0,0.2)] focus:outline-none focus:ring-2 focus:ring-white/25">
-                    <span class="flex shrink-0 text-gray-700 dark:text-gray-200" aria-hidden="true">
-                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-                    </span>
+        <div class="xl:hidden sticky top-0 z-40 border-b border-gray-200/80 bg-white/90 px-4 py-2.5 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/90">
+            <div class="flex items-center gap-2.5">
+                <button type="button"
+                    @click="menuOpen = true"
+                    class="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gray-100 text-gray-800 transition active:scale-95 dark:bg-gray-800 dark:text-gray-100"
+                    aria-label="Mở menu Food">
+                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+                    </svg>
                 </button>
+                <div class="min-w-0 flex-1">
+                    <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-600 dark:text-brand-400">Food</p>
+                    <h1 class="truncate text-base font-semibold tracking-tight text-gray-950 dark:text-white">{{ $currentNavLabel }}</h1>
+                </div>
             </div>
-            {{-- Mobile: menu xổ ra (Alpine x-show) --}}
-            <div class="xl:hidden fixed left-3 right-3 top-[6.75rem] z-50"
+        </div>
+
+        {{-- Mobile full-screen drawer --}}
+        <div class="xl:hidden fixed inset-0 z-[60]"
+            x-show="menuOpen"
+            x-cloak
+            style="display: none;">
+            <div class="absolute inset-0 bg-black/45 backdrop-blur-[2px]"
                 x-show="menuOpen"
                 x-transition:enter="transition ease-out duration-200"
-                x-transition:enter-start="opacity-0 -translate-y-2"
-                x-transition:enter-end="opacity-100 translate-y-0"
+                x-transition:enter-start="opacity-0"
+                x-transition:enter-end="opacity-100"
                 x-transition:leave="transition ease-in duration-150"
-                x-transition:leave-start="opacity-100 translate-y-0"
-                x-transition:leave-end="opacity-0 -translate-y-2"
-                @click.outside="menuOpen = false"
-                style="display: none;">
-                <nav class="rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-900 px-4 py-3 text-gray-900 dark:text-white">
-                    @include('pages.food.partials.food-menu-list', ['closeOnClick' => true])
-                </nav>
+                x-transition:leave-start="opacity-100"
+                x-transition:leave-end="opacity-0"
+                @click="menuOpen = false"></div>
+            <div class="absolute inset-y-0 left-0 flex w-[86%] max-w-sm flex-col bg-white shadow-2xl dark:bg-gray-950"
+                x-show="menuOpen"
+                x-transition:enter="transition ease-out duration-250"
+                x-transition:enter-start="-translate-x-full"
+                x-transition:enter-end="translate-x-0"
+                x-transition:leave="transition ease-in duration-200"
+                x-transition:leave-start="translate-x-0"
+                x-transition:leave-end="-translate-x-full"
+                @click.stop>
+                <div class="flex items-center justify-between border-b border-gray-100 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] dark:border-gray-800">
+                    <div>
+                        <p class="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand-600 dark:text-brand-400">Food</p>
+                        <p class="text-lg font-semibold text-gray-950 dark:text-white">Menu</p>
+                    </div>
+                    <button type="button"
+                        @click="menuOpen = false"
+                        class="inline-flex h-10 w-10 items-center justify-center rounded-full bg-gray-100 text-gray-600 transition active:scale-95 dark:bg-gray-800 dark:text-gray-300"
+                        aria-label="Đóng menu">
+                        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                    </button>
+                </div>
+                <div class="flex-1 overflow-y-auto overscroll-contain px-3 py-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                    @include('pages.food.partials.food-menu-list', ['closeOnClick' => true, 'appStyle' => true])
+                </div>
             </div>
-            {{-- Desktop: menu luôn hiện --}}
-            <nav class="hidden xl:block rounded-xl border border-gray-200 bg-white text-gray-900 shadow-theme-sm dark:border-gray-800 dark:bg-gray-900 dark:text-white px-4 py-5 xl:px-5 xl:py-6 min-h-[60vh] xl:min-h-0">
+        </div>
+
+        {{-- Desktop sidebar --}}
+        <div class="hidden xl:block xl:w-72 shrink-0">
+            <nav class="rounded-xl border border-gray-200 bg-white text-gray-900 shadow-theme-sm dark:border-gray-800 dark:bg-gray-900 dark:text-white px-4 py-5 xl:px-5 xl:py-6 min-h-[60vh] max-h-[calc(100vh-6rem)] overflow-y-auto">
                 @include('pages.food.partials.food-menu-list')
             </nav>
         </div>
         @endif
 
         {{-- Nội dung --}}
-        <div class="flex-1 min-w-0 min-h-[60vh] overflow-auto overflow-x-hidden text-gray-900 dark:text-white">
+        <div class="flex-1 min-w-0 min-h-[60vh] overflow-x-hidden px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-3 sm:px-0 sm:pb-0 xl:pt-0 text-gray-900 dark:text-white">
             @yield('foodContent')
         </div>
     </div>
