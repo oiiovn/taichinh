@@ -285,12 +285,20 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                     @endif
 
                     @if($isManager)
-                        <div class="border-t border-gray-100 px-3 py-2 dark:border-gray-800">
+                        <div class="flex items-center gap-3 border-t border-gray-100 px-3 py-2 dark:border-gray-800">
                             <button type="button"
                                 @click="editOpen = true; editLog = { id: {{ $log->id }}, work_date: '{{ $log->work_date->format('Y-m-d') }}', check_in_time: '{{ $log->check_in_at?->format('H:i') ?? '' }}', check_out_time: '{{ $log->check_out_at?->format('H:i') ?? '' }}', break_start_time: '{{ $log->break_start_at?->format('H:i') ?? '' }}', break_end_time: '{{ $log->break_end_at?->format('H:i') ?? '' }}', note: {{ json_encode($log->note ?? '') }} }"
                                 class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20">
                                 Sửa ca
                             </button>
+                            <form action="{{ route('food.cham-cong.destroy', $log) }}" method="POST" class="inline"
+                                onsubmit="return confirm('Xóa chấm công ngày {{ $log->work_date->format('d/m/Y') }}{{ $log->employee?->user?->name ? ' của '.$log->employee->user->name : '' }}?');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20">
+                                    Xóa
+                                </button>
+                            </form>
                         </div>
                     @endif
                 </article>
@@ -345,7 +353,15 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300 max-w-[220px] break-words">{{ ($dn = $displayNote($log, $empRow)) ? $dn : '—' }}</td>
                             @if($isManager)
                                 <td class="px-4 py-2">
-                                    <button type="button" @click="editOpen = true; editLog = { id: {{ $log->id }}, work_date: '{{ $log->work_date->format('Y-m-d') }}', check_in_time: '{{ $log->check_in_at?->format('H:i') ?? '' }}', check_out_time: '{{ $log->check_out_at?->format('H:i') ?? '' }}', break_start_time: '{{ $log->break_start_at?->format('H:i') ?? '' }}', break_end_time: '{{ $log->break_end_at?->format('H:i') ?? '' }}', note: {{ json_encode($log->note ?? '') }} }" class="text-brand-600 hover:underline dark:text-brand-400 text-sm">Sửa</button>
+                                    <div class="flex items-center gap-3">
+                                        <button type="button" @click="editOpen = true; editLog = { id: {{ $log->id }}, work_date: '{{ $log->work_date->format('Y-m-d') }}', check_in_time: '{{ $log->check_in_at?->format('H:i') ?? '' }}', check_out_time: '{{ $log->check_out_at?->format('H:i') ?? '' }}', break_start_time: '{{ $log->break_start_at?->format('H:i') ?? '' }}', break_end_time: '{{ $log->break_end_at?->format('H:i') ?? '' }}', note: {{ json_encode($log->note ?? '') }} }" class="text-brand-600 hover:underline dark:text-brand-400 text-sm">Sửa</button>
+                                        <form action="{{ route('food.cham-cong.destroy', $log) }}" method="POST" class="inline"
+                                            onsubmit="return confirm('Xóa chấm công ngày {{ $log->work_date->format('d/m/Y') }}{{ $log->employee?->user?->name ? ' của '.$log->employee->user->name : '' }}?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-sm text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                                        </form>
+                                    </div>
                                 </td>
                             @endif
                         </tr>
@@ -403,6 +419,14 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                                 <button type="submit" class="flex-1 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-700">Lưu</button>
                                 <button type="button" @click="editOpen = false" class="rounded-xl border border-gray-300 px-4 py-3 text-sm font-medium dark:border-gray-600 dark:text-gray-300">Hủy</button>
                             </div>
+                        </form>
+                    </template>
+                    <template x-if="editLog">
+                        <form :action="'{{ url('/food/cham-cong') }}/' + editLog.id" method="POST" class="mt-3"
+                            @submit="if (!confirm('Xóa bản ghi chấm công này?')) { $event.preventDefault() }">
+                            @csrf
+                            @method('DELETE')
+                            <button type="submit" class="w-full rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/20">Xóa bản ghi này</button>
                         </form>
                     </template>
                 </div>

@@ -231,6 +231,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/food/cham-cong', [\App\Http\Controllers\Food\ChamCongController::class, 'store'])->name('food.cham-cong.store');
             Route::post('/food/cham-cong/manual', [\App\Http\Controllers\Food\ChamCongController::class, 'storeManual'])->name('food.cham-cong.store-manual');
             Route::put('/food/cham-cong/{log}', [\App\Http\Controllers\Food\ChamCongController::class, 'update'])->name('food.cham-cong.update');
+            Route::delete('/food/cham-cong/{log}', [\App\Http\Controllers\Food\ChamCongController::class, 'destroy'])->name('food.cham-cong.destroy');
             Route::get('/food/luong-cua-toi', [\App\Http\Controllers\Food\PayrollController::class, 'myPayroll'])->name('food.luong-cua-toi');
             Route::get('/food/xin-nghi', [\App\Http\Controllers\Food\LeaveRequestController::class, 'index'])->name('food.xin-nghi');
             Route::post('/food/xin-nghi', [\App\Http\Controllers\Food\LeaveRequestController::class, 'store'])->name('food.xin-nghi.store');

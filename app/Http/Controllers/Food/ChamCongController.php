@@ -212,6 +212,29 @@ class ChamCongController extends Controller
         ]))->with('success', 'Đã cập nhật chấm công.');
     }
 
+    public function destroy(Request $request, AttendanceLog $log): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->canManageFoodChamCong()) {
+            abort(403, 'Chỉ quản lý mới được xóa chấm công.');
+        }
+
+        $employeeId = $log->employee_id;
+        $month = $log->work_date
+            ? Carbon::parse($log->work_date)->format('Y-m')
+            : now()->format('Y-m');
+        $workLabel = $log->work_date
+            ? Carbon::parse($log->work_date)->format('d/m/Y')
+            : '';
+
+        $log->delete();
+
+        return redirect()->route('food.cham-cong', array_filter([
+            'employee_id' => $employeeId,
+            'month' => $month,
+        ]))->with('success', 'Đã xóa chấm công'.($workLabel !== '' ? ' ngày '.$workLabel : '').'.');
+    }
+
     public function storeManual(Request $request): RedirectResponse
     {
         $user = $request->user();
