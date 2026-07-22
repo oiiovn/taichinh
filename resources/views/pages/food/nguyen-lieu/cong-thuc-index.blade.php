@@ -40,10 +40,19 @@
 
     <div class="space-y-2 md:hidden">
         @forelse($templates as $tpl)
-            <a href="{{ route('food.cong-thuc.show', $tpl) }}" class="block rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-                <h3 class="text-sm font-semibold text-gray-950 dark:text-white">{{ $tpl->name }}</h3>
-                <p class="mt-1 text-xs text-gray-500">{{ $tpl->items_count }} NL · {{ $tpl->products_count }} sản phẩm</p>
-            </a>
+            <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                <a href="{{ route('food.cong-thuc.show', $tpl) }}" class="block">
+                    <h3 class="text-sm font-semibold text-gray-950 dark:text-white">{{ $tpl->name }}</h3>
+                    <p class="mt-1 text-xs text-gray-500">{{ $tpl->items_count }} NL · {{ $tpl->products_count }} sản phẩm</p>
+                </a>
+                <div class="mt-2 flex gap-3 border-t border-gray-100 pt-2 dark:border-gray-800">
+                    <a href="{{ route('food.cong-thuc.show', $tpl) }}" class="text-xs font-medium text-brand-600 dark:text-brand-400">Mở</a>
+                    <form action="{{ route('food.cong-thuc.duplicate', $tpl) }}" method="post">
+                        @csrf
+                        <button type="submit" class="text-xs font-medium text-gray-700 dark:text-gray-300">Sao chép</button>
+                    </form>
+                </div>
+            </div>
         @empty
             <div class="rounded-xl border border-dashed border-gray-300 px-3 py-8 text-center text-sm text-gray-500 dark:border-gray-700">Chưa có công thức. Tạo mới rồi gán nhiều món.</div>
         @endforelse
@@ -66,7 +75,11 @@
                         <td class="px-3 py-2 tabular-nums">{{ $tpl->items_count }}</td>
                         <td class="px-3 py-2 tabular-nums">{{ $tpl->products_count }}</td>
                         <td class="px-3 py-2">
-                            <a href="{{ route('food.cong-thuc.show', $tpl) }}" class="text-brand-600 hover:underline dark:text-brand-400">Mở</a>
+                            <a href="{{ route('food.cong-thuc.show', $tpl) }}" class="mr-3 text-brand-600 hover:underline dark:text-brand-400">Mở</a>
+                            <form action="{{ route('food.cong-thuc.duplicate', $tpl) }}" method="post" class="inline">
+                                @csrf
+                                <button type="submit" class="text-gray-600 hover:underline dark:text-gray-300">Sao chép</button>
+                            </form>
                         </td>
                     </tr>
                 @empty

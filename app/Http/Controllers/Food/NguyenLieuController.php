@@ -550,6 +550,38 @@ class NguyenLieuController extends Controller
         return redirect()->route('food.cong-thuc')->with('success', 'Đã xóa công thức.');
     }
 
+    public function congThucDuplicate(Request $request, FoodRecipeTemplate $congThuc): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user || (int) $congThuc->user_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        $congThuc->load('items');
+
+        $copy = DB::transaction(function () use ($user, $congThuc) {
+            $copy = FoodRecipeTemplate::query()->create([
+                'user_id' => $user->id,
+                'name' => $congThuc->name.' (bản sao)',
+                'note' => $congThuc->note,
+            ]);
+
+            foreach ($congThuc->items as $item) {
+                FoodRecipeTemplateItem::query()->create([
+                    'food_recipe_template_id' => $copy->id,
+                    'food_material_id' => $item->food_material_id,
+                    'qty_per_unit' => $item->qty_per_unit,
+                ]);
+            }
+
+            return $copy;
+        });
+
+        return redirect()
+            ->route('food.cong-thuc.show', $copy)
+            ->with('success', 'Đã sao chép công thức. Đổi tên / sửa định lượng rồi gán sản phẩm.');
+    }
+
     public function congThucStoreItem(Request $request, FoodRecipeTemplate $congThuc): RedirectResponse
     {
         $user = $request->user();

@@ -311,6 +311,7 @@ Route::middleware('auth')->group(function () {
 
             Route::get('/food/cong-thuc', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucIndex'])->name('food.cong-thuc');
             Route::post('/food/cong-thuc', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucStore'])->name('food.cong-thuc.store');
+            Route::post('/food/cong-thuc/{congThuc}/duplicate', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucDuplicate'])->name('food.cong-thuc.duplicate');
             Route::get('/food/cong-thuc/{congThuc}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucShow'])->name('food.cong-thuc.show');
             Route::put('/food/cong-thuc/{congThuc}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucUpdate'])->name('food.cong-thuc.update');
             Route::delete('/food/cong-thuc/{congThuc}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucDestroy'])->name('food.cong-thuc.destroy');

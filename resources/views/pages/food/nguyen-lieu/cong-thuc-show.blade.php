@@ -12,7 +12,13 @@
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ $template->name }}</h2>
             <p class="text-sm text-gray-500">Định lượng dùng chung · gán nhiều sản phẩm</p>
         </div>
-        <a href="{{ route('food.cong-thuc') }}" class="rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">← Danh sách CT</a>
+        <div class="flex flex-wrap gap-2">
+            <a href="{{ route('food.cong-thuc') }}" class="rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">← Danh sách CT</a>
+            <form action="{{ route('food.cong-thuc.duplicate', $template) }}" method="post">
+                @csrf
+                <button type="submit" class="rounded-lg border border-brand-200 bg-brand-50 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-900/30 dark:text-brand-300">Sao chép</button>
+            </form>
+        </div>
     </div>
 
     @if(session('success'))
