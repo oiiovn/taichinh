@@ -120,12 +120,17 @@
                 'ml-0': $store.sidebar.isMobileOpen
             }">
             <!-- app header start — Food mobile dùng app bar riêng -->
-            <div class="{{ request()->is('food*') ? 'hidden xl:block' : '' }}">
+            <div class="{{ request()->is('food', 'food/*') ? 'hidden xl:block' : '' }}">
                 @include('layouts.app-header')
             </div>
             <!-- app header end -->
             <div class="flex min-h-0 min-w-0 flex-1 flex-col @yield('contentWrapperClass', 'p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6')">
-                <div class="min-h-0 flex-1 overflow-y-auto {{ request()->is('food*') ? 'pt-0 xl:pt-16' : 'pt-16' }}">
+                {{-- Food mobile: pt-0 (có spacer app bar). Food desktop / trang khác: pt-20 tránh bị header cố định che. Class viết tĩnh để Tailwind giữ utility. --}}
+                <div @class([
+                    'min-h-0 flex-1 overflow-y-auto',
+                    'pt-20 max-xl:pt-0' => request()->is('food', 'food/*'),
+                    'pt-16' => ! request()->is('food', 'food/*'),
+                ])>
                     @yield('content')
                 </div>
                 @include('layouts.footer')
