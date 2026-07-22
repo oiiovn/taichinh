@@ -39,8 +39,11 @@ class ChamCongController extends Controller
             $employee = $user->employee;
         }
 
-        // Nhân viên: chọn theo tháng (mặc định tháng hiện tại). Quản lý: vẫn dùng từ ngày–đến ngày.
-        if (! $isManager && ($request->filled('month') || (! $request->filled('from_date') && ! $request->filled('to_date')))) {
+        // Ưu tiên ?month=YYYY-MM (mobile). Desktop quản lý vẫn gửi from_date/to_date.
+        $useMonthFilter = $request->filled('month')
+            || (! $request->filled('from_date') && ! $request->filled('to_date'));
+
+        if ($useMonthFilter) {
             try {
                 $monthStart = $request->filled('month')
                     ? Carbon::createFromFormat('Y-m', (string) $request->input('month'))->startOfMonth()
@@ -51,8 +54,8 @@ class ChamCongController extends Controller
             $from = $monthStart->copy()->startOfDay();
             $to = $monthStart->copy()->endOfMonth();
         } else {
-            $from = $request->input('from_date') ? Carbon::parse($request->from_date)->startOfDay() : now()->startOfMonth();
-            $to = $request->input('to_date') ? Carbon::parse($request->to_date)->endOfDay() : now()->endOfDay();
+            $from = Carbon::parse($request->input('from_date'))->startOfDay();
+            $to = Carbon::parse($request->input('to_date'))->endOfDay();
         }
 
         $logs = collect();

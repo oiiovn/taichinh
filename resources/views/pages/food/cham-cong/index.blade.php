@@ -45,19 +45,11 @@ $lateInfo = function ($log, $emp) {
 
     return ['minutes' => $mins, 'penalty' => $emp->latePenaltyForMinutes($mins)];
 };
-$displayNote = function ($log, $emp) use ($lateInfo) {
+// Chỉ ghi chú tay; phạt đi trễ đã hiện riêng trên card
+$displayNote = function ($log, $emp) {
     $note = trim((string) ($log->note ?? ''));
     if ($emp) {
         $note = trim($emp->stripLatePenaltyNote($note));
-    }
-    $li = $lateInfo($log, $emp);
-    if ($emp && $li['minutes'] > 0 && $li['penalty'] > 0) {
-        $auto = $emp->formatLatePenaltyNote($li['minutes'], $li['penalty']);
-        if ($note === '') {
-            return $auto;
-        }
-
-        return $note.' | '.$auto;
     }
 
     return $note !== '' ? $note : null;
