@@ -293,6 +293,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/food/bao-cao-ban-hang', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'store'])->name('food.bao-cao-ban-hang.store');
             Route::put('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'update'])->name('food.bao-cao-ban-hang.update');
             Route::post('/food/bao-cao-ban-hang/{id}/cong-no', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'storeCongNo'])->name('food.bao-cao-ban-hang.cong-no.store');
+            Route::post('/food/bao-cao-ban-hang/{id}/tieu-hao-nl', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'applyMaterialConsumption'])->name('food.bao-cao-ban-hang.tieu-hao');
             Route::delete('/food/bao-cao-ban-hang/{id}', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'destroy'])->name('food.bao-cao-ban-hang.destroy');
             Route::put('/food/bao-cao-ban-hang/{id}/doanh-so', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'updateDoanhSo'])->name('food.bao-cao-ban-hang.update-doanh-so');
         });
@@ -303,6 +304,28 @@ Route::middleware('auth')->group(function () {
             Route::put('/food/san-pham/{id}', [\App\Http\Controllers\Food\SanPhamController::class, 'update'])->name('food.san-pham.update');
             Route::post('/food/san-pham/bulk-gia-von', [\App\Http\Controllers\Food\SanPhamController::class, 'bulkGiaVon'])->name('food.san-pham.bulk-gia-von');
             Route::delete('/food/san-pham/{id}', [\App\Http\Controllers\Food\SanPhamController::class, 'destroy'])->name('food.san-pham.destroy');
+            Route::get('/food/san-pham/{id}/cong-thuc', [\App\Http\Controllers\Food\NguyenLieuController::class, 'productRecipe'])->name('food.san-pham.cong-thuc');
+            Route::post('/food/san-pham/{id}/cong-thuc', [\App\Http\Controllers\Food\NguyenLieuController::class, 'assignProductTemplate'])->name('food.san-pham.cong-thuc.assign');
+            Route::post('/food/san-pham/{id}/cong-thuc/legacy', [\App\Http\Controllers\Food\NguyenLieuController::class, 'storeProductRecipe'])->name('food.san-pham.cong-thuc.store');
+            Route::delete('/food/san-pham/{id}/cong-thuc/{recipe}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'destroyProductRecipe'])->name('food.san-pham.cong-thuc.destroy');
+
+            Route::get('/food/cong-thuc', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucIndex'])->name('food.cong-thuc');
+            Route::post('/food/cong-thuc', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucStore'])->name('food.cong-thuc.store');
+            Route::get('/food/cong-thuc/{congThuc}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucShow'])->name('food.cong-thuc.show');
+            Route::put('/food/cong-thuc/{congThuc}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucUpdate'])->name('food.cong-thuc.update');
+            Route::delete('/food/cong-thuc/{congThuc}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucDestroy'])->name('food.cong-thuc.destroy');
+            Route::post('/food/cong-thuc/{congThuc}/items', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucStoreItem'])->name('food.cong-thuc.items.store');
+            Route::delete('/food/cong-thuc/{congThuc}/items/{item}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucDestroyItem'])->name('food.cong-thuc.items.destroy');
+            Route::post('/food/cong-thuc/{congThuc}/products', [\App\Http\Controllers\Food\NguyenLieuController::class, 'congThucSyncProducts'])->name('food.cong-thuc.products.sync');
+
+            Route::get('/food/nguyen-lieu', [\App\Http\Controllers\Food\NguyenLieuController::class, 'index'])->name('food.nguyen-lieu');
+            Route::get('/food/nguyen-lieu/dat-hang', [\App\Http\Controllers\Food\NguyenLieuController::class, 'datHang'])->name('food.nguyen-lieu.dat-hang');
+            Route::post('/food/nguyen-lieu', [\App\Http\Controllers\Food\NguyenLieuController::class, 'store'])->name('food.nguyen-lieu.store');
+            Route::put('/food/nguyen-lieu/{nguyenLieu}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'update'])->name('food.nguyen-lieu.update');
+            Route::delete('/food/nguyen-lieu/{nguyenLieu}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'destroy'])->name('food.nguyen-lieu.destroy');
+            Route::post('/food/nguyen-lieu/{nguyenLieu}/nhap', [\App\Http\Controllers\Food\NguyenLieuController::class, 'stockIn'])->name('food.nguyen-lieu.stock-in');
+            Route::post('/food/nguyen-lieu/{nguyenLieu}/xuat', [\App\Http\Controllers\Food\NguyenLieuController::class, 'stockOut'])->name('food.nguyen-lieu.stock-out');
+            Route::post('/food/nguyen-lieu/{nguyenLieu}/dieu-chinh', [\App\Http\Controllers\Food\NguyenLieuController::class, 'stockAdjust'])->name('food.nguyen-lieu.stock-adjust');
         });
     });
 

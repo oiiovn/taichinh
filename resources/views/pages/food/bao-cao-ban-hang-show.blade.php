@@ -11,6 +11,12 @@
     $baseTienCong = $displayTienCong + $displayBonus;
 @endphp
 <div class="space-y-6">
+    @if(session('success'))
+        <div class="rounded-xl border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-200">{{ session('success') }}</div>
+    @endif
+    @if(session('error'))
+        <div class="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-900/30 dark:text-red-200">{{ session('error') }}</div>
+    @endif
     {{-- Header báo cáo --}}
     <div class="flex flex-wrap items-start justify-between gap-4 rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
         <div>
@@ -182,6 +188,88 @@
             </ul>
         </div>
     @endif
+
+    {{-- Tiêu hao nguyên liệu theo công thức × SL bán --}}
+    @php
+        $mc = $materialConsumption ?? ['rows' => [], 'missing_products' => [], 'no_recipe' => [], 'applied' => false];
+        $fmtQty = fn ($n) => rtrim(rtrim(number_format((float) $n, 4, '.', ','), '0'), '.');
+    @endphp
+    <div class="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+        <div class="mb-3 flex flex-wrap items-start justify-between gap-2">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Tiêu hao nguyên liệu / bao bì</h3>
+                <p class="mt-0.5 text-xs text-gray-500">
+                    Ước tính = SL bán × công thức; trừ vào kho chi nhánh của báo cáo.
+                    @if(! $report->food_branch_id)
+                        <span class="font-medium text-red-600 dark:text-red-400">BC chưa có chi nhánh — chọn CN phía trên rồi trừ tồn.</span>
+                    @elseif($mc['applied'])
+                        <span class="font-medium text-emerald-600 dark:text-emerald-400">Đã trừ vào tồn kho CN.</span>
+                    @else
+                        <span class="font-medium text-amber-600 dark:text-amber-400">Chưa trừ tồn — bấm nút bên cạnh.</span>
+                    @endif
+                </p>
+            </div>
+            @if(($canManage ?? true) && $report->food_branch_id)
+                <form action="{{ route('food.bao-cao-ban-hang.tieu-hao', $report) }}" method="post" onsubmit="return confirm('{{ $mc['applied'] ? 'Tính lại và trừ lại tồn CN theo công thức hiện tại?' : 'Trừ tồn NL kho chi nhánh theo công thức × SL bán?' }}');">
+                    @csrf
+                    <button type="submit" class="rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white hover:bg-brand-700">
+                        {{ $mc['applied'] ? 'Tính lại tiêu hao' : 'Trừ tồn theo công thức' }}
+                    </button>
+                </form>
+            @endif
+        </div>
+
+        @if(count($mc['rows']) > 0)
+            <div class="overflow-x-auto rounded-lg border border-gray-100 dark:border-gray-700">
+                <table class="w-full min-w-[480px] text-left text-sm">
+                    <thead class="border-b border-gray-100 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50">
+                        <tr>
+                            <th class="px-3 py-2 font-medium text-gray-600 dark:text-gray-300">Nguyên liệu</th>
+                            <th class="px-3 py-2 font-medium text-gray-600 dark:text-gray-300">Hao hụt</th>
+                            <th class="px-3 py-2 font-medium text-gray-600 dark:text-gray-300">Từ món</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($mc['rows'] as $row)
+                            <tr class="border-b border-gray-50 dark:border-gray-800">
+                                <td class="px-3 py-2 font-medium text-gray-900 dark:text-white">
+                                    {{ $row['material']->name }}
+                                    <span class="text-xs font-normal text-gray-500">{{ $row['material']->unit }}</span>
+                                </td>
+                                <td class="px-3 py-2 tabular-nums font-semibold text-orange-700 dark:text-orange-300">−{{ $fmtQty($row['qty']) }}</td>
+                                <td class="px-3 py-2 text-xs text-gray-500">
+                                    @foreach($row['via'] as $ma => $q)
+                                        <span class="mr-2">{{ $ma }} ({{ $fmtQty($q) }})</span>
+                                    @endforeach
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <p class="rounded-lg bg-gray-50 px-3 py-3 text-sm text-gray-600 dark:bg-gray-900/40 dark:text-gray-400">
+                Chưa tính được hao hụt. Gán công thức cho các món đã bán (menu <a href="{{ route('food.cong-thuc') }}" class="text-brand-600 hover:underline">Công thức</a>), rồi bấm «Trừ tồn theo công thức».
+            </p>
+        @endif
+
+        @if(count($mc['no_recipe']) > 0 || count($mc['missing_products']) > 0)
+            <div class="mt-3 space-y-2 text-xs text-amber-800 dark:text-amber-200">
+                @if(count($mc['no_recipe']) > 0)
+                    <p>
+                        <span class="font-semibold">{{ count($mc['no_recipe']) }} mã bán nhưng chưa gắn công thức:</span>
+                        {{ collect($mc['no_recipe'])->take(12)->map(fn ($x) => $x['ma_hang'])->implode(', ') }}{{ count($mc['no_recipe']) > 12 ? '…' : '' }}
+                    </p>
+                @endif
+                @if(count($mc['missing_products']) > 0)
+                    <p>
+                        <span class="font-semibold">{{ count($mc['missing_products']) }} mã không có trong Sản phẩm:</span>
+                        {{ collect($mc['missing_products'])->take(12)->map(fn ($x) => $x['ma_hang'])->implode(', ') }}{{ count($mc['missing_products']) > 12 ? '…' : '' }}
+                    </p>
+                @endif
+            </div>
+        @endif
+    </div>
 
     {{-- Từng đơn hàng --}}
     @foreach($orders as $order)

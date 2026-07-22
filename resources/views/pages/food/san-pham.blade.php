@@ -62,7 +62,10 @@
                         <td class="px-4 py-2"><input type="text" :value="p.ten_hang" @blur="updateField(p, 'ten_hang', $event.target.value)" class="w-full min-w-[120px] rounded border border-transparent bg-transparent px-1 py-0.5 focus:border-brand-500 focus:bg-white focus:outline-none dark:focus:bg-gray-800"></td>
                         <td class="px-4 py-2"><input type="text" :value="formatGiaVon(p.gia_von)" inputmode="decimal" @blur="updateField(p, 'gia_von', parseGiaVon($event.target.value))" class="w-28 rounded border border-transparent bg-transparent px-1 py-0.5 text-right focus:border-brand-500 focus:bg-white focus:outline-none dark:focus:bg-gray-800"><span class="ml-0.5 text-gray-500">đ</span></td>
                         <td class="px-4 py-2"><input type="checkbox" :checked="p.is_combo" @change="updateField(p, 'is_combo', $event.target.checked)" class="rounded border-gray-300"></td>
-                        <td class="px-4 py-2"><button type="button" @click="deleteProduct(p)" class="text-red-600 hover:underline dark:text-red-400">Xóa</button></td>
+                        <td class="px-4 py-2">
+                            <a :href="'{{ url('/food/san-pham') }}/' + p.id + '/cong-thuc'" class="mr-2 text-brand-600 hover:underline dark:text-brand-400">Công thức</a>
+                            <button type="button" @click="deleteProduct(p)" class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                        </td>
                     </tr>
                 </template>
                 <tr x-show="filteredProducts.length === 0">

@@ -6,15 +6,14 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class FoodBranch extends Model
+class FoodRecipeTemplate extends Model
 {
-    protected $table = 'food_branches';
+    protected $table = 'food_recipe_templates';
 
     protected $fillable = [
         'user_id',
         'name',
-        'address',
-        'branch_link',
+        'note',
     ];
 
     public function user(): BelongsTo
@@ -22,13 +21,13 @@ class FoodBranch extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function salesReports(): HasMany
+    public function items(): HasMany
     {
-        return $this->hasMany(FoodSalesReport::class, 'food_branch_id');
+        return $this->hasMany(FoodRecipeTemplateItem::class, 'food_recipe_template_id');
     }
 
-    public function materialStocks(): HasMany
+    public function products(): HasMany
     {
-        return $this->hasMany(FoodMaterialStock::class, 'food_branch_id');
+        return $this->hasMany(FoodProduct::class, 'food_recipe_template_id');
     }
 }

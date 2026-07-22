@@ -11,6 +11,7 @@ use App\Models\FoodReportBonusTier;
 use App\Models\FoodReportDebt;
 use App\Models\FoodSalesReport;
 use App\Models\User;
+use App\Services\Food\MaterialConsumptionService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -218,7 +219,23 @@ class BaoCaoBanHangController extends Controller
             $report->items()->create($row);
         }
 
-        return redirect()->route('food.bao-cao-ban-hang.show', $report)->with('success', 'Đã tạo báo cáo '.$nextCode);
+        $consumeMsg = '';
+        try {
+            if (! $report->food_branch_id) {
+                $consumeMsg = ' Chưa trừ NL: báo cáo chưa chọn chi nhánh.';
+            } else {
+                $applied = app(MaterialConsumptionService::class)->applyReportConsumption($report);
+                if ($applied['applied_rows'] > 0) {
+                    $consumeMsg = ' Đã trừ '.$applied['applied_rows'].' NL/bao bì kho chi nhánh theo công thức.';
+                } elseif ($applied['no_recipe'] > 0 || $applied['missing_products'] > 0) {
+                    $consumeMsg = ' Chưa trừ NL: còn món thiếu công thức hoặc chưa có trong Sản phẩm.';
+                }
+            }
+        } catch (\Throwable $e) {
+            $consumeMsg = ' (Không trừ được NL: '.$e->getMessage().')';
+        }
+
+        return redirect()->route('food.bao-cao-ban-hang.show', $report)->with('success', 'Đã tạo báo cáo '.$nextCode.$consumeMsg);
     }
 
     public function show(Request $request, int $id): View|RedirectResponse
@@ -303,6 +320,8 @@ class BaoCaoBanHangController extends Controller
             ? FoodBranch::query()->where('user_id', $report->user_id)->orderBy('name')->get()
             : collect();
 
+        $materialConsumption = app(MaterialConsumptionService::class)->breakdownForReport($report);
+
         return view('pages.food.bao-cao-ban-hang-show', [
             'title' => 'Chi tiết báo cáo '.$report->report_code,
             'report' => $report,
@@ -312,7 +331,52 @@ class BaoCaoBanHangController extends Controller
             'users' => $users,
             'canManage' => $canManage,
             'branches' => $branches,
+            'materialConsumption' => $materialConsumption,
         ]);
+    }
+
+    public function applyMaterialConsumption(Request $request, int $id): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+
+        $report = FoodSalesReport::query()->where('user_id', $user->id)->find($id);
+        if (! $report) {
+            return redirect()->route('food.bao-cao-ban-hang')->with('error', 'Không tìm thấy báo cáo.');
+        }
+
+        if (! $report->food_branch_id) {
+            return redirect()
+                ->route('food.bao-cao-ban-hang.show', $report)
+                ->with('error', 'Chọn chi nhánh cho báo cáo trước khi trừ tồn NL.');
+        }
+
+        try {
+            $result = app(MaterialConsumptionService::class)->applyReportConsumption($report);
+        } catch (\Throwable $e) {
+            return redirect()
+                ->route('food.bao-cao-ban-hang.show', $report)
+                ->with('error', $e->getMessage());
+        }
+
+        $parts = [];
+        if ($result['applied_rows'] > 0) {
+            $parts[] = 'Đã trừ '.$result['applied_rows'].' NL/bao bì kho chi nhánh theo công thức × SL bán';
+        } else {
+            $parts[] = 'Không có NL nào được trừ';
+        }
+        if ($result['no_recipe'] > 0) {
+            $parts[] = $result['no_recipe'].' mã thiếu công thức';
+        }
+        if ($result['missing_products'] > 0) {
+            $parts[] = $result['missing_products'].' mã chưa có trong Sản phẩm';
+        }
+
+        return redirect()
+            ->route('food.bao-cao-ban-hang.show', $report)
+            ->with('success', implode('. ', $parts).'.');
     }
 
     public function destroy(Request $request, int $id): RedirectResponse
@@ -327,6 +391,7 @@ class BaoCaoBanHangController extends Controller
             return redirect()->route('food.bao-cao-ban-hang')->with('error', 'Không tìm thấy báo cáo.');
         }
 
+        app(MaterialConsumptionService::class)->reverseReportConsumption($report);
         $report->delete();
 
         return redirect()->route('food.bao-cao-ban-hang')->with('success', 'Đã xóa báo cáo '.$report->report_code);

@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Food;
 
 use App\Http\Controllers\Controller;
 use App\Models\FoodBranch;
+use App\Models\FoodMaterial;
+use App\Models\FoodMaterialStock;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
@@ -47,12 +49,17 @@ class FoodChiNhanhController extends Controller
             'branch_link' => ['nullable', 'url', 'max:500'],
         ]);
 
-        FoodBranch::query()->create([
+        $branch = FoodBranch::query()->create([
             'user_id' => $user->id,
             'name' => $validated['name'],
             'address' => $validated['address'] ?? null,
             'branch_link' => $validated['branch_link'] ?? null,
         ]);
+
+        $materialIds = FoodMaterial::query()->where('user_id', $user->id)->pluck('id');
+        foreach ($materialIds as $mid) {
+            FoodMaterialStock::forMaterialBranch((int) $mid, (int) $branch->id);
+        }
 
         return redirect()->route('food.chi-nhanh')->with('success', 'Đã thêm chi nhánh.');
     }
