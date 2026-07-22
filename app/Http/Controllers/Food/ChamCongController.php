@@ -176,6 +176,20 @@ class ChamCongController extends Controller
         $workDate = Carbon::parse($validated['work_date'])->startOfDay();
         $timePattern = '/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/';
 
+        $duplicate = AttendanceLog::query()
+            ->where('employee_id', $log->employee_id)
+            ->whereDate('work_date', $workDate->toDateString())
+            ->where('id', '!=', $log->id)
+            ->exists();
+        if ($duplicate) {
+            return redirect()
+                ->route('food.cham-cong', array_filter([
+                    'employee_id' => $log->employee_id,
+                    'month' => $workDate->format('Y-m'),
+                ]))
+                ->with('error', 'Nhân viên đã có chấm công ngày '.$workDate->format('d/m/Y').'. Không thể đổi sang ngày trùng.');
+        }
+
         $log->work_date = $workDate;
         $t = trim($validated['check_in_time'] ?? '');
         $log->check_in_at = ($t !== '' && preg_match($timePattern, $t)) ? Carbon::parse($workDate->format('Y-m-d').' '.$t) : null;
@@ -192,15 +206,10 @@ class ChamCongController extends Controller
             $log->employee->applyLatePenaltyNote($log);
         }
 
-        $employeeId = $log->employee_id;
-        $from = $workDate->format('Y-m-d');
-        $to = $workDate->format('Y-m-d');
-
-        return redirect()->route('food.cham-cong', [
-            'employee_id' => $employeeId,
-            'from_date' => $from,
-            'to_date' => $to,
-        ])->with('success', 'Đã cập nhật chấm công.');
+        return redirect()->route('food.cham-cong', array_filter([
+            'employee_id' => $log->employee_id,
+            'month' => $workDate->format('Y-m'),
+        ]))->with('success', 'Đã cập nhật chấm công.');
     }
 
     public function storeManual(Request $request): RedirectResponse

@@ -45,7 +45,7 @@ $lateInfo = function ($log, $emp) {
 
     return ['minutes' => $mins, 'penalty' => $emp->latePenaltyForMinutes($mins)];
 };
-// Chỉ ghi chú tay; phạt đi trễ đã hiện riêng trên card
+// Ghi chú tay thôi (phạt đi trễ hiện riêng trên card)
 $displayNote = function ($log, $emp) {
     $note = trim((string) ($log->note ?? ''));
     if ($emp) {
