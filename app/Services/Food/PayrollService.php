@@ -74,7 +74,7 @@ class PayrollService
                 $grossSalary += $r['rate'];
             }
 
-            $lateMins = $employee->lateMinutesForCheckIn($log->check_in_at);
+            $lateMins = $employee->lateMinutesForCheckIn($log->check_in_at, $wd);
             $lateMinutesTotal += $lateMins;
             $latePenalty += $employee->latePenaltyForMinutes($lateMins);
         }

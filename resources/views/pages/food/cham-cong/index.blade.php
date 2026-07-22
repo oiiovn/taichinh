@@ -31,7 +31,7 @@ $dailySalary = function ($log, $emp) {
     }
     $penalty = 0;
     if ($emp->usesLatePenalty()) {
-        $lateMins = $emp->lateMinutesForCheckIn($log->check_in_at);
+        $lateMins = $emp->lateMinutesForCheckIn($log->check_in_at, $log->work_date);
         $penalty = $emp->latePenaltyForMinutes($lateMins);
     }
 
@@ -41,21 +41,23 @@ $lateInfo = function ($log, $emp) {
     if (! $emp || ! $emp->usesLatePenalty()) {
         return ['minutes' => 0, 'penalty' => 0];
     }
-    $mins = $emp->lateMinutesForCheckIn($log->check_in_at);
+    $mins = $emp->lateMinutesForCheckIn($log->check_in_at, $log->work_date);
 
     return ['minutes' => $mins, 'penalty' => $emp->latePenaltyForMinutes($mins)];
 };
 $displayNote = function ($log, $emp) use ($lateInfo) {
     $note = trim((string) ($log->note ?? ''));
+    if ($emp) {
+        $note = trim($emp->stripLatePenaltyNote($note));
+    }
     $li = $lateInfo($log, $emp);
     if ($emp && $li['minutes'] > 0 && $li['penalty'] > 0) {
         $auto = $emp->formatLatePenaltyNote($li['minutes'], $li['penalty']);
         if ($note === '') {
             return $auto;
         }
-        if (! str_contains($note, 'Đi trễ')) {
-            return $note.' | '.$auto;
-        }
+
+        return $note.' | '.$auto;
     }
 
     return $note !== '' ? $note : null;

@@ -48,6 +48,9 @@ class Employee extends Model
 
     public const LATE_PENALTY_AFTER_RATE = 5000;
 
+    /** Áp dụng phạt đi trễ từ ngày này trở đi (inclusive). */
+    public const LATE_PENALTY_EFFECTIVE_FROM = '2026-07-20';
+
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -149,9 +152,30 @@ class Employee extends Model
         }
     }
 
-    public function lateMinutesForCheckIn(?Carbon $checkInAt): int
+    public static function latePenaltyEffectiveFrom(): Carbon
+    {
+        return Carbon::parse(self::LATE_PENALTY_EFFECTIVE_FROM)->startOfDay();
+    }
+
+    /** Ngày công / check-in trước ngày hiệu lực thì không phạt. */
+    public function latePenaltyAppliesOn(?Carbon $date): bool
+    {
+        if (! $date) {
+            return false;
+        }
+
+        return $date->copy()->startOfDay()->gte(self::latePenaltyEffectiveFrom());
+    }
+
+    public function lateMinutesForCheckIn(?Carbon $checkInAt, Carbon|string|null $workDate = null): int
     {
         if (! $this->usesLatePenalty() || ! $checkInAt) {
+            return 0;
+        }
+        $dateForRule = $workDate !== null
+            ? Carbon::parse($workDate)
+            : $checkInAt;
+        if (! $this->latePenaltyAppliesOn($dateForRule)) {
             return 0;
         }
         $startHi = $this->shiftStartTimeHi();
@@ -178,7 +202,7 @@ class Employee extends Model
 
     public function latePenaltyForLog(AttendanceLog $log): int
     {
-        return $this->latePenaltyForMinutes($this->lateMinutesForCheckIn($log->check_in_at));
+        return $this->latePenaltyForMinutes($this->lateMinutesForCheckIn($log->check_in_at, $log->work_date));
     }
 
     public function formatLatePenaltyNote(int $lateMinutes, int $penalty): string
@@ -204,14 +228,15 @@ class Employee extends Model
      * Ghép ghi chú phạt đi trễ vào note của ngày.
      * Không trễ → bỏ đoạn phạt tự động, giữ phần ghi chú tay.
      */
-    public function mergeLatePenaltyIntoNote(?string $existingNote, ?Carbon $checkInAt): ?string
+    public function mergeLatePenaltyIntoNote(?string $existingNote, ?Carbon $checkInAt, Carbon|string|null $workDate = null): ?string
     {
         $base = $this->stripLatePenaltyNote($existingNote);
-        if (! $this->usesLatePenalty() || ! $checkInAt) {
+        $dateForRule = $workDate !== null ? Carbon::parse($workDate) : $checkInAt;
+        if (! $this->usesLatePenalty() || ! $checkInAt || ! $this->latePenaltyAppliesOn($dateForRule)) {
             return $base !== '' ? $base : null;
         }
 
-        $mins = $this->lateMinutesForCheckIn($checkInAt);
+        $mins = $this->lateMinutesForCheckIn($checkInAt, $dateForRule);
         $penalty = $this->latePenaltyForMinutes($mins);
         if ($mins <= 0 || $penalty <= 0) {
             return $base !== '' ? $base : null;
@@ -225,7 +250,7 @@ class Employee extends Model
 
     public function applyLatePenaltyNote(AttendanceLog $log): void
     {
-        $log->note = $this->mergeLatePenaltyIntoNote($log->note, $log->check_in_at);
+        $log->note = $this->mergeLatePenaltyIntoNote($log->note, $log->check_in_at, $log->work_date);
         $log->save();
     }
 }
