@@ -211,9 +211,9 @@
         x-data="{ menuOpen: false }"
         @keydown.escape.window="menuOpen = false">
 
-        {{-- Mobile app top bar --}}
+        {{-- Mobile app top bar (fixed + spacer để nội dung không bị che) --}}
         @if($showFoodMenu)
-        <div class="xl:hidden sticky top-0 z-40 border-b border-gray-200/80 bg-white/90 px-4 py-2.5 backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/90">
+        <div class="xl:hidden fixed inset-x-0 top-0 z-40 border-b border-gray-200/80 bg-white/95 px-4 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-xl dark:border-gray-800 dark:bg-gray-950/95">
             <div class="flex items-center gap-2.5">
                 <button type="button"
                     @click="menuOpen = true"
@@ -229,6 +229,7 @@
                 </div>
             </div>
         </div>
+        <div class="xl:hidden h-[calc(3.75rem+env(safe-area-inset-top,0px))] shrink-0" aria-hidden="true"></div>
 
         {{-- Mobile full-screen drawer --}}
         <div class="xl:hidden fixed inset-0 z-[60]"
