@@ -123,7 +123,7 @@
             @include('layouts.app-header')
             <!-- app header end -->
             <div class="flex min-h-0 min-w-0 flex-1 flex-col @yield('contentWrapperClass', 'p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6')">
-                <div class="min-h-0 flex-1 overflow-y-auto pt-16">
+                <div class="min-h-0 flex-1 overflow-y-auto {{ request()->is('food', 'food/*') ? 'pt-0 xl:pt-16' : 'pt-16' }}">
                     @yield('content')
                 </div>
                 @include('layouts.footer')

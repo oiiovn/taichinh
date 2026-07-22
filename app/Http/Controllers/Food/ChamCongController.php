@@ -28,9 +28,6 @@ class ChamCongController extends Controller
             return redirect()->route('food')->with('error', 'Bạn chưa được cấp quyền dùng phần nhân viên.');
         }
 
-        $from = $request->input('from_date') ? Carbon::parse($request->from_date)->startOfDay() : now()->startOfMonth();
-        $to = $request->input('to_date') ? Carbon::parse($request->to_date)->endOfDay() : now()->endOfDay();
-
         $employeeId = $request->input('employee_id');
         $selectedEmployeeId = null;
         if ($isManager) {
@@ -40,6 +37,22 @@ class ChamCongController extends Controller
             $employee = $selectedEmployeeId ? Employee::find($selectedEmployeeId) : null;
         } elseif (! $employee) {
             $employee = $user->employee;
+        }
+
+        // Nhân viên: chọn theo tháng (mặc định tháng hiện tại). Quản lý: vẫn dùng từ ngày–đến ngày.
+        if (! $isManager && ($request->filled('month') || (! $request->filled('from_date') && ! $request->filled('to_date')))) {
+            try {
+                $monthStart = $request->filled('month')
+                    ? Carbon::createFromFormat('Y-m', (string) $request->input('month'))->startOfMonth()
+                    : now()->startOfMonth();
+            } catch (\Throwable) {
+                $monthStart = now()->startOfMonth();
+            }
+            $from = $monthStart->copy()->startOfDay();
+            $to = $monthStart->copy()->endOfMonth();
+        } else {
+            $from = $request->input('from_date') ? Carbon::parse($request->from_date)->startOfDay() : now()->startOfMonth();
+            $to = $request->input('to_date') ? Carbon::parse($request->to_date)->endOfDay() : now()->endOfDay();
         }
 
         $logs = collect();
@@ -76,6 +89,7 @@ class ChamCongController extends Controller
             'logs' => $logs,
             'from' => $from,
             'to' => $to,
+            'month' => $from->format('Y-m'),
             'isManager' => $isManager,
             'selectedEmployeeId' => $selectedEmployeeId,
             'currentUserIsEmployee' => (bool) $user->employee,

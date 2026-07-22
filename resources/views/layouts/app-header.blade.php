@@ -1,5 +1,9 @@
+@php
+    // Food mobile dùng app bar riêng — ẩn hàng TailAdmin (hamburger + logo + …) trên mobile
+    $isFoodMobileShell = request()->is('food', 'food/*');
+@endphp
 <header
-    class="fixed top-0 left-0 right-0 flex min-w-0 bg-white border-b border-gray-200 z-[99999] dark:border-gray-800 dark:bg-gray-900 xl:left-[90px]"
+    class="fixed top-0 left-0 right-0 min-w-0 bg-white border-b border-gray-200 z-[99999] dark:border-gray-800 dark:bg-gray-900 xl:left-[90px] {{ $isFoodMobileShell ? 'hidden xl:flex' : 'flex' }}"
     :class="{ 'xl:!left-[290px]': $store.sidebar.isExpanded || $store.sidebar.isHovered }"
     x-data="{
         isApplicationMenuOpen: false,
