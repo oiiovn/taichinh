@@ -66,23 +66,15 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
             <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{{ $from->format('d/m/Y') }} – {{ $to->format('d/m/Y') }} · {{ $logs->count() }} bản ghi</p>
         </div>
     </div>
-    @if($isManager)
-    <div class="flex items-center justify-between gap-3 md:hidden">
-        <p class="text-sm text-gray-500 dark:text-gray-400">{{ $from->format('d/m/Y') }} – {{ $to->format('d/m/Y') }} · {{ $logs->count() }} bản ghi</p>
-        @if($employeesForSelect->isNotEmpty())
-            <button type="button"
-                @click="addOpen = !addOpen"
-                class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 active:scale-[0.98]">
-                <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-                Thêm
-            </button>
-        @endif
-    </div>
-    @endif
     @if($isManager && $employeesForSelect->isNotEmpty())
-        <div class="hidden md:flex md:justify-end">
-            {{-- desktop add is always visible in form panel --}}
-        </div>
+    <div class="flex justify-end md:hidden">
+        <button type="button"
+            @click="addOpen = !addOpen"
+            class="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-brand-600 px-3.5 py-2 text-sm font-medium text-white shadow-sm transition hover:bg-brand-700 active:scale-[0.98]">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            Thêm
+        </button>
+    </div>
     @endif
 
     @if(session('success'))
@@ -96,10 +88,34 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
     @endif
 
     @if($isManager)
-        {{-- Filter card --}}
+        {{-- Filter: mobile = NV + tháng; desktop = NV + từ/đến ngày --}}
         @if($employeesForSelect->isNotEmpty() || $employee || $isManager)
         <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
-            <form action="{{ route('food.cham-cong') }}" method="get" class="space-y-2.5 md:space-y-0 md:flex md:flex-wrap md:items-end md:gap-3">
+            {{-- Mobile --}}
+            <form action="{{ route('food.cham-cong') }}" method="get" class="space-y-2.5 md:hidden">
+                @if($employeesForSelect->isNotEmpty())
+                    <div class="min-w-0">
+                        <label class="{{ $labelClass }}">Nhân viên</label>
+                        <select name="employee_id" class="{{ $inputClass }}">
+                            <option value="">Tất cả nhân viên</option>
+                            @foreach($employeesForSelect as $e)
+                                <option value="{{ $e->id }}" @selected((int) ($selectedEmployeeId ?? 0) === (int) $e->id)>{{ $e->user->name ?? $e->id }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                @elseif(!empty($selectedEmployeeId))
+                    <input type="hidden" name="employee_id" value="{{ (int) $selectedEmployeeId }}">
+                @endif
+                <div class="flex items-end gap-2">
+                    <div class="min-w-0 flex-1">
+                        <label class="{{ $labelClass }}">Tháng</label>
+                        <input type="month" name="month" value="{{ $month ?? $from->format('Y-m') }}" class="{{ $inputClass }}">
+                    </div>
+                    <button type="submit" class="shrink-0 rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white hover:bg-brand-700">Xem</button>
+                </div>
+            </form>
+            {{-- Desktop --}}
+            <form action="{{ route('food.cham-cong') }}" method="get" class="hidden space-y-0 md:flex md:flex-wrap md:items-end md:gap-3">
                 @if($employeesForSelect->isNotEmpty())
                     <div class="min-w-0 flex-1 md:max-w-xs">
                         <label class="{{ $labelClass }}">Nhân viên</label>
@@ -113,17 +129,15 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                 @elseif(!empty($selectedEmployeeId))
                     <input type="hidden" name="employee_id" value="{{ (int) $selectedEmployeeId }}">
                 @endif
-                <div class="grid grid-cols-2 gap-2 md:flex md:items-end md:gap-3">
-                    <div class="min-w-0">
-                        <label class="{{ $labelClass }}">Từ ngày</label>
-                        <input type="date" name="from_date" value="{{ $from->format('Y-m-d') }}" class="{{ $inputClass }}">
-                    </div>
-                    <div class="min-w-0">
-                        <label class="{{ $labelClass }}">Đến ngày</label>
-                        <input type="date" name="to_date" value="{{ $to->format('Y-m-d') }}" class="{{ $inputClass }}">
-                    </div>
+                <div class="min-w-0">
+                    <label class="{{ $labelClass }}">Từ ngày</label>
+                    <input type="date" name="from_date" value="{{ $from->format('Y-m-d') }}" class="{{ $inputClass }}">
                 </div>
-                <button type="submit" class="w-full rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-700 md:w-auto md:py-2">Xem</button>
+                <div class="min-w-0">
+                    <label class="{{ $labelClass }}">Đến ngày</label>
+                    <input type="date" name="to_date" value="{{ $to->format('Y-m-d') }}" class="{{ $inputClass }}">
+                </div>
+                <button type="submit" class="rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-brand-700">Xem</button>
             </form>
         </div>
         @endif
@@ -134,10 +148,7 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                 <button type="button"
                     class="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left md:hidden"
                     @click="addOpen = !addOpen">
-                    <div>
-                        <p class="text-sm font-semibold text-gray-900 dark:text-white">Thêm chấm công thủ công</p>
-                        <p class="mt-0.5 text-[11px] text-gray-500 dark:text-gray-400" x-text="addOpen ? 'Nhấn để thu gọn' : 'Nhấn để mở form'"></p>
-                    </div>
+                    <p class="text-sm font-semibold text-gray-900 dark:text-white">Thêm chấm công thủ công</p>
                     <svg class="h-4 w-4 shrink-0 text-gray-400 transition-transform" :class="addOpen && 'rotate-180'" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                 </button>
                 <div class="hidden border-b border-gray-100 px-3 py-2.5 md:block dark:border-gray-800">
@@ -269,8 +280,8 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                                 <p class="rounded-lg bg-gray-50 px-2 py-1.5 text-[11px] leading-relaxed text-gray-600 dark:bg-gray-800 dark:text-gray-300">{{ $noteText }}</p>
                             @endif
                         </div>
-                    @elseif($isOff && ! filled($noteText))
-                        <p class="px-3 pb-2.5 pt-1.5 text-xs text-gray-500 dark:text-gray-400">Ngày nghỉ / không có ca</p>
+                    @elseif($isOff)
+                        <div class="pb-2.5"></div>
                     @endif
 
                     @if($isManager)
@@ -285,8 +296,7 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                 </article>
             @empty
                 <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 px-3 py-8 text-center dark:border-gray-700 dark:bg-gray-900/50">
-                    <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Chưa có bản ghi</p>
-                    <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">Thử đổi khoảng ngày hoặc chọn nhân viên khác.</p>
+                    <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Chưa có bản ghi tháng này</p>
                 </div>
             @endforelse
         </div>
