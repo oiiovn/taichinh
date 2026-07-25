@@ -2,11 +2,20 @@
 
 namespace App\Models;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AttendanceLog extends Model
 {
+    /**
+     * Từ ngày này trở đi: giờ công tính tiền chỉ tính từ PAID_WORK_START_TIME.
+     * Check-in sớm vẫn lưu giờ thật; phút trước mốc không tính lương.
+     */
+    public const PAID_WORK_START_EFFECTIVE_FROM = '2026-07-20';
+
+    public const PAID_WORK_START_TIME = '11:30';
+
     protected $fillable = [
         'employee_id',
         'work_date',
@@ -33,34 +42,77 @@ class AttendanceLog extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public static function paidWorkStartEffectiveFrom(): Carbon
+    {
+        return Carbon::parse(self::PAID_WORK_START_EFFECTIVE_FROM)->startOfDay();
+    }
+
+    public static function paidWorkStartMinutes(): int
+    {
+        [$h, $m] = array_map('intval', explode(':', self::PAID_WORK_START_TIME));
+
+        return $h * 60 + $m;
+    }
+
+    public function paidWorkStartApplies(): bool
+    {
+        if (! $this->work_date) {
+            return false;
+        }
+
+        return Carbon::parse($this->work_date)->startOfDay()->gte(self::paidWorkStartEffectiveFrom());
+    }
+
     public function getWorkMinutesAttribute(): ?int
     {
         if (! $this->check_in_at || ! $this->check_out_at) {
             return null;
         }
+
         // Tính theo phần giờ trong ngày (trùng work_date) để tránh sai do timezone/ngày lưu khác
-        $date = $this->work_date ? \Carbon\Carbon::parse($this->work_date)->startOfDay() : null;
+        $date = $this->work_date ? Carbon::parse($this->work_date)->startOfDay() : null;
         if (! $date) {
             $total = $this->check_out_at->diffInMinutes($this->check_in_at, false);
             if ($total < 0) {
                 return null;
             }
             $total = (int) $total;
-        } else {
-            $inMinutes = $this->check_in_at->hour * 60 + $this->check_in_at->minute;
-            $outMinutes = $this->check_out_at->hour * 60 + $this->check_out_at->minute;
-            $total = $outMinutes - $inMinutes;
-            if ($total < 0) {
+            if ($this->break_start_at && $this->break_end_at) {
+                $total -= (int) $this->break_end_at->diffInMinutes($this->break_start_at, false);
+            }
+
+            return max(0, $total);
+        }
+
+        $actualIn = $this->check_in_at->hour * 60 + $this->check_in_at->minute;
+        $outMinutes = $this->check_out_at->hour * 60 + $this->check_out_at->minute;
+        $paidStartApplies = $this->paidWorkStartApplies();
+        $paidStart = self::paidWorkStartMinutes();
+        $effectiveIn = $paidStartApplies ? max($actualIn, $paidStart) : $actualIn;
+
+        $total = $outMinutes - $effectiveIn;
+        if ($total < 0) {
+            $rawSpan = $outMinutes - $actualIn;
+            if ($rawSpan < 0) {
+                // Ca qua ngày
                 $total += 24 * 60;
+            } else {
+                // Ra về trước khi bắt đầu khung tính tiền
+                return 0;
             }
         }
+
         if ($this->break_start_at && $this->break_end_at) {
-            $breakMins = $this->break_end_at->hour * 60 + $this->break_end_at->minute
-                - ($this->break_start_at->hour * 60 + $this->break_start_at->minute);
-            if ($breakMins < 0) {
-                $breakMins += 24 * 60;
+            $bStart = $this->break_start_at->hour * 60 + $this->break_start_at->minute;
+            $bEnd = $this->break_end_at->hour * 60 + $this->break_end_at->minute;
+            if ($bEnd < $bStart) {
+                $bEnd += 24 * 60;
             }
-            $total -= $breakMins;
+
+            $paidEnd = $effectiveIn + $total;
+            // Chỉ trừ nghỉ giao với khung giờ được tính tiền
+            $overlap = max(0, min($bEnd, $paidEnd) - max($bStart, $effectiveIn));
+            $total -= $overlap;
         }
 
         return max(0, (int) $total);
