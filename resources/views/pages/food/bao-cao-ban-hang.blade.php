@@ -41,6 +41,7 @@
     {{-- Form dán mẫu --}}
     <div class="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
         <p class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Dán mẫu báo cáo (copy từ sheet, dòng đầu là header)</p>
+        <p class="mb-2 text-xs text-gray-500 dark:text-gray-400">Có thể dán nhiều ngày cùng lúc — hệ thống tách thành báo cáo theo từng ngày dựa trên cột Thời gian.</p>
         <form action="{{ route('food.bao-cao-ban-hang.store') }}" method="POST">
             @csrf
             <div class="mb-3">

@@ -166,76 +166,57 @@ class BaoCaoBanHangController extends Controller
             return redirect()->route('food.bao-cao-ban-hang')->with('error', 'Không có dòng dữ liệu hợp lệ sau khi loại các đơn chứa tên hàng Quán Ship Bù.');
         }
 
-        $reportDate = null;
-        $maHoaDonSet = [];
-        foreach ($rows as $row) {
-            $maHoaDonSet[(string) $row['ma_hoa_don']] = true;
-            if (! empty($row['thoi_gian'])) {
-                $dt = $this->parseThoiGian($row['thoi_gian']);
-                if ($dt && ($reportDate === null || $dt->gt($reportDate))) {
-                    $reportDate = $dt;
+        // Gom theo ngày đơn (Thời gian): dán nhiều ngày → tạo nhiều BC, mỗi ngày 1 báo cáo như logic cũ
+        $rowsByDate = $this->groupRowsByOrderDate($rows);
+        ksort($rowsByDate);
+
+        $created = [];
+        $consumeNotes = [];
+
+        foreach ($rowsByDate as $reportDate => $dayRows) {
+            $report = $this->createSalesReportFromRows(
+                (int) $user->id,
+                $branchId,
+                $reportDate,
+                $dayRows,
+                $productPrices
+            );
+            $created[] = $report;
+
+            try {
+                if (! $report->food_branch_id) {
+                    $consumeNotes[] = $report->report_code.': chưa chọn CN';
+                } else {
+                    $applied = app(MaterialConsumptionService::class)->applyReportConsumption($report);
+                    if ($applied['applied_rows'] > 0) {
+                        $consumeNotes[] = $report->report_code.': trừ '.$applied['applied_rows'].' NL';
+                    } elseif ($applied['no_recipe'] > 0 || $applied['missing_products'] > 0) {
+                        $consumeNotes[] = $report->report_code.': thiếu CT/SP';
+                    }
                 }
+            } catch (\Throwable $e) {
+                $consumeNotes[] = $report->report_code.': lỗi trừ NL';
             }
         }
 
-        $reportDate = $reportDate ? $reportDate->toDateString() : now()->toDateString();
-        $totalOrders = count($maHoaDonSet);
+        $buffMsg = $buffCount > 0 ? ' (+'.$buffCount.' đơn Quán Ship Bù)' : '';
+        $consumeMsg = $consumeNotes !== [] ? ' '.implode('; ', $consumeNotes).'.' : '';
 
-        $orderCosts = [];
-        foreach ($rows as $row) {
-            $maHang = $row['ma_hang'] ?? '';
-            $sl = (float) ($row['sl'] ?? $row['sl_ban'] ?? 0);
-            $giaVon = $productPrices->get($maHang)?->gia_von ?? 0;
-            $lineCost = (float) $giaVon * $sl;
-            $don = $row['ma_hoa_don'];
-            $orderCosts[$don] = ($orderCosts[$don] ?? 0) + $lineCost;
+        if (count($created) === 1) {
+            $report = $created[0];
+
+            return redirect()
+                ->route('food.bao-cao-ban-hang.show', $report)
+                ->with('success', 'Đã tạo báo cáo '.$report->report_code.' ('.$report->report_date->format('d/m/Y').')'.$buffMsg.$consumeMsg);
         }
 
-        $totalCost = array_sum($orderCosts);
-        $totalTienCong = 0;
-        foreach ($orderCosts as $donCost) {
-            $totalTienCong += $donCost > self::NGUONG_VON_TIEN_CONG_CAO ? self::TIEN_CONG_CAO : self::TIEN_CONG_THAP;
-        }
+        $summary = collect($created)
+            ->map(fn (FoodSalesReport $r) => $r->report_code.' '.$r->report_date->format('d/m/Y'))
+            ->implode(', ');
 
-        $bonus = FoodReportBonusTier::getBonusForTotalCost($totalCost);
-
-        $nextCode = $this->nextReportCode($user->id);
-
-        $report = FoodSalesReport::query()->create([
-            'user_id' => $user->id,
-            'food_branch_id' => $branchId,
-            'report_code' => $nextCode,
-            'report_date' => $reportDate,
-            'total_orders' => $totalOrders,
-            'total_cost' => $totalCost,
-            'total_tien_cong' => $totalTienCong,
-            'bonus' => (int) round($bonus),
-            'uploaded_at' => now(),
-        ]);
-
-        foreach ($rows as $row) {
-            $maHang = $row['ma_hang'] ?? '';
-            $row['gia_von_unit'] = VndHelper::toStoredAmount($productPrices->get($maHang)?->gia_von ?? 0);
-            $report->items()->create($row);
-        }
-
-        $consumeMsg = '';
-        try {
-            if (! $report->food_branch_id) {
-                $consumeMsg = ' Chưa trừ NL: báo cáo chưa chọn chi nhánh.';
-            } else {
-                $applied = app(MaterialConsumptionService::class)->applyReportConsumption($report);
-                if ($applied['applied_rows'] > 0) {
-                    $consumeMsg = ' Đã trừ '.$applied['applied_rows'].' NL/bao bì kho chi nhánh theo công thức.';
-                } elseif ($applied['no_recipe'] > 0 || $applied['missing_products'] > 0) {
-                    $consumeMsg = ' Chưa trừ NL: còn món thiếu công thức hoặc chưa có trong Sản phẩm.';
-                }
-            }
-        } catch (\Throwable $e) {
-            $consumeMsg = ' (Không trừ được NL: '.$e->getMessage().')';
-        }
-
-        return redirect()->route('food.bao-cao-ban-hang.show', $report)->with('success', 'Đã tạo báo cáo '.$nextCode.$consumeMsg);
+        return redirect()
+            ->route('food.bao-cao-ban-hang')
+            ->with('success', 'Đã tạo '.count($created).' báo cáo theo ngày: '.$summary.$buffMsg.'.'.$consumeMsg);
     }
 
     public function show(Request $request, int $id): View|RedirectResponse
@@ -627,6 +608,94 @@ class BaoCaoBanHangController extends Controller
         $normalized = mb_strtolower(trim((string) preg_replace('/\s+/u', ' ', $tenHang)));
 
         return $normalized === 'quán ship bù' || $normalized === 'quan ship bu';
+    }
+
+    /**
+     * Gom dòng theo ngày đơn hàng. Mỗi hóa đơn thuộc 1 ngày (theo Thời gian muộn nhất của đơn).
+     *
+     * @param  list<array<string, mixed>>  $rows
+     * @return array<string, list<array<string, mixed>>>  key = Y-m-d
+     */
+    private function groupRowsByOrderDate(array $rows): array
+    {
+        $invoiceDate = [];
+        foreach ($rows as $row) {
+            $invoice = (string) ($row['ma_hoa_don'] ?? '');
+            if ($invoice === '') {
+                continue;
+            }
+            if (! empty($row['thoi_gian'])) {
+                $dt = $this->parseThoiGian((string) $row['thoi_gian']);
+                if ($dt) {
+                    $date = $dt->toDateString();
+                    if (! isset($invoiceDate[$invoice]) || $date > $invoiceDate[$invoice]) {
+                        $invoiceDate[$invoice] = $date;
+                    }
+                }
+            }
+        }
+
+        $fallback = now()->toDateString();
+        $grouped = [];
+        foreach ($rows as $row) {
+            $invoice = (string) ($row['ma_hoa_don'] ?? '');
+            $date = $invoiceDate[$invoice] ?? $fallback;
+            $grouped[$date][] = $row;
+        }
+
+        return $grouped;
+    }
+
+    /**
+     * @param  list<array<string, mixed>>  $rows
+     * @param  \Illuminate\Support\Collection<string, FoodProduct>  $productPrices
+     */
+    private function createSalesReportFromRows(
+        int $userId,
+        ?int $branchId,
+        string $reportDate,
+        array $rows,
+        $productPrices
+    ): FoodSalesReport {
+        $maHoaDonSet = [];
+        $orderCosts = [];
+        foreach ($rows as $row) {
+            $don = (string) ($row['ma_hoa_don'] ?? '');
+            $maHoaDonSet[$don] = true;
+            $maHang = $row['ma_hang'] ?? '';
+            $sl = (float) ($row['sl'] ?? $row['sl_ban'] ?? 0);
+            $giaVon = $productPrices->get($maHang)?->gia_von ?? 0;
+            $orderCosts[$don] = ($orderCosts[$don] ?? 0) + ((float) $giaVon * $sl);
+        }
+
+        $totalCost = array_sum($orderCosts);
+        $totalTienCong = 0;
+        foreach ($orderCosts as $donCost) {
+            $totalTienCong += $donCost > self::NGUONG_VON_TIEN_CONG_CAO ? self::TIEN_CONG_CAO : self::TIEN_CONG_THAP;
+        }
+
+        $bonus = FoodReportBonusTier::getBonusForTotalCost($totalCost);
+        $nextCode = $this->nextReportCode($userId);
+
+        $report = FoodSalesReport::query()->create([
+            'user_id' => $userId,
+            'food_branch_id' => $branchId,
+            'report_code' => $nextCode,
+            'report_date' => $reportDate,
+            'total_orders' => count($maHoaDonSet),
+            'total_cost' => $totalCost,
+            'total_tien_cong' => $totalTienCong,
+            'bonus' => (int) round($bonus),
+            'uploaded_at' => now(),
+        ]);
+
+        foreach ($rows as $row) {
+            $maHang = $row['ma_hang'] ?? '';
+            $row['gia_von_unit'] = VndHelper::toStoredAmount($productPrices->get($maHang)?->gia_von ?? 0);
+            $report->items()->create($row);
+        }
+
+        return $report;
     }
 
     private function parseThoiGian(string $s): ?Carbon
