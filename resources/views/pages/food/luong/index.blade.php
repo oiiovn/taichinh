@@ -95,7 +95,13 @@
     {{-- Mobile cards --}}
     <div class="space-y-2 md:hidden">
         @forelse($rows as $row)
-            @php $p = $row['payroll']; $emp = $row['employee']; @endphp
+            @php
+                $p = $row['payroll'];
+                $emp = $row['employee'];
+                $net = (float) ($p['net_salary'] ?? $p['gross_salary'] ?? 0);
+                $paid = (float) ($row['total_paid'] ?? 0);
+                $remaining = $net - $paid;
+            @endphp
             <article class="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <div class="flex items-start justify-between gap-2 px-3 pt-2.5">
                     <div class="min-w-0">
@@ -104,10 +110,10 @@
                     </div>
                     <div class="shrink-0 text-right">
                         <p class="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Thực nhận</p>
-                        <p class="text-sm font-semibold tabular-nums text-gray-950 dark:text-white">{{ $fmt($p['net_salary'] ?? $p['gross_salary']) }} đ</p>
+                        <p class="text-sm font-semibold tabular-nums text-gray-950 dark:text-white">{{ $fmt($net) }} đ</p>
                     </div>
                 </div>
-                <div class="mt-2 grid grid-cols-3 gap-1.5 px-3">
+                <div class="mt-2 grid grid-cols-2 gap-1.5 px-3 sm:grid-cols-4">
                     <div class="rounded-lg bg-gray-50 px-2 py-1.5 dark:bg-gray-800/80">
                         <p class="text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">Gộp</p>
                         <p class="text-xs font-semibold tabular-nums text-gray-900 dark:text-white">{{ $fmt($p['gross_salary']) }}</p>
@@ -120,7 +126,11 @@
                     </div>
                     <div class="rounded-lg bg-emerald-50/80 px-2 py-1.5 dark:bg-emerald-900/20">
                         <p class="text-[10px] font-medium uppercase tracking-wide text-emerald-700/80 dark:text-emerald-300/80">Đã trả</p>
-                        <p class="text-xs font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">{{ $fmt($row['total_paid']) }}</p>
+                        <p class="text-xs font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">{{ $fmt($paid) }}</p>
+                    </div>
+                    <div class="rounded-lg {{ $remaining > 0 ? 'bg-amber-50/80 dark:bg-amber-900/20' : 'bg-gray-50 dark:bg-gray-800/80' }} px-2 py-1.5">
+                        <p class="text-[10px] font-medium uppercase tracking-wide {{ $remaining > 0 ? 'text-amber-700/80 dark:text-amber-300/80' : 'text-gray-500 dark:text-gray-400' }}">Còn lại</p>
+                        <p class="text-xs font-semibold tabular-nums {{ $remaining > 0 ? 'text-amber-800 dark:text-amber-200' : ($remaining < 0 ? 'text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-white') }}">{{ $fmt($remaining) }}</p>
                     </div>
                 </div>
                 @if($row['payments']->isNotEmpty())
@@ -159,12 +169,19 @@
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Phạt đi trễ</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Thực nhận (ước)</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Đã trả (tháng)</th>
+                    <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Còn lại</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Chi tiết đã trả</th>
                 </tr>
             </thead>
             <tbody>
                 @forelse($rows as $row)
-                    @php $p = $row['payroll']; $emp = $row['employee']; @endphp
+                    @php
+                        $p = $row['payroll'];
+                        $emp = $row['employee'];
+                        $net = (float) ($p['net_salary'] ?? $p['gross_salary'] ?? 0);
+                        $paid = (float) ($row['total_paid'] ?? 0);
+                        $remaining = $net - $paid;
+                    @endphp
                     <tr class="border-b border-gray-100 align-top dark:border-gray-700/50">
                         <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $emp->user->name ?? '—' }}</td>
                         <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ \App\Models\Employee::salaryTypeLabels()[$p['salary_type']] ?? $p['salary_type'] }}</td>
@@ -180,8 +197,9 @@
                                 —
                             @endif
                         </td>
-                        <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $fmt($p['net_salary'] ?? $p['gross_salary']) }} đ</td>
-                        <td class="px-4 py-2 font-semibold text-green-600 dark:text-green-400">{{ $fmt($row['total_paid']) }} đ</td>
+                        <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $fmt($net) }} đ</td>
+                        <td class="px-4 py-2 font-semibold text-green-600 dark:text-green-400">{{ $fmt($paid) }} đ</td>
+                        <td class="px-4 py-2 font-semibold {{ $remaining > 0 ? 'text-amber-700 dark:text-amber-300' : ($remaining < 0 ? 'text-blue-700 dark:text-blue-300' : 'text-gray-700 dark:text-gray-300') }}">{{ $fmt($remaining) }} đ</td>
                         <td class="px-4 py-2 text-xs text-gray-600 dark:text-gray-400">
                             @forelse($row['payments'] as $pay)
                                 <div class="mb-1 rounded border border-gray-100 p-2 dark:border-gray-700">
@@ -199,7 +217,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="8" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có nhân viên.</td>
+                        <td colspan="9" class="px-4 py-6 text-center text-gray-500 dark:text-gray-400">Chưa có nhân viên.</td>
                     </tr>
                 @endforelse
             </tbody>
