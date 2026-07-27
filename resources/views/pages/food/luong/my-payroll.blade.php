@@ -5,6 +5,9 @@
     $fmt = fn ($n) => \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($n);
     $inputClass = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-brand-900/40';
     $labelClass = 'mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400';
+    $net = (float) ($payroll['net_salary'] ?? $payroll['gross_salary'] ?? 0);
+    $paid = (float) ($totalPaid ?? 0);
+    $remaining = $net - $paid;
 @endphp
 <div class="space-y-3 md:space-y-6">
     <h2 class="hidden text-lg font-semibold text-gray-900 dark:text-white md:block">Lương của tôi</h2>
@@ -65,11 +68,15 @@
             </div>
             <div class="rounded-lg bg-brand-50/80 px-2.5 py-1.5 dark:bg-brand-900/20">
                 <dt class="text-[10px] font-medium uppercase tracking-wide text-brand-700/80 dark:text-brand-300/80">Thực nhận</dt>
-                <dd class="text-sm font-semibold tabular-nums text-brand-700 dark:text-brand-300">{{ $fmt($payroll['net_salary'] ?? $payroll['gross_salary']) }} đ</dd>
+                <dd class="text-sm font-semibold tabular-nums text-brand-700 dark:text-brand-300">{{ $fmt($net) }} đ</dd>
             </div>
             <div class="rounded-lg bg-emerald-50/80 px-2.5 py-1.5 dark:bg-emerald-900/20">
                 <dt class="text-[10px] font-medium uppercase tracking-wide text-emerald-700/80 dark:text-emerald-300/80">Đã nhận</dt>
-                <dd class="text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">{{ $fmt($totalPaid) }} đ</dd>
+                <dd class="text-sm font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">{{ $fmt($paid) }} đ</dd>
+            </div>
+            <div class="rounded-lg {{ $remaining > 0 ? 'bg-amber-50/80 dark:bg-amber-900/20' : 'bg-gray-50 dark:bg-gray-800/80' }} px-2.5 py-1.5">
+                <dt class="text-[10px] font-medium uppercase tracking-wide {{ $remaining > 0 ? 'text-amber-700/80 dark:text-amber-300/80' : 'text-gray-500 dark:text-gray-400' }}">Còn lại</dt>
+                <dd class="text-sm font-semibold tabular-nums {{ $remaining > 0 ? 'text-amber-800 dark:text-amber-200' : ($remaining < 0 ? 'text-blue-700 dark:text-blue-300' : 'text-gray-900 dark:text-white') }}">{{ $fmt($remaining) }} đ</dd>
             </div>
         </dl>
     </div>
