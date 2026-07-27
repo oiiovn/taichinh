@@ -75,7 +75,7 @@
                 </div>
                 <div>
                     <label class="{{ $labelClass }}">Số tiền (đ)</label>
-                    <input type="number" name="amount" min="1000" step="1000" required value="{{ old('amount') }}" class="{{ $inputClass }}">
+                    <input type="number" name="amount" min="1" step="1" required value="{{ old('amount') }}" placeholder="Số tiền (đồng)" class="{{ $inputClass }}">
                 </div>
                 <div>
                     <label class="{{ $labelClass }}">Ngày thanh toán</label>

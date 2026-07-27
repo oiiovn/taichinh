@@ -73,7 +73,7 @@ class PayrollController extends Controller
             'employee_id' => ['required', 'integer', Rule::exists('employees', 'id')],
             'month' => ['required', 'date_format:Y-m'],
             'payment_type' => ['required', Rule::in(array_keys(EmployeeSalaryPayment::paymentTypeLabels()))],
-            'amount' => ['required', 'numeric', 'min:1000'],
+            'amount' => ['required', 'numeric', 'min:1'],
             'payment_method' => ['required', Rule::in(array_keys(EmployeeSalaryPayment::paymentMethodLabels()))],
             'note' => ['nullable', 'string', 'max:1000'],
             'paid_at' => ['nullable', 'date'],
