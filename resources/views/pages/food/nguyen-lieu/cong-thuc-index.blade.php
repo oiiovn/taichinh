@@ -62,7 +62,7 @@
 
     <div class="space-y-2 md:hidden">
         @forelse($templates as $tpl)
-            <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+            <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm transition hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800/50">
                 <a href="{{ route('food.cong-thuc.show', $tpl) }}" class="block">
                     <h3 class="text-sm font-semibold text-gray-950 dark:text-white">{!! $highlightSauceName($tpl->name) !!}</h3>
                     <p class="mt-1 text-xs text-gray-500">{{ $tpl->items_count }} NL · {{ $tpl->products_count }} sản phẩm</p>
@@ -81,7 +81,7 @@
     </div>
 
     <div class="hidden overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 md:block">
-        <table class="w-full text-left text-sm">
+        <table class="cong-thuc-table w-full text-left text-sm">
             <thead class="border-b border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800">
                 <tr>
                     <th class="px-3 py-2.5 font-medium">Tên</th>
@@ -92,7 +92,7 @@
             </thead>
             <tbody>
                 @forelse($templates as $tpl)
-                    <tr class="border-b border-gray-100 dark:border-gray-800">
+                    <tr class="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800/50">
                         <td class="px-3 py-2 font-medium text-gray-900 dark:text-white">{!! $highlightSauceName($tpl->name) !!}</td>
                         <td class="px-3 py-2 tabular-nums">{{ $tpl->items_count }}</td>
                         <td class="px-3 py-2 tabular-nums">{{ $tpl->products_count }}</td>
@@ -111,4 +111,12 @@
         </table>
     </div>
 </div>
+<style>
+    .cong-thuc-table tbody tr:hover td {
+        background-color: rgb(243 244 246);
+    }
+    .dark .cong-thuc-table tbody tr:hover td {
+        background-color: rgb(31 41 55 / 0.7);
+    }
+</style>
 @endsection
