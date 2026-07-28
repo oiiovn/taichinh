@@ -7,9 +7,9 @@ use App\Models\FoodMaterialStock;
 use App\Models\FoodMaterialStockMovement;
 use App\Models\FoodProduct;
 use App\Models\FoodProductRecipe;
-use App\Models\FoodRecipeTemplateItem;
 use App\Models\FoodSalesReport;
 use App\Models\FoodSalesReportItem;
+use App\Services\Food\RecipeBomService;
 use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +17,10 @@ use RuntimeException;
 
 class MaterialConsumptionService
 {
+    public function __construct(
+        private readonly RecipeBomService $bom
+    ) {}
+
     /**
      * Tính tiêu hao NL từ BC bán trong khoảng ngày, theo 1 chi nhánh.
      *
@@ -276,11 +280,7 @@ class MaterialConsumptionService
             ->get()
             ->groupBy('food_product_id');
 
-        $templateIds = $products->pluck('food_recipe_template_id')->filter()->unique()->values();
-        $templateItems = FoodRecipeTemplateItem::query()
-            ->whereIn('food_recipe_template_id', $templateIds)
-            ->get()
-            ->groupBy('food_recipe_template_id');
+        $itemsByTemplate = $this->bom->itemsGroupedForUser($userId);
 
         $consumed = [];
         $via = [];
@@ -301,13 +301,24 @@ class MaterialConsumptionService
                 continue;
             }
 
-            $lines = collect();
             if ($product->food_recipe_template_id) {
-                $lines = $templateItems->get($product->food_recipe_template_id, collect());
+                $tplId = (int) $product->food_recipe_template_id;
+                $tplLines = $itemsByTemplate->get($tplId, collect());
+                if ($tplLines->isNotEmpty()) {
+                    $this->bom->accumulate(
+                        $tplId,
+                        $qtySold,
+                        $itemsByTemplate,
+                        $consumed,
+                        $via,
+                        $maHang
+                    );
+
+                    continue;
+                }
             }
-            if ($lines->isEmpty()) {
-                $lines = $legacyRecipes->get($product->id, collect());
-            }
+
+            $lines = $legacyRecipes->get($product->id, collect());
             if ($lines->isEmpty()) {
                 $noRecipe[] = [
                     'ma_hang' => $maHang,

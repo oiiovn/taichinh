@@ -529,11 +529,16 @@ class NguyenLieuController extends Controller
             abort(403);
         }
 
-        $congThuc->load(['items.material', 'products']);
+        $congThuc->load(['items.material', 'items.childTemplate', 'products']);
         $materials = FoodMaterial::query()
             ->where('user_id', $user->id)
             ->where('active', true)
             ->orderBy('type')
+            ->orderBy('name')
+            ->get();
+        $otherTemplates = FoodRecipeTemplate::query()
+            ->where('user_id', $user->id)
+            ->where('id', '!=', $congThuc->id)
             ->orderBy('name')
             ->get();
         $products = FoodProduct::query()
@@ -542,14 +547,85 @@ class NguyenLieuController extends Controller
             ->get();
         $assignedIds = $congThuc->products->pluck('id')->all();
 
+        $bom = app(\App\Services\Food\RecipeBomService::class);
+        $itemsByTemplate = $bom->itemsGroupedForUser((int) $user->id);
+
+        $bomPreview = $this->formatBomRows(
+            $this->expandTemplateQty($bom, $itemsByTemplate, (int) $congThuc->id, 1.0)
+        );
+
+        // Mỗi dòng CT con → danh sách NL gốc đã nhân hệ số
+        $nestedByItemId = [];
+        foreach ($congThuc->items as $item) {
+            if (! $item->isRecipeLine() || ! $item->child_template_id) {
+                continue;
+            }
+            $nestedByItemId[$item->id] = $this->formatBomRows(
+                $this->expandTemplateQty(
+                    $bom,
+                    $itemsByTemplate,
+                    (int) $item->child_template_id,
+                    (float) $item->qty_per_unit
+                )
+            );
+        }
+
         return view('pages.food.nguyen-lieu.cong-thuc-show', [
             'title' => 'Công thức: '.$congThuc->name,
             'template' => $congThuc,
             'materials' => $materials,
+            'otherTemplates' => $otherTemplates,
             'products' => $products,
             'assignedIds' => $assignedIds,
             'typeLabels' => FoodMaterial::typeLabels(),
+            'bomPreview' => $bomPreview,
+            'nestedByItemId' => $nestedByItemId,
         ]);
+    }
+
+    /**
+     * @param  Collection<int, Collection<int, FoodRecipeTemplateItem>>  $itemsByTemplate
+     * @return array<int, float>
+     */
+    private function expandTemplateQty(
+        \App\Services\Food\RecipeBomService $bom,
+        Collection $itemsByTemplate,
+        int $templateId,
+        float $multiplier
+    ): array {
+        $consumed = [];
+        $via = null;
+        $bom->accumulate($templateId, $multiplier, $itemsByTemplate, $consumed, $via);
+
+        return $consumed;
+    }
+
+    /**
+     * @param  array<int, float>  $consumed
+     * @return list<array{name: string, unit: string, qty: float, type: string}>
+     */
+    private function formatBomRows(array $consumed): array
+    {
+        if ($consumed === []) {
+            return [];
+        }
+        $mats = FoodMaterial::query()->whereIn('id', array_keys($consumed))->get()->keyBy('id');
+        $rows = [];
+        foreach ($consumed as $mid => $qty) {
+            $m = $mats->get($mid);
+            if (! $m || $qty <= 0) {
+                continue;
+            }
+            $rows[] = [
+                'name' => $m->name,
+                'unit' => $m->unit,
+                'qty' => (float) $qty,
+                'type' => $m->type,
+            ];
+        }
+        usort($rows, fn ($a, $b) => strcmp($a['name'], $b['name']));
+
+        return $rows;
     }
 
     public function congThucUpdate(Request $request, FoodRecipeTemplate $congThuc): RedirectResponse
@@ -602,7 +678,9 @@ class NguyenLieuController extends Controller
             foreach ($congThuc->items as $item) {
                 FoodRecipeTemplateItem::query()->create([
                     'food_recipe_template_id' => $copy->id,
+                    'item_type' => $item->item_type ?? FoodRecipeTemplateItem::TYPE_MATERIAL,
                     'food_material_id' => $item->food_material_id,
+                    'child_template_id' => $item->child_template_id,
                     'qty_per_unit' => $item->qty_per_unit,
                 ]);
             }
@@ -623,19 +701,55 @@ class NguyenLieuController extends Controller
         }
 
         $validated = $request->validate([
-            'food_material_id' => ['required', 'integer', 'exists:food_materials,id'],
+            'item_type' => ['required', 'in:material,recipe'],
+            'food_material_id' => ['nullable', 'integer', 'exists:food_materials,id'],
+            'child_template_id' => ['nullable', 'integer', 'exists:food_recipe_templates,id'],
             'qty_per_unit' => ['required', 'numeric', 'gt:0'],
         ]);
 
-        $material = FoodMaterial::query()->where('user_id', $user->id)->findOrFail($validated['food_material_id']);
+        $qty = round((float) $validated['qty_per_unit'], 6);
+        $bom = app(\App\Services\Food\RecipeBomService::class);
 
-        FoodRecipeTemplateItem::query()->updateOrCreate(
-            [
-                'food_recipe_template_id' => $congThuc->id,
-                'food_material_id' => $material->id,
-            ],
-            ['qty_per_unit' => round((float) $validated['qty_per_unit'], 6)]
-        );
+        if ($validated['item_type'] === FoodRecipeTemplateItem::TYPE_RECIPE) {
+            $childId = (int) ($validated['child_template_id'] ?? 0);
+            if ($childId <= 0) {
+                return back()->withErrors(['child_template_id' => 'Chọn công thức con.'])->withInput();
+            }
+            $child = FoodRecipeTemplate::query()->where('user_id', $user->id)->findOrFail($childId);
+            if ($bom->wouldCreateCycle((int) $congThuc->id, (int) $child->id, (int) $user->id)) {
+                return back()->withErrors(['child_template_id' => 'Không thể gắn: tạo vòng lặp công thức.'])->withInput();
+            }
+
+            FoodRecipeTemplateItem::query()->updateOrCreate(
+                [
+                    'food_recipe_template_id' => $congThuc->id,
+                    'child_template_id' => $child->id,
+                ],
+                [
+                    'item_type' => FoodRecipeTemplateItem::TYPE_RECIPE,
+                    'food_material_id' => null,
+                    'qty_per_unit' => $qty,
+                ]
+            );
+        } else {
+            $materialId = (int) ($validated['food_material_id'] ?? 0);
+            if ($materialId <= 0) {
+                return back()->withErrors(['food_material_id' => 'Chọn nguyên liệu.'])->withInput();
+            }
+            $material = FoodMaterial::query()->where('user_id', $user->id)->findOrFail($materialId);
+
+            FoodRecipeTemplateItem::query()->updateOrCreate(
+                [
+                    'food_recipe_template_id' => $congThuc->id,
+                    'food_material_id' => $material->id,
+                ],
+                [
+                    'item_type' => FoodRecipeTemplateItem::TYPE_MATERIAL,
+                    'child_template_id' => null,
+                    'qty_per_unit' => $qty,
+                ]
+            );
+        }
 
         return redirect()->route('food.cong-thuc.show', $congThuc)->with('success', 'Đã lưu định lượng.');
     }
@@ -748,7 +862,7 @@ class NguyenLieuController extends Controller
     }
 
     /**
-     * Map material_id => [{label, qty, kind, product_id?}] — món / CT dùng NL và định lượng /1 sp.
+     * Map material_id => [{label, qty, kind, product_id?}] — món / CT dùng NL (đã bung BOM lồng).
      *
      * @param  Collection<int, int|string>  $materialIds
      * @return array<int, list<array{label: string, qty: float, kind: string, product_id?: int}>>
@@ -764,38 +878,42 @@ class NguyenLieuController extends Controller
             return $result;
         }
 
-        $items = FoodRecipeTemplateItem::query()
-            ->whereIn('food_material_id', $ids)
-            ->whereHas('template', fn ($q) => $q->where('user_id', $userId))
-            ->with([
-                'template:id,name,user_id',
-                'template.products' => fn ($q) => $q
-                    ->select('id', 'ten_hang', 'ma_hang', 'food_recipe_template_id')
-                    ->orderBy('ten_hang'),
-            ])
-            ->get();
+        $bom = app(\App\Services\Food\RecipeBomService::class);
+        $templates = FoodRecipeTemplate::query()
+            ->where('user_id', $userId)
+            ->with(['products' => fn ($q) => $q->select('id', 'ten_hang', 'ma_hang', 'food_recipe_template_id')->orderBy('ten_hang')])
+            ->get()
+            ->keyBy('id');
 
-        foreach ($items as $item) {
-            $mid = (int) $item->food_material_id;
-            $qty = (float) $item->qty_per_unit;
-            $products = $item->template?->products ?? collect();
+        foreach ($ids as $mid) {
+            $tplIds = $bom->templateIdsUsingMaterial($userId, $mid);
+            foreach ($tplIds as $tplId) {
+                $tpl = $templates->get($tplId);
+                if (! $tpl) {
+                    continue;
+                }
+                $qty = $bom->materialQtyInTemplate($userId, $tplId, $mid);
+                if ($qty <= 0) {
+                    continue;
+                }
+                $products = $tpl->products;
+                if ($products->isEmpty()) {
+                    $result[$mid][] = [
+                        'label' => 'CT: '.$tpl->name,
+                        'qty' => $qty,
+                        'kind' => 'template',
+                    ];
 
-            if ($products->isEmpty()) {
-                $result[$mid][] = [
-                    'label' => 'CT: '.($item->template->name ?? '—'),
-                    'qty' => $qty,
-                    'kind' => 'template',
-                ];
-                continue;
-            }
-
-            foreach ($products as $product) {
-                $result[$mid][] = [
-                    'label' => trim((string) ($product->ten_hang ?: $product->ma_hang)) ?: 'SP #'.$product->id,
-                    'qty' => $qty,
-                    'kind' => 'product',
-                    'product_id' => (int) $product->id,
-                ];
+                    continue;
+                }
+                foreach ($products as $product) {
+                    $result[$mid][] = [
+                        'label' => trim((string) ($product->ten_hang ?: $product->ma_hang)) ?: 'SP #'.$product->id,
+                        'qty' => $qty,
+                        'kind' => 'product',
+                        'product_id' => (int) $product->id,
+                    ];
+                }
             }
         }
 

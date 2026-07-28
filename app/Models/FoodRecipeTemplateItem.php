@@ -7,11 +7,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class FoodRecipeTemplateItem extends Model
 {
+    public const TYPE_MATERIAL = 'material';
+
+    public const TYPE_RECIPE = 'recipe';
+
     protected $table = 'food_recipe_template_items';
 
     protected $fillable = [
         'food_recipe_template_id',
+        'item_type',
         'food_material_id',
+        'child_template_id',
         'qty_per_unit',
     ];
 
@@ -30,5 +36,20 @@ class FoodRecipeTemplateItem extends Model
     public function material(): BelongsTo
     {
         return $this->belongsTo(FoodMaterial::class, 'food_material_id');
+    }
+
+    public function childTemplate(): BelongsTo
+    {
+        return $this->belongsTo(FoodRecipeTemplate::class, 'child_template_id');
+    }
+
+    public function isMaterialLine(): bool
+    {
+        return ($this->item_type ?? self::TYPE_MATERIAL) === self::TYPE_MATERIAL;
+    }
+
+    public function isRecipeLine(): bool
+    {
+        return ($this->item_type ?? self::TYPE_MATERIAL) === self::TYPE_RECIPE;
     }
 }
