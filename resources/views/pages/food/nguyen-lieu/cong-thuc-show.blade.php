@@ -194,7 +194,7 @@
                             <span class="font-medium text-gray-900 dark:text-white">{{ $p->ma_hang }}</span>
                             <span class="text-gray-600 dark:text-gray-400"> — {{ $p->ten_hang }}</span>
                             @if($p->food_recipe_template_id && (int) $p->food_recipe_template_id !== (int) $template->id)
-                                <span class="text-[10px] text-amber-600">(đang gắn CT khác)</span>
+                                <span class="text-[10px] text-amber-600">({{ $p->recipeTemplate?->name ?? 'CT #'.$p->food_recipe_template_id }})</span>
                             @endif
                         </span>
                     </label>

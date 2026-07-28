@@ -542,6 +542,7 @@ class NguyenLieuController extends Controller
             ->orderBy('name')
             ->get();
         $products = FoodProduct::query()
+            ->with('recipeTemplate:id,name')
             ->where('user_id', $user->id)
             ->orderBy('ma_hang')
             ->get();
