@@ -127,7 +127,9 @@
                     <div class="flex items-start justify-between gap-2">
                         <div class="min-w-0">
                             <p class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{{ $typeLabels[$m->type] ?? $m->type }}</p>
-                            <h3 class="text-sm font-semibold text-gray-950 dark:text-white">{{ $m->name }}</h3>
+                            <h3 class="text-sm font-semibold text-gray-950 dark:text-white">
+                                @include('pages.food.nguyen-lieu.partials.material-usage-tip', ['material' => $m, 'materialUsages' => $materialUsages ?? []])
+                            </h3>
                             @if($m->code)<p class="text-[11px] text-gray-500">{{ $m->code }}</p>@endif
                         </div>
                         @if($m->needsReorder())
@@ -228,7 +230,9 @@
                         @endphp
                         <tr class="border-b border-gray-100 align-top dark:border-gray-800 {{ $m->needsReorder() ? 'bg-amber-50/50 dark:bg-amber-900/10' : '' }}">
                             <td class="px-3 py-2">
-                                <div class="font-medium text-gray-900 dark:text-white">{{ $m->name }}</div>
+                                <div>
+                                    @include('pages.food.nguyen-lieu.partials.material-usage-tip', ['material' => $m, 'materialUsages' => $materialUsages ?? []])
+                                </div>
                                 @if($m->code)<div class="text-xs text-gray-500">{{ $m->code }}</div>@endif
                                 @unless($m->active)<span class="text-xs text-gray-400">Ngưng</span>@endunless
                             </td>

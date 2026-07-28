@@ -15,6 +15,7 @@ use App\Services\Food\MaterialConsumptionService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
@@ -38,6 +39,7 @@ class NguyenLieuController extends Controller
                 'lowOnly' => $request->boolean('low_only'),
                 'lowCount' => 0,
                 'typeLabels' => FoodMaterial::typeLabels(),
+                'materialUsages' => [],
             ]);
         }
 
@@ -65,6 +67,8 @@ class NguyenLieuController extends Controller
             $materials = $materials->filter(fn (FoodMaterial $m) => $m->needsReorder())->values();
         }
 
+        $materialUsages = $this->buildMaterialUsages($user->id, $materials->pluck('id'));
+
         $lowCount = FoodMaterialStock::query()
             ->where('food_branch_id', $branch->id)
             ->whereIn('food_material_id', FoodMaterial::query()->where('user_id', $user->id)->where('active', true)->select('id'))
@@ -80,6 +84,7 @@ class NguyenLieuController extends Controller
             'lowOnly' => $request->boolean('low_only'),
             'lowCount' => $lowCount,
             'typeLabels' => FoodMaterial::typeLabels(),
+            'materialUsages' => $materialUsages,
         ]);
     }
 
@@ -454,15 +459,43 @@ class NguyenLieuController extends Controller
             return redirect()->route('login');
         }
 
+        $sessionKey = 'food_cong_thuc_search';
+
+        if ($request->boolean('clear_search')) {
+            $request->session()->forget($sessionKey);
+
+            return redirect()->route('food.cong-thuc');
+        }
+
+        if ($request->has('q')) {
+            $q = trim((string) $request->input('q', ''));
+            if ($q === '') {
+                $request->session()->forget($sessionKey);
+            } else {
+                $request->session()->put($sessionKey, $q);
+            }
+
+            // Giữ URL sạch sau khi lưu session (tránh mất khi chuyển trang)
+            if ($request->query('q') !== null && ! $request->ajax()) {
+                return redirect()->route('food.cong-thuc');
+            }
+        }
+
+        $search = trim((string) $request->session()->get($sessionKey, ''));
+
         $templates = FoodRecipeTemplate::query()
             ->where('user_id', $user->id)
             ->withCount(['items', 'products'])
+            ->when($search !== '', function ($query) use ($search) {
+                $query->where('name', 'like', '%'.$search.'%');
+            })
             ->orderBy('name')
             ->get();
 
         return view('pages.food.nguyen-lieu.cong-thuc-index', [
             'title' => 'Công thức định lượng',
             'templates' => $templates,
+            'search' => $search,
         ]);
     }
 
@@ -712,5 +745,89 @@ class NguyenLieuController extends Controller
     public function destroyProductRecipe(Request $request, int $id, FoodProductRecipe $recipe): RedirectResponse
     {
         return redirect()->route('food.cong-thuc');
+    }
+
+    /**
+     * Map material_id => [{label, qty, kind, product_id?}] — món / CT dùng NL và định lượng /1 sp.
+     *
+     * @param  Collection<int, int|string>  $materialIds
+     * @return array<int, list<array{label: string, qty: float, kind: string, product_id?: int}>>
+     */
+    private function buildMaterialUsages(int $userId, Collection $materialIds): array
+    {
+        $ids = $materialIds->map(fn ($id) => (int) $id)->filter()->unique()->values();
+        $result = [];
+        foreach ($ids as $id) {
+            $result[$id] = [];
+        }
+        if ($ids->isEmpty()) {
+            return $result;
+        }
+
+        $items = FoodRecipeTemplateItem::query()
+            ->whereIn('food_material_id', $ids)
+            ->whereHas('template', fn ($q) => $q->where('user_id', $userId))
+            ->with([
+                'template:id,name,user_id',
+                'template.products' => fn ($q) => $q
+                    ->select('id', 'ten_hang', 'ma_hang', 'food_recipe_template_id')
+                    ->orderBy('ten_hang'),
+            ])
+            ->get();
+
+        foreach ($items as $item) {
+            $mid = (int) $item->food_material_id;
+            $qty = (float) $item->qty_per_unit;
+            $products = $item->template?->products ?? collect();
+
+            if ($products->isEmpty()) {
+                $result[$mid][] = [
+                    'label' => 'CT: '.($item->template->name ?? '—'),
+                    'qty' => $qty,
+                    'kind' => 'template',
+                ];
+                continue;
+            }
+
+            foreach ($products as $product) {
+                $result[$mid][] = [
+                    'label' => trim((string) ($product->ten_hang ?: $product->ma_hang)) ?: 'SP #'.$product->id,
+                    'qty' => $qty,
+                    'kind' => 'product',
+                    'product_id' => (int) $product->id,
+                ];
+            }
+        }
+
+        $legacy = FoodProductRecipe::query()
+            ->whereIn('food_material_id', $ids)
+            ->whereHas('product', fn ($q) => $q->where('user_id', $userId))
+            ->with(['product:id,ten_hang,ma_hang,user_id'])
+            ->get();
+
+        foreach ($legacy as $row) {
+            $mid = (int) $row->food_material_id;
+            $pid = (int) $row->food_product_id;
+            $already = collect($result[$mid] ?? [])->contains(
+                fn (array $u) => ($u['product_id'] ?? null) === $pid
+            );
+            if ($already) {
+                continue;
+            }
+            $product = $row->product;
+            $result[$mid][] = [
+                'label' => trim((string) ($product?->ten_hang ?: $product?->ma_hang)) ?: 'SP #'.$pid,
+                'qty' => (float) $row->qty_per_unit,
+                'kind' => 'product',
+                'product_id' => $pid,
+            ];
+        }
+
+        foreach ($result as &$rows) {
+            usort($rows, static fn (array $a, array $b) => strcmp($a['label'], $b['label']));
+        }
+        unset($rows);
+
+        return $result;
     }
 }

@@ -17,6 +17,11 @@ use App\Models\User;
 */
 
 Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(function () {
+    Route::get('/unlock', [\App\Http\Controllers\Admin\AdminGateController::class, 'show'])->name('gate.show');
+    Route::post('/unlock', [\App\Http\Controllers\Admin\AdminGateController::class, 'unlock'])->name('gate.unlock');
+    Route::post('/lock', [\App\Http\Controllers\Admin\AdminGateController::class, 'lock'])->name('gate.lock');
+
+    Route::middleware('admin.gate')->group(function () {
     Route::get('/', [\App\Http\Controllers\Admin\AdminDashboardController::class, 'index'])->name('index');
 
     Route::get('/he-thong', function () {
@@ -63,5 +68,6 @@ Route::prefix('admin')->middleware(['auth', 'admin'])->name('admin.')->group(fun
 
     Route::prefix('brain')->name('brain.')->group(function () {
         Route::get('/{user}', [\App\Http\Controllers\Admin\BrainMonitorController::class, 'show'])->name('monitor');
+    });
     });
 });

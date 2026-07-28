@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'signed' => \Illuminate\Routing\Middleware\ValidateSignature::class,
             'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
+            'admin.gate' => \App\Http\Middleware\EnsureAdminGateUnlocked::class,
             'feature' => \App\Http\Middleware\EnsureFeatureAllowed::class,
             'food.employee.manager' => \App\Http\Middleware\EnsureUserCanManageFoodEmployees::class,
             'food.bao_cao' => \App\Http\Middleware\EnsureUserCanManageFoodBaoCao::class,

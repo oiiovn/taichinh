@@ -141,7 +141,7 @@ class GroupController extends Controller
 
         if ($request->wantsJson()) {
             $post->load(['user', 'group', 'reactions', 'comments']);
-            $postHtml = view('pages.tribeos.partials.post-card', ['post' => $post, 'showGroupLink' => true])->render();
+            $postHtml = view('pages.tribeos.partials.home-post-card', ['post' => $post, 'showGroupLink' => true])->render();
             return response()->json(['success' => true, 'postHtml' => $postHtml]);
         }
 

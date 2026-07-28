@@ -67,35 +67,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/goi-hien-tai/thanh-toan/check-status', [\App\Http\Controllers\GoiHienTaiController::class, 'checkStatus'])->name('goi-hien-tai.check-status');
 
     Route::middleware(['feature:tribeos'])->group(function () {
-        Route::get('/tribeos', function (\Illuminate\Http\Request $request) {
-            $user = $request->user();
-            $feedPosts = collect();
-            $tribeosGroups = collect();
-            if ($user) {
-                $tribeosGroups = $user->tribeosGroups()->orderByPivot('created_at', 'desc')->get();
-                $groupIds = $tribeosGroups->pluck('id');
-                $query = \App\Models\TribeosPost::whereIn('tribeos_group_id', $groupIds)->with(['group', 'user', 'reactions', 'comments'])->orderByDesc('created_at');
-                $filter = $request->input('filter', 'all');
-                if ($filter === 'mine' && $user) {
-                    $query->where('user_id', $user->id);
-                } elseif (preg_match('/^group_(\d+)$/', $filter, $m)) {
-                    $gid = (int) $m[1];
-                    if ($groupIds->contains($gid)) {
-                        $query->where('tribeos_group_id', $gid);
-                    }
-                }
-                $feedPosts = $query->limit(50)->get();
-            }
-            if ($request->ajax() && $request->get('partial') === 'feed') {
-                return response()->view('pages.tribeos.partials.feed-content', [
-                    'feedPosts' => $feedPosts,
-                    'tribeosGroups' => $tribeosGroups,
-                    'currentFilter' => $filter,
-                ]);
-            }
-
-            return view('pages.tribeos.index', ['title' => 'TribeOS', 'feedPosts' => $feedPosts, 'tribeosGroups' => $tribeosGroups]);
-        })->name('tribeos');
+        Route::get('/tribeos', [\App\Http\Controllers\Tribeos\HomeController::class, 'index'])->name('tribeos');
 
         Route::get('/tribeos/groups', [\App\Http\Controllers\Tribeos\GroupController::class, 'index'])->name('tribeos.groups.index');
         Route::get('/tribeos/groups/create', [\App\Http\Controllers\Tribeos\GroupController::class, 'create'])->name('tribeos.groups.create');

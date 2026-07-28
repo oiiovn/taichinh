@@ -58,6 +58,11 @@ class FoodMaterial extends Model
         return $this->hasMany(FoodProductRecipe::class, 'food_material_id');
     }
 
+    public function templateItems(): HasMany
+    {
+        return $this->hasMany(FoodRecipeTemplateItem::class, 'food_material_id');
+    }
+
     public function movements(): HasMany
     {
         return $this->hasMany(FoodMaterialStockMovement::class, 'food_material_id')->orderByDesc('id');
