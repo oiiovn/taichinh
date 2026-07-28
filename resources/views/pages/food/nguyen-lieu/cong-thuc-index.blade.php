@@ -4,6 +4,28 @@
 @php
     $inputClass = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white';
     $labelClass = 'mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400';
+    $sauceNameKeywords = ['Sốt Bò', 'Sốt Me', 'Sốt Bơ', 'Muối Tắc'];
+    $highlightSauceName = function (string $name) use ($sauceNameKeywords): string {
+        $pattern = '/('.implode('|', array_map(static fn ($k) => preg_quote($k, '/'), $sauceNameKeywords)).')/iu';
+        $parts = preg_split($pattern, $name, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($parts === false) {
+            return e($name);
+        }
+        $html = '';
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+            $isSauce = collect($sauceNameKeywords)->contains(
+                fn ($k) => mb_strtolower($k) === mb_strtolower($part)
+            );
+            $html .= $isSauce
+                ? '<span class="text-orange-500 dark:text-orange-400">'.e($part).'</span>'
+                : e($part);
+        }
+
+        return $html;
+    };
 @endphp
 <div class="space-y-3 md:space-y-5" x-data="{ addOpen: false }">
     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -42,7 +64,7 @@
         @forelse($templates as $tpl)
             <div class="rounded-xl border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
                 <a href="{{ route('food.cong-thuc.show', $tpl) }}" class="block">
-                    <h3 class="text-sm font-semibold text-gray-950 dark:text-white">{{ $tpl->name }}</h3>
+                    <h3 class="text-sm font-semibold text-gray-950 dark:text-white">{!! $highlightSauceName($tpl->name) !!}</h3>
                     <p class="mt-1 text-xs text-gray-500">{{ $tpl->items_count }} NL · {{ $tpl->products_count }} sản phẩm</p>
                 </a>
                 <div class="mt-2 flex gap-3 border-t border-gray-100 pt-2 dark:border-gray-800">
@@ -71,7 +93,7 @@
             <tbody>
                 @forelse($templates as $tpl)
                     <tr class="border-b border-gray-100 dark:border-gray-800">
-                        <td class="px-3 py-2 font-medium text-gray-900 dark:text-white">{{ $tpl->name }}</td>
+                        <td class="px-3 py-2 font-medium text-gray-900 dark:text-white">{!! $highlightSauceName($tpl->name) !!}</td>
                         <td class="px-3 py-2 tabular-nums">{{ $tpl->items_count }}</td>
                         <td class="px-3 py-2 tabular-nums">{{ $tpl->products_count }}</td>
                         <td class="px-3 py-2">

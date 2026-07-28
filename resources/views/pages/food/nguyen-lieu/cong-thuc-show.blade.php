@@ -5,11 +5,33 @@
     $inputClass = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white';
     $labelClass = 'mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400';
     $fmtQty = fn ($n) => rtrim(rtrim(number_format((float) $n, 6, '.', ','), '0'), '.');
+    $sauceNameKeywords = ['Sốt Bò', 'Sốt Me', 'Sốt Bơ', 'Muối Tắc'];
+    $highlightSauceName = function (string $name) use ($sauceNameKeywords): string {
+        $pattern = '/('.implode('|', array_map(static fn ($k) => preg_quote($k, '/'), $sauceNameKeywords)).')/iu';
+        $parts = preg_split($pattern, $name, -1, PREG_SPLIT_DELIM_CAPTURE);
+        if ($parts === false) {
+            return e($name);
+        }
+        $html = '';
+        foreach ($parts as $part) {
+            if ($part === '') {
+                continue;
+            }
+            $isSauce = collect($sauceNameKeywords)->contains(
+                fn ($k) => mb_strtolower($k) === mb_strtolower($part)
+            );
+            $html .= $isSauce
+                ? '<span class="text-orange-500 dark:text-orange-400">'.e($part).'</span>'
+                : e($part);
+        }
+
+        return $html;
+    };
 @endphp
 <div class="space-y-3 md:space-y-5" x-data="{ productFilter: '' }">
     <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ $template->name }}</h2>
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{!! $highlightSauceName($template->name) !!}</h2>
             <p class="text-sm text-gray-500">Định lượng dùng chung · gán nhiều sản phẩm</p>
         </div>
         <div class="flex flex-wrap gap-2">
