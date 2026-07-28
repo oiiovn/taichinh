@@ -7,29 +7,49 @@
     x-data="{
         show: false,
         style: '',
+        hideTimer: null,
         open(e) {
+            clearTimeout(this.hideTimer);
             const el = e.currentTarget;
             const r = el.getBoundingClientRect();
-            const left = Math.max(8, Math.min(r.left, window.innerWidth - 300));
+            const tipW = 288;
+            const headerPad = 72;
+            const left = Math.max(8, Math.min(r.left, window.innerWidth - tipW - 8));
             let top = r.bottom + 8;
             this.style = `top:${top}px;left:${left}px;`;
             this.show = true;
             this.$nextTick(() => {
                 const tip = this.$refs.tip;
                 if (!tip) return;
+                const maxH = Math.min(360, window.innerHeight - headerPad - 16);
+                tip.style.maxHeight = maxH + 'px';
                 const h = tip.offsetHeight;
                 if (top + h > window.innerHeight - 8) {
-                    top = Math.max(8, r.top - h - 8);
-                    this.style = `top:${top}px;left:${left}px;`;
+                    top = Math.max(headerPad, r.top - h - 8);
                 }
+                if (top < headerPad) {
+                    top = headerPad;
+                }
+                this.style = `top:${top}px;left:${left}px;`;
             });
         },
-        close() { this.show = false; }
+        scheduleClose() {
+            clearTimeout(this.hideTimer);
+            this.hideTimer = setTimeout(() => { this.show = false; }, 120);
+        },
+        keepOpen() {
+            clearTimeout(this.hideTimer);
+            this.show = true;
+        },
+        close() {
+            clearTimeout(this.hideTimer);
+            this.show = false;
+        }
     }"
     @mouseenter="open($event)"
-    @mouseleave="close()"
+    @mouseleave="scheduleClose()"
     @focusin="open($event)"
-    @focusout="close()"
+    @focusout="scheduleClose()"
 >
     <button
         type="button"
@@ -42,16 +62,21 @@
             x-ref="tip"
             x-show="show"
             x-cloak
+            x-transition.opacity.duration.100ms
             id="nl-usage-{{ $material->id }}"
             role="tooltip"
             :style="style"
-            class="pointer-events-none fixed z-[300] w-72 rounded-xl border border-gray-200 bg-white p-3 text-left shadow-xl dark:border-gray-700 dark:bg-gray-900"
+            @mouseenter="keepOpen()"
+            @mouseleave="scheduleClose()"
+            class="fixed z-[100000] flex w-72 flex-col overflow-hidden rounded-xl border border-gray-200 bg-white text-left shadow-2xl dark:border-gray-700 dark:bg-gray-900"
         >
-            <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Dùng trong món (định lượng / 1 sp)</p>
+            <p class="shrink-0 border-b border-gray-100 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                Dùng trong món (định lượng / 1 sp)
+            </p>
             @if(count($usages) === 0)
-                <p class="text-sm text-gray-500 dark:text-gray-400">Chưa gắn trong công thức / sản phẩm nào.</p>
+                <p class="px-3 py-3 text-sm text-gray-500 dark:text-gray-400">Chưa gắn trong công thức / sản phẩm nào.</p>
             @else
-                <ul class="max-h-56 space-y-1.5 overflow-y-auto text-sm">
+                <ul class="min-h-0 flex-1 space-y-1.5 overflow-y-auto overscroll-contain px-3 py-2 text-sm" style="max-height: 260px; -webkit-overflow-scrolling: touch;">
                     @foreach($usages as $u)
                         <li class="flex items-start justify-between gap-2">
                             <span class="min-w-0 flex-1 text-gray-800 dark:text-gray-100">
@@ -66,8 +91,8 @@
                         </li>
                     @endforeach
                 </ul>
-                <p class="mt-2 border-t border-gray-100 pt-1.5 text-[11px] text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                    {{ count($usages) }} món/CT
+                <p class="shrink-0 border-t border-gray-100 px-3 py-1.5 text-[11px] text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                    {{ count($usages) }} món/CT · cuộn để xem thêm
                 </p>
             @endif
         </div>
