@@ -50,10 +50,12 @@
                             <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ $b->creator?->name ?? '—' }}</td>
                             <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ $b->created_at->format('d/m/Y H:i') }}</td>
                             <td class="px-4 py-3 text-right">
-                                <form method="POST" action="{{ route('admin.broadcasts.destroy', $b) }}" class="inline" onsubmit="return confirm('Xóa thông báo này?');">
+                                <form id="form-delete-broadcast-{{ $b->id }}" method="POST" action="{{ route('admin.broadcasts.destroy', $b) }}" class="inline">
                                     @csrf
                                     @method('DELETE')
-                                    <button type="submit" class="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:bg-gray-900 dark:text-red-400 dark:hover:bg-red-950/30">Xóa</button>
+                                    <button type="button"
+                                        @click="$dispatch('confirm-delete-open', { formId: 'form-delete-broadcast-{{ $b->id }}', message: 'Xóa thông báo này?' })"
+                                        class="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-medium text-red-700 hover:bg-red-50 dark:border-red-800 dark:bg-gray-900 dark:text-red-400 dark:hover:bg-red-950/30">Xóa</button>
                                 </form>
                             </td>
                         </tr>

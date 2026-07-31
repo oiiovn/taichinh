@@ -50,6 +50,16 @@ class EnsureFeatureAllowed
 
                 return redirect()->route('food.dat-don');
             }
+            if ($user instanceof User && $user->canManageFoodReviews() && \Illuminate\Support\Facades\Route::has('food.reviews.index')) {
+                if ($feature === 'food') {
+                    $path = $request->path();
+                    if ($user->canAccessFoodReviewsPath($path)) {
+                        return $next($request);
+                    }
+                }
+
+                return redirect()->route('food.reviews.index');
+            }
             abort(403, 'Bạn chưa được cấp quyền sử dụng tính năng này. Liên hệ quản trị viên.');
         }
 

@@ -90,5 +90,6 @@
 </footer>
 
 @stack('scripts')
+<x-ui.confirm-delete />
 </body>
 </html>

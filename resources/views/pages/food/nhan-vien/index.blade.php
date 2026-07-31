@@ -42,10 +42,12 @@
                         <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $emp->start_date?->format('d/m/Y') ?? '—' }}</td>
                         <td class="px-4 py-2">
                             <a href="{{ route('food.nhan-vien.edit', $emp) }}" class="text-brand-600 hover:underline dark:text-brand-400">Sửa</a>
-                            <form action="{{ route('food.nhan-vien.destroy', $emp) }}" method="post" class="inline ml-2" onsubmit="return confirm('Ngừng hoạt động nhân viên này?');">
+                            <form id="form-delete-nv-{{ $emp->id }}" action="{{ route('food.nhan-vien.destroy', $emp) }}" method="post" class="inline ml-2">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline dark:text-red-400">Ngừng</button>
+                                <button type="button"
+                                    @click="$dispatch('confirm-delete-open', { formId: 'form-delete-nv-{{ $emp->id }}', message: 'Ngừng hoạt động nhân viên này?' })"
+                                    class="text-red-600 hover:underline dark:text-red-400">Ngừng</button>
                             </form>
                         </td>
                     </tr>

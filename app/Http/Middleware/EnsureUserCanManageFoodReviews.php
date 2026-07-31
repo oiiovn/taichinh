@@ -15,6 +15,11 @@ class EnsureUserCanManageFoodReviews
             abort(403, 'Bạn không có quyền truy cập quản lý đánh giá.');
         }
 
+        $path = $request->path();
+        if ($path !== 'food/danh-gia' && ! $user->canAccessFoodReviewsSubpages()) {
+            return redirect()->route('food.reviews.index');
+        }
+
         return $next($request);
     }
 }

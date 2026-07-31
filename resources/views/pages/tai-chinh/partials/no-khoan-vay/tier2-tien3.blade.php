@@ -20,9 +20,7 @@
         <p class="mt-1 text-sm text-gray-400 dark:text-gray-500">Thêm khoản nợ / vay (ghi chép) hoặc Tạo hợp đồng liên kết.</p>
     </div>
 @else
-    <div x-data="{ showConfirmDelete: false, formIdToSubmit: null, showConfirmClose: false, formIdToSubmitClose: null }"
-        @confirm-delete-open.window="showConfirmDelete = true; formIdToSubmit = $event.detail.formId"
-        @confirm-delete.window="if (formIdToSubmit) { const f = document.getElementById(formIdToSubmit); if (f) f.submit(); } formIdToSubmit = null; showConfirmDelete = false"
+    <div x-data="{ showConfirmClose: false, formIdToSubmitClose: null }"
         @confirm-close-open.window="showConfirmClose = true; formIdToSubmitClose = $event.detail.formId"
         @confirm-close.window="if (formIdToSubmitClose) { const f = document.getElementById(formIdToSubmitClose); if (f) f.submit(); } formIdToSubmitClose = null; showConfirmClose = false">
     {{-- TẦNG 2 — HAI CỘT THỐNG KÊ --}}
@@ -70,7 +68,6 @@
             </div>
         </div>
     </div>
-    <x-ui.confirm-delete openVar="showConfirmDelete" defaultMessage="Bạn có chắc muốn xóa? Hành động không thể hoàn tác." />
     <x-ui.confirm-delete openVar="showConfirmClose" title="Xác nhận đóng" defaultMessage="Đóng khoản nợ / hợp đồng này?" confirmText="Đóng" confirmEvent="confirm-close" />
     </div>
 @endif

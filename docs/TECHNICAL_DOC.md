@@ -75,6 +75,8 @@
 | GET | /api/v1/tai-chinh/projection | Bearer | Projection dòng tiền (query: months, extra_income_per_month, expense_reduction_pct, …). |
 | POST | /api/v1/tai-chinh/insight-feedback | Bearer | Body: insight_hash, feedback_type (agree\|infeasible\|incorrect\|alternative), reason_code, … |
 | GET | /api/v1/tai-chinh/giao-dich | Bearer | Danh sách giao dịch JSON (query: page, per_page, stk, loai, q, category_id). Trả về: data, meta (current_page, last_page, total). |
+| GET | /api/v1/food/cham-cong | Bearer | Chấm công Food (query: month=YYYY-MM, employee_id). Trả logs + trạng thái ca hôm nay. |
+| POST | /api/v1/food/cham-cong | Bearer | Punch: body `work_date`, `action` (`check_in`\|`check_out`\|`break_start`\|`break_end`). |
 
 **Cách dùng:** App mobile gửi POST `/api/v1/login` với email/password → nhận `token` → gửi kèm header `Authorization: Bearer {token}` cho mọi request sau. Model `User` dùng trait `HasApiTokens` (Sanctum).
 

@@ -60,7 +60,9 @@
             </div>
             <div class="flex flex-wrap gap-2 sm:col-span-2">
                 <button type="submit" class="rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white">Lưu tên</button>
-                <button type="submit" form="delete-tpl" class="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 dark:border-red-900 dark:text-red-400" onclick="return confirm('Xóa công thức này? SP sẽ bỏ gán.');">Xóa CT</button>
+                <button type="button"
+                    @click="$dispatch('confirm-delete-open', { formId: 'delete-tpl', message: 'Xóa công thức này? SP sẽ bỏ gán.' })"
+                    class="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 dark:border-red-900 dark:text-red-400">Xóa CT</button>
             </div>
         </form>
         <form id="delete-tpl" action="{{ route('food.cong-thuc.destroy', $template) }}" method="post" class="hidden">@csrf @method('DELETE')</form>
@@ -151,9 +153,11 @@
                                 @endif
                             </td>
                             <td class="px-3 py-2">
-                                <form action="{{ route('food.cong-thuc.items.destroy', [$template, $item]) }}" method="post" onsubmit="return confirm('Xóa dòng?');">
+                                <form id="form-delete-ct-item-{{ $item->id }}" action="{{ route('food.cong-thuc.items.destroy', [$template, $item]) }}" method="post">
                                     @csrf @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                                    <button type="button"
+                                        @click="$dispatch('confirm-delete-open', { formId: 'form-delete-ct-item-{{ $item->id }}', message: 'Xóa dòng định lượng này?' })"
+                                        class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
                                 </form>
                             </td>
                         </tr>

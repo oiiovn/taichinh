@@ -100,7 +100,7 @@
                                 <span class="inline {{ ! empty($o->customer_reviewed) ? 'hidden' : '' }}" :class="{ 'hidden': reviewed }">Đánh dấu đã đánh giá</span>
                                 <span class="inline {{ empty($o->customer_reviewed) ? 'hidden' : '' }}" :class="{ 'hidden': !reviewed }">Bỏ đánh giá</span>
                             </button>
-                            <form method="POST" action="{{ route('food.thong-ke-buff.order.destroy', $o) }}" class="inline" onsubmit="return confirm('Xóa đơn {{ $o->invoice_code }}?');">
+                            <form id="form-delete-buff-{{ $o->id }}" method="POST" action="{{ route('food.thong-ke-buff.order.destroy', $o) }}" class="inline">
                                 @csrf
                                 @method('DELETE')
                                 <input type="hidden" name="from_date" value="{{ $from->format('Y-m-d') }}">
@@ -108,7 +108,9 @@
                                 @if($branchId)
                                     <input type="hidden" name="food_branch_id" value="{{ $branchId }}">
                                 @endif
-                                <button type="submit" class="rounded border border-red-300/90 bg-red-50 px-1.5 py-px text-[9px] font-medium text-red-800 hover:bg-red-100 dark:border-red-500/50 dark:bg-gray-900 dark:text-red-300 dark:hover:bg-red-950/40">Xóa</button>
+                                <button type="button"
+                                    @click="$dispatch('confirm-delete-open', { formId: 'form-delete-buff-{{ $o->id }}', message: @js('Xóa đơn '.$o->invoice_code.'?') })"
+                                    class="rounded border border-red-300/90 bg-red-50 px-1.5 py-px text-[9px] font-medium text-red-800 hover:bg-red-100 dark:border-red-500/50 dark:bg-gray-900 dark:text-red-300 dark:hover:bg-red-950/40">Xóa</button>
                             </form>
                         </div>
                     @endif

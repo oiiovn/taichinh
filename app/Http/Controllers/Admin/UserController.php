@@ -98,6 +98,7 @@ class UserController extends Controller
         $validated['can_use_qr_cham_cong'] = $request->boolean('can_use_qr_cham_cong');
         $features = array_values(array_keys($request->input('features', [])));
         $validated['allowed_features'] = $features !== [] ? $features : ['tai_chinh'];
+        $validated = $this->syncAllowedFeaturesWithFoodPermissions($validated);
         $validated['plan'] = $request->input('plan') ?: null;
         $validated['plan_expires_at'] = $request->filled('plan_expires_at')
             ? \Carbon\Carbon::parse($request->plan_expires_at)->startOfDay()
@@ -169,6 +170,7 @@ class UserController extends Controller
         $validated['can_use_food_employee'] = $request->boolean('can_use_food_employee');
         $validated['can_use_qr_cham_cong'] = $request->boolean('can_use_qr_cham_cong');
         $validated['allowed_features'] = array_values(array_keys($request->input('features', [])));
+        $validated = $this->syncAllowedFeaturesWithFoodPermissions($validated);
         $validated['plan'] = $request->input('plan') ?: null;
         $validated['plan_expires_at'] = $request->filled('plan_expires_at')
             ? \Carbon\Carbon::parse($request->plan_expires_at)->startOfDay()
@@ -198,6 +200,39 @@ class UserController extends Controller
                 unset($validated[$col]);
             }
         }
+        return $validated;
+    }
+
+    /** Tự bật tính năng Food khi user được cấp quyền Food (kể cả chỉ đánh giá). */
+    private function syncAllowedFeaturesWithFoodPermissions(array $validated): array
+    {
+        $needsFood = ($validated['is_admin'] ?? false)
+            || ($validated['can_manage_food_tong_quan'] ?? false)
+            || ($validated['can_manage_food_doanh_so'] ?? false)
+            || ($validated['can_manage_food_san_pham'] ?? false)
+            || ($validated['can_manage_food_bao_cao'] ?? false)
+            || ($validated['can_manage_food_thong_ke_buff'] ?? false)
+            || ($validated['can_create_food_buff_order'] ?? false)
+            || ($validated['can_manage_food_reviews'] ?? false)
+            || ($validated['can_manage_food_employees'] ?? false)
+            || ($validated['can_manage_food_cham_cong'] ?? false)
+            || ($validated['can_manage_food_xin_nghi'] ?? false)
+            || ($validated['can_manage_food_ung_luong'] ?? false)
+            || ($validated['can_manage_food_luong'] ?? false)
+            || ($validated['can_record_food_salary_payment'] ?? false)
+            || ($validated['can_use_food_employee'] ?? false)
+            || ($validated['can_use_qr_cham_cong'] ?? false);
+
+        if (! $needsFood) {
+            return $validated;
+        }
+
+        $features = $validated['allowed_features'] ?? [];
+        if (! in_array('food', $features, true)) {
+            $features[] = 'food';
+        }
+        $validated['allowed_features'] = array_values($features);
+
         return $validated;
     }
 

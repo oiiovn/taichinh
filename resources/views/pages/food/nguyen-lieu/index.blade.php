@@ -152,10 +152,12 @@
                     </div>
                     <div class="mt-2 flex flex-wrap gap-2 border-t border-gray-100 pt-2 dark:border-gray-800">
                         <button type="button" @click="stockOpen = stockOpen === {{ $m->id }} ? null : {{ $m->id }}" class="text-xs font-medium text-brand-600 dark:text-brand-400">Nhập/Xuất/Sửa</button>
-                        <form action="{{ route('food.nguyen-lieu.destroy', $m) }}" method="post" onsubmit="return confirm('Xóa {{ addslashes($m->name) }}?');">
+                        <form id="form-delete-nl-m-{{ $m->id }}" action="{{ route('food.nguyen-lieu.destroy', $m) }}" method="post">
                             @csrf @method('DELETE')
                             <input type="hidden" name="branch_id" value="{{ $branchId }}">
-                            <button type="submit" class="text-xs font-medium text-red-600 dark:text-red-400">Xóa</button>
+                            <button type="button"
+                                @click="$dispatch('confirm-delete-open', { formId: 'form-delete-nl-m-{{ $m->id }}', message: @js('Xóa '.$m->name.'?') })"
+                                class="text-xs font-medium text-red-600 dark:text-red-400">Xóa</button>
                         </form>
                     </div>
                     <div x-show="stockOpen === {{ $m->id }}" x-cloak class="mt-2 space-y-2 border-t border-gray-100 pt-2 dark:border-gray-800">
@@ -244,10 +246,12 @@
                             <td class="px-3 py-2">
                                 <div class="flex flex-wrap gap-2">
                                     <button type="button" @click="stockOpen = stockOpen === {{ $m->id }} ? null : {{ $m->id }}" class="text-brand-600 hover:underline dark:text-brand-400">Kho</button>
-                                    <form action="{{ route('food.nguyen-lieu.destroy', $m) }}" method="post" onsubmit="return confirm('Xóa {{ addslashes($m->name) }}?');">
+                                    <form id="form-delete-nl-d-{{ $m->id }}" action="{{ route('food.nguyen-lieu.destroy', $m) }}" method="post">
                                         @csrf @method('DELETE')
                                         <input type="hidden" name="branch_id" value="{{ $branchId }}">
-                                        <button type="submit" class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                                        <button type="button"
+                                            @click="$dispatch('confirm-delete-open', { formId: 'form-delete-nl-d-{{ $m->id }}', message: @js('Xóa '.$m->name.'?') })"
+                                            class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
                                     </form>
                                 </div>
                                 <div x-show="stockOpen === {{ $m->id }}" x-cloak class="mt-2 max-w-md space-y-2 rounded-lg border border-gray-200 p-2 dark:border-gray-700">

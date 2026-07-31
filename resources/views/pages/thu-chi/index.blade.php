@@ -4,7 +4,7 @@
 @php
     $tab = $tab ?? 'dashboard';
 @endphp
-<div class="space-y-6" x-data="{ showConfirmDelete: false, formIdToSubmit: null }" @confirm-delete-open.window="showConfirmDelete = true; formIdToSubmit = $event.detail.formId" @confirm-delete.window="if (formIdToSubmit) { const f = document.getElementById(formIdToSubmit); if (f) f.submit(); } formIdToSubmit = null; showConfirmDelete = false">
+<div class="space-y-6" x-data="{}">
     <div class="flex flex-wrap items-center justify-between gap-2">
         <h1 class="text-theme-xl font-semibold text-gray-900 dark:text-white">Thu chi ước tính</h1>
         <nav class="flex rounded-lg border border-gray-200 bg-gray-100 p-1 dark:border-gray-700 dark:bg-gray-800" aria-label="Tab thu chi">
@@ -322,6 +322,5 @@
         @endif
     </div>
     @endif
-    <x-ui.confirm-delete openVar="showConfirmDelete" title="Xác nhận xóa" defaultMessage="Bạn có chắc muốn xóa? Hành động không thể hoàn tác." />
 </div>
 @endsection

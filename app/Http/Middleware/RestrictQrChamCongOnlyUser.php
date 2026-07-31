@@ -51,11 +51,20 @@ class RestrictQrChamCongOnlyUser
             && ! (method_exists($user, 'canUseFoodEmployee') && $user->canUseFoodEmployee())
             && ! (method_exists($user, 'canUseQrChamCong') && $user->canUseQrChamCong());
 
-        if (! $hasOnlyQr && ! $hasOnlyThongKeBuff && ! $hasOnlyDatDonFood) {
+        $hasOnlyReviews = method_exists($user, 'isFoodReviewsOnlyUser') && $user->isFoodReviewsOnlyUser();
+
+        if (! $hasOnlyQr && ! $hasOnlyThongKeBuff && ! $hasOnlyDatDonFood && ! $hasOnlyReviews) {
             return $next($request);
         }
 
         $path = $request->path();
+        if ($hasOnlyReviews) {
+            if (method_exists($user, 'canAccessFoodReviewsPath') && $user->canAccessFoodReviewsPath($path)) {
+                return $next($request);
+            }
+
+            return redirect()->route('food.reviews.index');
+        }
         if ($hasOnlyThongKeBuff) {
             if ($path === 'food/lich-dat-don' || str_starts_with($path, 'food/lich-dat-don/')) {
                 return $next($request);

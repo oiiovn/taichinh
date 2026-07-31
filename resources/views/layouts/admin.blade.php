@@ -87,6 +87,8 @@
             </div>
         </div>
     </div>
+
+    <x-ui.confirm-delete />
 </body>
 @stack('scripts')
 </html>

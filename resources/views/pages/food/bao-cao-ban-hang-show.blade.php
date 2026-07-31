@@ -123,10 +123,12 @@
                         </div>
                     </template>
                 </form>
-                <form action="{{ route('food.bao-cao-ban-hang.destroy', $report) }}" method="POST" class="inline" onsubmit="return confirm('Xóa báo cáo {{ $report->report_code }}?');">
+                <form id="form-delete-bc-show-{{ $report->id }}" action="{{ route('food.bao-cao-ban-hang.destroy', $report) }}" method="POST" class="inline">
                     @csrf
                     @method('DELETE')
-                    <button type="submit" class="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20">Xóa</button>
+                    <button type="button"
+                        @click="$dispatch('confirm-delete-open', { formId: 'form-delete-bc-show-{{ $report->id }}', message: @js('Xóa báo cáo '.$report->report_code.'?') })"
+                        class="rounded-lg border border-red-300 px-4 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-900/20">Xóa</button>
                 </form>
             @endif
             <a href="{{ ($canManage ?? true) ? route('food.bao-cao-ban-hang') : route('food.cong-no') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">Đóng</a>

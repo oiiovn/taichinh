@@ -17,7 +17,14 @@ class MenuHelper
         if (!$user) {
             return [];
         }
-        return array_values(array_filter($items, fn ($item) => $user->canUseFeature($item['feature'])));
+        return array_values(array_filter($items, function ($item) use ($user) {
+            if ($item['feature'] === 'food') {
+                return $user->canUseFeature('food')
+                    || (method_exists($user, 'canManageFoodReviews') && $user->canManageFoodReviews());
+            }
+
+            return $user->canUseFeature($item['feature']);
+        }));
     }
 
     public static function getOthersItems()

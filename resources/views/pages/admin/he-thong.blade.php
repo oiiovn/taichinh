@@ -227,10 +227,12 @@
                                 <td class="py-2.5">{{ number_format((float) $tier->min_total_cost, 0, ',', '.') }}</td>
                                 <td class="py-2.5">{{ number_format((float) $tier->bonus_amount, 0, ',', '.') }}</td>
                                 <td class="py-2.5 text-right">
-                                    <form action="{{ route('admin.he-thong.bonus-tiers.destroy', $tier) }}" method="POST" class="inline" onsubmit="return confirm('Xóa mức thưởng này?');">
+                                    <form id="form-delete-bonus-{{ $tier->id }}" action="{{ route('admin.he-thong.bonus-tiers.destroy', $tier) }}" method="POST" class="inline">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                                        <button type="button"
+                                            @click="$dispatch('confirm-delete-open', { formId: 'form-delete-bonus-{{ $tier->id }}', message: 'Xóa mức thưởng này?' })"
+                                            class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
                                     </form>
                                 </td>
                             </tr>

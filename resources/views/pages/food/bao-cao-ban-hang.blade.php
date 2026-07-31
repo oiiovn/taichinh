@@ -133,10 +133,12 @@
                             <span class="mx-1 text-gray-300 dark:text-gray-600">|</span>
                             <button type="button" @click="congNoReportId = {{ $r->id }}; congNoOpen = true; deductionAmount = 0; additionAmount = 0; onlyTienCong = false; onlyTienCongKhungGio = false" class="text-amber-600 hover:underline dark:text-amber-400">Xử lý công nợ</button>
                             <span class="mx-1 text-gray-300 dark:text-gray-600">|</span>
-                            <form action="{{ route('food.bao-cao-ban-hang.destroy', $r) }}" method="POST" class="inline" onsubmit="return confirm('Xóa báo cáo {{ $r->report_code }}?');">
+                            <form id="form-delete-bc-{{ $r->id }}" action="{{ route('food.bao-cao-ban-hang.destroy', $r) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                                <button type="button"
+                                    @click="$dispatch('confirm-delete-open', { formId: 'form-delete-bc-{{ $r->id }}', message: @js('Xóa báo cáo '.$r->report_code.'?') })"
+                                    class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
                             </form>
                         </td>
                     </tr>

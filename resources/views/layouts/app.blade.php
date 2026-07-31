@@ -139,6 +139,8 @@
 
     </div>
 
+    <x-ui.confirm-delete />
+
 </body>
 
 @stack('scripts')

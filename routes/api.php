@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\Food\AttendanceController as FoodAttendanceController;
 use App\Http\Controllers\Api\Food\BranchController as FoodBranchController;
+use App\Http\Controllers\Api\Food\ChamCongController as ApiFoodChamCongController;
 use App\Http\Controllers\Api\Food\ManagerController as FoodManagerController;
 use App\Http\Controllers\Api\Food\MeController as FoodMeController;
 use App\Http\Controllers\TaiChinhController;
@@ -45,6 +46,14 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('/dashboard/analytics', [DashboardController::class, 'analytics'])->name('dashboard.analytics');
         Route::get('/dashboard/debt', [DashboardController::class, 'debt'])->name('dashboard.debt');
         Route::get('/dashboard/projection', [DashboardController::class, 'projection'])->name('dashboard.projection');
+
+        // Food — menu theo quyền + home + chấm công (app FRESH)
+        Route::get('/food/menu', [\App\Http\Controllers\Api\Food\MenuController::class, 'index'])->name('food.menu');
+        Route::get('/food/home', [\App\Http\Controllers\Api\Food\HomeController::class, 'index'])->name('food.home');
+        Route::get('/food/cham-cong', [ApiFoodChamCongController::class, 'index'])->name('food.cham-cong.index');
+        Route::post('/food/cham-cong', [ApiFoodChamCongController::class, 'store'])->name('food.cham-cong.store');
+        Route::post('/food/qr-cham-cong/scan', [\App\Http\Controllers\Api\Food\QrChamCongScanController::class, 'scan'])->name('food.qr-cham-cong.scan');
+        Route::get('/food/bang-luong', [\App\Http\Controllers\Api\Food\BangLuongController::class, 'index'])->name('food.bang-luong');
     });
 
     // F&B mobile attendance

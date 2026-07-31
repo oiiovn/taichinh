@@ -195,7 +195,7 @@
     animation: nguong-shimmer-run 2s ease-in-out infinite;
 }
 </style>
-<div id="nguong-ngan-sach-wrap" class="space-y-6" x-data="{ modalThemNguong: false, modalThemMucTieu: false, showConfirmDelete: false, formIdToSubmit: null }" @nguong-saved.window="modalThemNguong = false" @muc-tieu-saved.window="modalThemMucTieu = false" @open-nguong-modal.window="modalThemNguong = true" @open-muc-tieu-modal.window="modalThemMucTieu = true" @confirm-delete-open.window="showConfirmDelete = true; formIdToSubmit = $event.detail.formId" @confirm-delete.window="if (formIdToSubmit) { const f = document.getElementById(formIdToSubmit); if (f) f.submit(); } formIdToSubmit = null; showConfirmDelete = false"
+<div id="nguong-ngan-sach-wrap" class="space-y-6" x-data="{ modalThemNguong: false, modalThemMucTieu: false }" @nguong-saved.window="modalThemNguong = false" @muc-tieu-saved.window="modalThemMucTieu = false" @open-nguong-modal.window="modalThemNguong = true" @open-muc-tieu-modal.window="modalThemMucTieu = true"
     data-nguong-store-url="{{ route('tai-chinh.nguong-ngan-sach.store') }}" data-nguong-update-url="{{ route('tai-chinh.nguong-ngan-sach.update', ['id' => 0]) }}"
     data-muc-tieu-store-url="{{ route('tai-chinh.muc-tieu-thu.store') }}" data-muc-tieu-update-url="{{ route('tai-chinh.muc-tieu-thu.update', ['id' => 0]) }}">
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Ngưỡng ngân sách</h2>
@@ -647,8 +647,6 @@
             </form>
         </div>
     </div>
-
-    <x-ui.confirm-delete openVar="showConfirmDelete" title="Xác nhận xóa" defaultMessage="Bạn có chắc muốn xóa? Hành động không thể hoàn tác." />
 
     <style>[x-cloak]{display:none !important}</style>
 </div>

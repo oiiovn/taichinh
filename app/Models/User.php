@@ -291,6 +291,42 @@ class User extends Authenticatable
             && ! $this->canUseQrChamCong();
     }
 
+    /** Chỉ có quyền đánh giá Food, không có quyền quản lý Food khác. */
+    public function isFoodReviewsOnlyUser(): bool
+    {
+        return ! $this->is_admin
+            && $this->canManageFoodReviews()
+            && ! $this->canManageFoodThongKeBuff()
+            && ! $this->canCreateFoodBuffOrder()
+            && ! $this->canManageFoodTongQuan()
+            && ! $this->canManageFoodDoanhSo()
+            && ! $this->canManageFoodSanPham()
+            && ! $this->canManageFoodBaoCao()
+            && ! $this->canManageFoodEmployees()
+            && ! $this->canManageFoodChamCong()
+            && ! $this->canManageFoodXinNghi()
+            && ! $this->canManageFoodUngLuong()
+            && ! $this->canManageFoodLuong()
+            && ! $this->canRecordFoodSalaryPayment()
+            && ! $this->canUseFoodEmployee()
+            && ! $this->canUseQrChamCong();
+    }
+
+    /** User thường chỉ được xem /food/danh-gia; admin xem thêm các trang con. */
+    public function canAccessFoodReviewsPath(string $path): bool
+    {
+        if ($path !== 'food/danh-gia') {
+            return false;
+        }
+
+        return $this->is_admin || $this->canManageFoodReviews();
+    }
+
+    public function canAccessFoodReviewsSubpages(): bool
+    {
+        return (bool) $this->is_admin;
+    }
+
     public function employee(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
         return $this->hasOne(Employee::class);

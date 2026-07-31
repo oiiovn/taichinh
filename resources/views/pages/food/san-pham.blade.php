@@ -219,7 +219,12 @@ document.addEventListener('alpine:init', () => {
             this.addSaving = false;
         },
         async deleteProduct(p) {
-            if (!confirm('Xóa sản phẩm này?')) return;
+            const ok = await new Promise((resolve) => {
+                window.dispatchEvent(new CustomEvent('confirm-delete-open', {
+                    detail: { message: 'Xóa sản phẩm này?', resolve }
+                }));
+            });
+            if (!ok) return;
             try {
                 const r = await fetch(`/food/san-pham/${p.id}`, {
                     method: 'DELETE',

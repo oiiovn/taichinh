@@ -7,7 +7,7 @@
     $scheduleObligation30dAmount = $scheduleObligation30dAmount ?? [];
     $liquidBalance = (float) ($position['liquid_balance'] ?? 0);
 @endphp
-<div class="space-y-6" x-data="{ showConfirmDelete: false, formIdToSubmit: null }" @confirm-delete-open.window="showConfirmDelete = true; formIdToSubmit = $event.detail.formId" @confirm-delete.window="if (formIdToSubmit) { const f = document.getElementById(formIdToSubmit); if (f) f.submit(); } formIdToSubmit = null; showConfirmDelete = false">
+<div class="space-y-6">
     <div class="flex flex-wrap items-center justify-between gap-4">
         <div>
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Lịch thanh toán</h2>
@@ -134,7 +134,7 @@
                                     <form id="form-delete-lich-{{ $schedule->id }}" action="{{ route('tai-chinh.payment-schedules.destroy', $schedule->id) }}" method="post" class="inline">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="button" @click="$dispatch('confirm-delete-open', { formId: 'form-delete-lich-{{ $schedule->id }}' })" class="shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600 dark:hover:text-gray-200" title="Xóa">
+                                        <button type="button" @click="$dispatch('confirm-delete-open', { formId: 'form-delete-lich-{{ $schedule->id }}', message: 'Bạn có chắc muốn xóa lịch này? Hành động không thể hoàn tác.' })" class="shrink-0 rounded-full p-1.5 text-gray-400 hover:bg-gray-200 hover:text-gray-700 dark:hover:bg-gray-600 dark:hover:text-gray-200" title="Xóa">
                                             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                                         </button>
                                     </form>
@@ -151,7 +151,6 @@
         @include('pages.tai-chinh.partials.lich-thanh-toan-form')
     </x-ui.modal>
 
-    <x-ui.confirm-delete openVar="showConfirmDelete" title="Xác nhận xóa lịch thanh toán" defaultMessage="Bạn có chắc muốn xóa lịch này? Hành động không thể hoàn tác." />
 
     <script>
     document.addEventListener('DOMContentLoaded', function() {

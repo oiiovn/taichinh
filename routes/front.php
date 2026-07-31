@@ -28,6 +28,9 @@ Route::middleware('auth')->group(function () {
             if (method_exists($user, 'canCreateFoodBuffOrder') && $user->canCreateFoodBuffOrder()) {
                 return redirect()->route('food.dat-don');
             }
+            if (method_exists($user, 'isFoodReviewsOnlyUser') && $user->isFoodReviewsOnlyUser()) {
+                return redirect()->route('food.reviews.index');
+            }
             if (method_exists($user, 'canManageAnyFood') && $user->canManageAnyFood()) {
                 return redirect()->route('food');
             }
@@ -271,6 +274,7 @@ Route::middleware('auth')->group(function () {
             Route::put('/food/bao-cao-ban-hang/{id}/doanh-so', [\App\Http\Controllers\Food\BaoCaoBanHangController::class, 'updateDoanhSo'])->name('food.bao-cao-ban-hang.update-doanh-so');
         });
         Route::middleware(['food.san_pham'])->group(function () {
+            Route::get('/food/mon', [\App\Http\Controllers\Food\MonController::class, 'index'])->name('food.mon');
             Route::get('/food/san-pham', [\App\Http\Controllers\Food\SanPhamController::class, 'index'])->name('food.san-pham');
             Route::post('/food/san-pham/paste', [\App\Http\Controllers\Food\SanPhamController::class, 'pasteFromSheet'])->name('food.san-pham.paste');
             Route::post('/food/san-pham', [\App\Http\Controllers\Food\SanPhamController::class, 'store'])->name('food.san-pham.store');

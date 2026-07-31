@@ -19,7 +19,7 @@ class FoodReviewController extends Controller
         if (! $user) {
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
         }
-        if (! $user->is_admin && ! $user->canManageFoodReviews()) {
+        if (! $user->canAccessFoodReviewsSubpages()) {
             abort(403, 'Bạn không có quyền cập nhật trạng thái thưởng.');
         }
 
@@ -90,7 +90,7 @@ class FoodReviewController extends Controller
         if (! $user) {
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
         }
-        if (! $user->is_admin && ! $user->canManageFoodReviews()) {
+        if (! $user->canAccessFoodReviewsSubpages()) {
             abort(403, 'Bạn không có quyền xem lịch sử nhận quà.');
         }
 
@@ -140,7 +140,7 @@ class FoodReviewController extends Controller
         if (! $user) {
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
         }
-        if (! $user->is_admin && ! $user->canManageFoodReviews()) {
+        if (! $user->canAccessFoodReviewsSubpages()) {
             abort(403, 'Bạn không có quyền nhập đánh giá.');
         }
 
@@ -154,7 +154,7 @@ class FoodReviewController extends Controller
     public function importText(Request $request): RedirectResponse
     {
         $user = $request->user();
-        if (! $user || (! $user->is_admin && ! $user->canManageFoodReviews())) {
+        if (! $user || ! $user->canAccessFoodReviewsSubpages()) {
             abort(403, 'Bạn không có quyền thực hiện thao tác này.');
         }
 

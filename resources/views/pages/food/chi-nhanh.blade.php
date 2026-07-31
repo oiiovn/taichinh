@@ -95,10 +95,12 @@
                             <p class="text-xs text-amber-700 dark:text-amber-300">Chưa cấu hình GPS — app mobile sẽ từ chối chấm công tại chi nhánh này.</p>
                         @endif
                     </form>
-                    <form action="{{ route('food.chi-nhanh.destroy', $b) }}" method="POST" class="shrink-0" onsubmit="return confirm('Xóa chi nhánh {{ e($b->name) }}?');">
+                    <form id="form-delete-cn-{{ $b->id }}" action="{{ route('food.chi-nhanh.destroy', $b) }}" method="POST" class="shrink-0">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20">Xóa</button>
+                        <button type="button"
+                            @click="$dispatch('confirm-delete-open', { formId: 'form-delete-cn-{{ $b->id }}', message: @js('Xóa chi nhánh '.$b->name.'?') })"
+                            class="w-full rounded-lg border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:text-red-400 dark:hover:bg-red-900/20 sm:w-auto">Xóa</button>
                     </form>
                 </div>
             </div>

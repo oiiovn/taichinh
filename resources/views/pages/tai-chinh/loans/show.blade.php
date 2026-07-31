@@ -1,7 +1,7 @@
 @extends('layouts.tai-chinh')
 
 @section('taiChinhContent')
-    <div class="mb-5 flex flex-wrap items-center justify-between gap-3" x-data="{ showConfirmDelete: false, showConfirmClose: false }" @confirm-delete.window="const f = document.getElementById('form-delete-loan'); if (f) f.submit();" @confirm-close.window="const f = document.getElementById('form-close-loan'); if (f) f.submit();">
+    <div class="mb-5 flex flex-wrap items-center justify-between gap-3" x-data="{ showConfirmClose: false }" @confirm-close.window="const f = document.getElementById('form-close-loan'); if (f) f.submit();">
         <nav class="flex items-center gap-1.5 text-theme-sm">
             <a href="{{ route('tai-chinh', ['tab' => 'no-khoan-vay']) }}" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">Tài chính</a>
             <span class="text-gray-400 dark:text-gray-500">→</span>
@@ -29,12 +29,13 @@
                 <form id="form-delete-loan" method="POST" action="{{ route('tai-chinh.loans.destroy', $contract->id) }}" class="inline">
                     @csrf
                     @method('DELETE')
-                    <button type="button" @click="showConfirmDelete = true" class="rounded-lg border border-error-200 bg-error-50 px-3.5 py-2 text-theme-sm font-medium text-error-600 shadow-theme-xs hover:bg-error-100 dark:border-error-800 dark:bg-error-900/20 dark:text-error-400 dark:hover:bg-error-900/30">Xóa</button>
+                    <button type="button"
+                        @click="$dispatch('confirm-delete-open', { formId: 'form-delete-loan', message: 'Xóa hợp đồng này? Dữ liệu sẽ mất vĩnh viễn.' })"
+                        class="rounded-lg border border-error-200 bg-error-50 px-3.5 py-2 text-theme-sm font-medium text-error-600 shadow-theme-xs hover:bg-error-100 dark:border-error-800 dark:bg-error-900/20 dark:text-error-400 dark:hover:bg-error-900/30">Xóa</button>
                 </form>
             @endif
             <a href="{{ route('tai-chinh.loans.index') }}" class="rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-theme-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 dark:border-gray-800 dark:bg-gray-dark dark:text-gray-300 dark:hover:bg-gray-800">← Quay lại</a>
         </div>
-        <x-ui.confirm-delete openVar="showConfirmDelete" title="Xác nhận xóa" defaultMessage="Xóa hợp đồng này? Dữ liệu sẽ mất vĩnh viễn." />
         <x-ui.confirm-delete openVar="showConfirmClose" title="Xác nhận đóng" defaultMessage="Đóng hợp đồng này?" confirmText="Đóng" confirmEvent="confirm-close" />
     </div>
 

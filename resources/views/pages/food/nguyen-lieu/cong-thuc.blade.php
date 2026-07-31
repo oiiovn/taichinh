@@ -66,9 +66,11 @@
                         <td class="px-3 py-2 text-gray-600 dark:text-gray-400">{{ $typeLabels[$recipe->material?->type] ?? '—' }}</td>
                         <td class="px-3 py-2 tabular-nums">{{ $fmtQty($recipe->qty_per_unit) }} {{ $recipe->material?->unit }}</td>
                         <td class="px-3 py-2">
-                            <form action="{{ route('food.san-pham.cong-thuc.destroy', [$product, $recipe]) }}" method="post" onsubmit="return confirm('Xóa dòng này?');">
+                            <form id="form-delete-legacy-ct-{{ $recipe->id }}" action="{{ route('food.san-pham.cong-thuc.destroy', [$product, $recipe]) }}" method="post">
                                 @csrf @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                                <button type="button"
+                                    @click="$dispatch('confirm-delete-open', { formId: 'form-delete-legacy-ct-{{ $recipe->id }}', message: 'Xóa dòng này?' })"
+                                    class="text-red-600 hover:underline dark:text-red-400">Xóa</button>
                             </form>
                         </td>
                     </tr>

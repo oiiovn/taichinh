@@ -79,10 +79,12 @@
                         <td class="px-4 py-2.5 max-w-xs truncate" title="{{ $t->description }}">{{ $t->description ?: '-' }}</td>
                         <td class="px-4 py-2.5 text-gray-500">{{ Str::limit($t->external_id ?? '-', 16) }}</td>
                         <td class="px-4 py-2.5">
-                            <form action="{{ route('admin.lich-su-giao-dich.destroy', $t) }}" method="POST" class="inline" onsubmit="return confirm('Xóa giao dịch này?');">
+                            <form id="form-delete-tx-{{ $t->id }}" action="{{ route('admin.lich-su-giao-dich.destroy', $t) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20">Xóa</button>
+                                <button type="button"
+                                    @click="$dispatch('confirm-delete-open', { formId: 'form-delete-tx-{{ $t->id }}', message: 'Xóa giao dịch này?' })"
+                                    class="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20">Xóa</button>
                             </form>
                         </td>
                     </tr>

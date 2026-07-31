@@ -291,11 +291,12 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                                 class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-brand-600 transition hover:bg-brand-50 dark:text-brand-400 dark:hover:bg-brand-900/20">
                                 Sửa ca
                             </button>
-                            <form action="{{ route('food.cham-cong.destroy', $log) }}" method="POST" class="inline"
-                                onsubmit="return confirm('Xóa chấm công ngày {{ $log->work_date->format('d/m/Y') }}{{ $log->employee?->user?->name ? ' của '.$log->employee->user->name : '' }}?');">
+                            <form id="form-delete-cc-m-{{ $log->id }}" action="{{ route('food.cham-cong.destroy', $log) }}" method="POST" class="inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20">
+                                <button type="button"
+                                    @click="$dispatch('confirm-delete-open', { formId: 'form-delete-cc-m-{{ $log->id }}', message: @js('Xóa chấm công ngày '.$log->work_date->format('d/m/Y').($log->employee?->user?->name ? ' của '.$log->employee->user->name : '').'?') })"
+                                    class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20">
                                     Xóa
                                 </button>
                             </form>
@@ -355,11 +356,12 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                                 <td class="px-4 py-2">
                                     <div class="flex items-center gap-3">
                                         <button type="button" @click="editOpen = true; editLog = { id: {{ $log->id }}, work_date: '{{ $log->work_date->format('Y-m-d') }}', check_in_time: '{{ $log->check_in_at?->format('H:i') ?? '' }}', check_out_time: '{{ $log->check_out_at?->format('H:i') ?? '' }}', break_start_time: '{{ $log->break_start_at?->format('H:i') ?? '' }}', break_end_time: '{{ $log->break_end_at?->format('H:i') ?? '' }}', note: {{ json_encode($log->note ?? '') }} }" class="text-brand-600 hover:underline dark:text-brand-400 text-sm">Sửa</button>
-                                        <form action="{{ route('food.cham-cong.destroy', $log) }}" method="POST" class="inline"
-                                            onsubmit="return confirm('Xóa chấm công ngày {{ $log->work_date->format('d/m/Y') }}{{ $log->employee?->user?->name ? ' của '.$log->employee->user->name : '' }}?');">
+                                        <form id="form-delete-cc-d-{{ $log->id }}" action="{{ route('food.cham-cong.destroy', $log) }}" method="POST" class="inline">
                                             @csrf
                                             @method('DELETE')
-                                            <button type="submit" class="text-sm text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                                            <button type="button"
+                                                @click="$dispatch('confirm-delete-open', { formId: 'form-delete-cc-d-{{ $log->id }}', message: @js('Xóa chấm công ngày '.$log->work_date->format('d/m/Y').($log->employee?->user?->name ? ' của '.$log->employee->user->name : '').'?') })"
+                                                class="text-sm text-red-600 hover:underline dark:text-red-400">Xóa</button>
                                         </form>
                                     </div>
                                 </td>
@@ -422,11 +424,12 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                         </form>
                     </template>
                     <template x-if="editLog">
-                        <form :action="'{{ url('/food/cham-cong') }}/' + editLog.id" method="POST" class="mt-3"
-                            @submit="if (!confirm('Xóa bản ghi chấm công này?')) { $event.preventDefault() }">
+                        <form id="form-delete-cc-edit" :action="'{{ url('/food/cham-cong') }}/' + editLog.id" method="POST" class="mt-3">
                             @csrf
                             @method('DELETE')
-                            <button type="submit" class="w-full rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/20">Xóa bản ghi này</button>
+                            <button type="button"
+                                @click="$dispatch('confirm-delete-open', { formId: 'form-delete-cc-edit', message: 'Xóa bản ghi chấm công này?' })"
+                                class="w-full rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/20">Xóa bản ghi này</button>
                         </form>
                     </template>
                 </div>

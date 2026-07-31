@@ -110,10 +110,12 @@
                 <h4 class="text-sm font-semibold text-gray-900 dark:text-white">{{ $stat->name }}</h4>
                 <div class="flex items-center gap-2">
                     <button type="button" @click="editOpen = true" class="text-sm text-brand-600 hover:underline dark:text-brand-400">Sửa</button>
-                    <form method="post" action="{{ route('tai-chinh.tongquan-statistic.destroy', $stat) }}" class="inline" onsubmit="return confirm('Xóa thống kê này?');">
+                    <form id="form-delete-stat-{{ $stat->id }}" method="post" action="{{ route('tai-chinh.tongquan-statistic.destroy', $stat) }}" class="inline">
                         @csrf
                         @method('DELETE')
-                        <button type="submit" class="text-sm text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                        <button type="button"
+                            @click="$dispatch('confirm-delete-open', { formId: 'form-delete-stat-{{ $stat->id }}', message: 'Xóa thống kê này?' })"
+                            class="text-sm text-red-600 hover:underline dark:text-red-400">Xóa</button>
                     </form>
                 </div>
             </div>

@@ -56,10 +56,12 @@
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2">
                                     <span class="font-mono text-[10px] text-violet-600 dark:text-violet-400">#{{ $row['id'] }}</span>
-                                    <form action="{{ route('food.lich-dat-don.destroy', $row['id']) }}" method="POST" class="inline" onsubmit="return confirm('Xóa lịch ngày {{ e($row['date_label']) }}?');">
+                                    <form id="form-delete-lich-{{ $row['id'] }}" action="{{ route('food.lich-dat-don.destroy', $row['id']) }}" method="POST" class="inline">
                                         @csrf
                                         @method('DELETE')
-                                        <button type="submit" class="rounded border border-red-200 bg-white px-2 py-0.5 text-[10px] font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/30">Xóa</button>
+                                        <button type="button"
+                                            @click="$dispatch('confirm-delete-open', { formId: 'form-delete-lich-{{ $row['id'] }}', message: @js('Xóa lịch ngày '.$row['date_label'].'?') })"
+                                            class="rounded border border-red-200 bg-white px-2 py-0.5 text-[10px] font-medium text-red-600 hover:bg-red-50 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400 dark:hover:bg-red-900/30">Xóa</button>
                                     </form>
                                 </div>
                             </div>
