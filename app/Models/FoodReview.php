@@ -23,6 +23,8 @@ class FoodReview extends Model
         'gift_item_name',
         'gift_status',
         'gift_rendered_at',
+        'gift_rewarded_by_user_id',
+        'gift_rewarded_at',
         'raw_chunk',
     ];
 
@@ -30,6 +32,7 @@ class FoodReview extends Model
         'review_date' => 'date',
         'rating' => 'integer',
         'gift_rendered_at' => 'datetime',
+        'gift_rewarded_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -40,6 +43,11 @@ class FoodReview extends Model
     public function branch(): BelongsTo
     {
         return $this->belongsTo(FoodBranch::class, 'food_branch_id');
+    }
+
+    public function rewardedByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'gift_rewarded_by_user_id');
     }
 
     public function giftAttempts(): HasMany

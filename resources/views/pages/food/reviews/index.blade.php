@@ -28,7 +28,10 @@
         }, $escaped);
     };
 @endphp
-<div class="space-y-4" x-data="{ q: '', hasMatch() { const items = this.$root.querySelectorAll('.review-item'); return Array.from(items).some((el) => el.style.display !== 'none'); } }">
+    @php
+        $canMarkRewarded = auth()->user()?->is_admin || auth()->user()?->canManageFoodReviews();
+    @endphp
+    <div class="space-y-4" x-data="{ q: '', hasMatch() { const items = this.$root.querySelectorAll('.review-item'); return Array.from(items).some((el) => el.style.display !== 'none'); } }">
     @if(session('success'))
         <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">{{ session('success') }}</div>
     @endif
@@ -109,13 +112,39 @@
                         @if(!empty($r->gift_item_name))
                             <span class="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-900/30 dark:text-emerald-200">Tặng {{ $r->gift_item_name }}</span>
                         @endif
-                        @if(($r->gift_status ?? 'chua_thuong') === 'chua_thuong' && auth()->user()?->is_admin)
+                        @if(($r->gift_status ?? 'chua_thuong') === 'chua_thuong' && $canMarkRewarded)
                             <form method="POST" action="{{ route('food.reviews.mark-rewarded', $r) }}" class="inline">
                                 @csrf
                                 <button type="submit" class="rounded border border-[#1877F2] bg-[#1877F2] px-2 py-0.5 font-medium text-white hover:bg-[#166FE5] dark:border-[#1877F2] dark:bg-[#1877F2] dark:text-white">Xác nhận thưởng</button>
                             </form>
-                        @else
-                            <span class="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-900/30 dark:text-emerald-200">Đã thưởng</span>
+                        @elseif(($r->gift_status ?? 'chua_thuong') === 'da_thuong')
+                            <span class="inline-flex flex-wrap items-center gap-1.5">
+                                <span class="rounded border border-emerald-300 bg-emerald-50 px-2 py-0.5 font-medium text-emerald-700 dark:border-emerald-500/40 dark:bg-emerald-900/30 dark:text-emerald-200">Đã thưởng</span>
+                                @if($r->rewardedByUser)
+                                    @php
+                                        $rewardedByName = trim((string) $r->rewardedByUser->name);
+                                        $rewardedInitial = mb_strtoupper(mb_substr($rewardedByName !== '' ? $rewardedByName : 'U', 0, 1));
+                                        $rewardedTitle = 'Xác nhận bởi '.$rewardedByName;
+                                        if ($r->gift_rewarded_at) {
+                                            $rewardedTitle .= ' · '.$r->gift_rewarded_at->format('d/m/Y H:i');
+                                        }
+                                    @endphp
+                                    <span class="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-1.5 py-0.5 dark:border-emerald-500/30 dark:bg-gray-900/40" title="{{ $rewardedTitle }}">
+                                        <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-[10px] font-bold text-white">{{ $rewardedInitial }}</span>
+                                        <span class="max-w-[8rem] truncate font-medium text-emerald-800 dark:text-emerald-200">{{ $rewardedByName }}</span>
+                                    </span>
+                                @endif
+                                @if(auth()->user()?->is_admin)
+                                    <form id="form-unmark-rewarded-{{ $r->id }}" method="POST" action="{{ route('food.reviews.unmark-rewarded', $r) }}" class="inline">
+                                        @csrf
+                                    </form>
+                                    <button type="button"
+                                        @click="$dispatch('confirm-delete-open', { formId: 'form-unmark-rewarded-{{ $r->id }}', message: 'Trả lại trạng thái chưa thưởng cho đánh giá {{ $r->review_code }}?' })"
+                                        class="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 font-medium text-amber-800 hover:bg-amber-100 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-200 dark:hover:bg-amber-900/50">
+                                        Hoàn tác
+                                    </button>
+                                @endif
+                            </span>
                         @endif
                     </div>
                 @endif

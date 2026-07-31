@@ -16,7 +16,7 @@ class EnsureUserCanManageFoodReviews
         }
 
         $path = $request->path();
-        if ($path !== 'food/danh-gia' && ! $user->canAccessFoodReviewsSubpages()) {
+        if (! $user->canAccessFoodReviewsPath($path, $request->method()) && ! $user->canAccessFoodReviewsSubpages()) {
             return redirect()->route('food.reviews.index');
         }
 

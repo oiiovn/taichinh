@@ -312,14 +312,22 @@ class User extends Authenticatable
             && ! $this->canUseQrChamCong();
     }
 
-    /** User thường chỉ được xem /food/danh-gia; admin xem thêm các trang con. */
-    public function canAccessFoodReviewsPath(string $path): bool
+    /** User thường chỉ được xem /food/danh-gia và xác nhận thưởng trên trang đó. */
+    public function canAccessFoodReviewsPath(string $path, ?string $method = null): bool
     {
-        if ($path !== 'food/danh-gia') {
-            return false;
+        if ($path === 'food/danh-gia') {
+            return $this->is_admin || $this->canManageFoodReviews();
         }
 
-        return $this->is_admin || $this->canManageFoodReviews();
+        if (strtoupper((string) $method) === 'POST' && preg_match('#^food/danh-gia/\d+/mark-rewarded$#', $path)) {
+            return $this->is_admin || $this->canManageFoodReviews();
+        }
+
+        if (strtoupper((string) $method) === 'POST' && preg_match('#^food/danh-gia/\d+/unmark-rewarded$#', $path)) {
+            return (bool) $this->is_admin;
+        }
+
+        return false;
     }
 
     public function canAccessFoodReviewsSubpages(): bool

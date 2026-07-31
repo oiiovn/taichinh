@@ -19,15 +19,36 @@ class FoodReviewController extends Controller
         if (! $user) {
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
         }
-        if (! $user->canAccessFoodReviewsSubpages()) {
+        if (! $user->is_admin && ! $user->canManageFoodReviews()) {
             abort(403, 'Bạn không có quyền cập nhật trạng thái thưởng.');
         }
 
         $review->update([
             'gift_status' => 'da_thuong',
+            'gift_rewarded_by_user_id' => $user->id,
+            'gift_rewarded_at' => now(),
         ]);
 
-        return back()->with('success', 'Đã cập nhật trạng thái: Đã thưởng.');
+        return back()->with('success', 'Đã xác nhận thưởng.');
+    }
+
+    public function unmarkRewarded(Request $request, FoodReview $review): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+        if (! $user->is_admin) {
+            abort(403, 'Chỉ admin mới được trả lại trạng thái thưởng.');
+        }
+
+        $review->update([
+            'gift_status' => 'chua_thuong',
+            'gift_rewarded_by_user_id' => null,
+            'gift_rewarded_at' => null,
+        ]);
+
+        return back()->with('success', 'Đã trả lại trạng thái chưa thưởng.');
     }
 
     public function index(Request $request): View|RedirectResponse
@@ -47,7 +68,7 @@ class FoodReviewController extends Controller
         $from = $request->input('from_date');
         $to = $request->input('to_date');
 
-        $query = FoodReview::query()->with('branch')->orderByDesc('review_date')->orderByDesc('id');
+        $query = FoodReview::query()->with(['branch', 'rewardedByUser'])->orderByDesc('review_date')->orderByDesc('id');
         if ($q !== '') {
             $query->where(function ($sub) use ($q) {
                 $sub->where('review_code', 'like', "%{$q}%")

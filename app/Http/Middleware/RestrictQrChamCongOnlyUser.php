@@ -59,7 +59,7 @@ class RestrictQrChamCongOnlyUser
 
         $path = $request->path();
         if ($hasOnlyReviews) {
-            if (method_exists($user, 'canAccessFoodReviewsPath') && $user->canAccessFoodReviewsPath($path)) {
+            if (method_exists($user, 'canAccessFoodReviewsPath') && $user->canAccessFoodReviewsPath($path, $request->method())) {
                 return $next($request);
             }
 
