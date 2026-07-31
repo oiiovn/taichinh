@@ -6,9 +6,15 @@
     $qrInitialUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' . rawurlencode($scanUrlSafe) . '&margin=10';
     $initialSeconds = (int) ($secondsUntilExpiry ?? 60);
     $initialSeconds = max(1, min(60, $initialSeconds));
+    $refreshUrlSafe = $refreshUrl ?? route('food.qr-cham-cong.refresh');
 @endphp
-<div class="space-y-6" id="qr-cham-cong-root" data-refresh-url="{{ route('food.qr-cham-cong.refresh') }}">
+<div class="space-y-6" id="qr-cham-cong-root" data-refresh-url="{{ $refreshUrlSafe }}">
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white">QR chấm công</h2>
+    @if(!empty($branch))
+        <p class="text-sm text-gray-600 dark:text-gray-400">Chi nhánh: <span class="font-medium text-gray-900 dark:text-white">{{ $branch->name }}</span> (mã branch-aware cho app mobile)</p>
+    @else
+        <p class="text-sm text-gray-600 dark:text-gray-400">Chế độ legacy (không gắn chi nhánh). Dùng <code class="text-xs">?b=ID</code> hoặc nút QR CN trên trang Chi nhánh để phát QR theo chi nhánh.</p>
+    @endif
 
     @if(session('success'))
         <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-200">{{ session('success') }}</div>

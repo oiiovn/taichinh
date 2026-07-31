@@ -47,6 +47,9 @@ class FoodChiNhanhController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
             'branch_link' => ['nullable', 'url', 'max:500'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'check_in_radius_meters' => ['nullable', 'integer', 'min:10', 'max:5000'],
         ]);
 
         $branch = FoodBranch::query()->create([
@@ -54,6 +57,9 @@ class FoodChiNhanhController extends Controller
             'name' => $validated['name'],
             'address' => $validated['address'] ?? null,
             'branch_link' => $validated['branch_link'] ?? null,
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
+            'check_in_radius_meters' => $validated['check_in_radius_meters'] ?? 100,
         ]);
 
         $materialIds = FoodMaterial::query()->where('user_id', $user->id)->pluck('id');
@@ -78,14 +84,19 @@ class FoodChiNhanhController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'address' => ['nullable', 'string', 'max:500'],
             'branch_link' => ['nullable', 'url', 'max:500'],
+            'latitude' => ['nullable', 'numeric', 'between:-90,90'],
+            'longitude' => ['nullable', 'numeric', 'between:-180,180'],
+            'check_in_radius_meters' => ['nullable', 'integer', 'min:10', 'max:5000'],
         ]);
 
         $branch->update([
             'name' => $validated['name'],
             'address' => $validated['address'] ?? null,
             'branch_link' => $validated['branch_link'] ?? null,
+            'latitude' => $validated['latitude'] ?? null,
+            'longitude' => $validated['longitude'] ?? null,
+            'check_in_radius_meters' => $validated['check_in_radius_meters'] ?? 100,
         ]);
-
         return redirect()->route('food.chi-nhanh')->with('success', 'Đã cập nhật chi nhánh.');
     }
 

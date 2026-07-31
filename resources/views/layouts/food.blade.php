@@ -14,7 +14,9 @@
         $isLichDatDon = ($path === 'food/lich-dat-don');
         $isLichDaXacNhan = ($path === 'food/lich-da-xac-nhan');
         $isDatDonFood = str_starts_with($path, 'food/dat-don');
+        $isFoodReviewsGiftAttempts = ($path === 'food/danh-gia/lich-su-nhan-qua');
         $isFoodReviews = str_starts_with($path, 'food/danh-gia');
+        $isQrPublicReviewGift = ($path === 'food/qr') || request()->routeIs('food.qr-public-review-gift');
         $isBaoCao = str_starts_with($path, 'food/bao-cao-ban-hang');
         $isKhachHang = ($path === 'food/khach-hang');
         $isCongNo = ($path === 'food/cong-no');
@@ -29,6 +31,10 @@
         $validTabs = ['tong-quan', 'doanh-so'];
         if ($isQrChamCong) {
             $currentTab = 'qr-cham-cong';
+        } elseif ($isFoodReviewsGiftAttempts) {
+            $currentTab = 'food-reviews-gift-attempts';
+        } elseif ($isQrPublicReviewGift) {
+            $currentTab = 'food-reviews-qr';
         } elseif ($isFoodReviews) {
             $currentTab = 'food-reviews';
         } elseif ($isChiNhanh) {
@@ -119,6 +125,7 @@
             ['id' => 'dat-don', 'icon' => 'ecommerce', 'label' => 'Đặt đơn ShopeeFood', 'path' => route('food.dat-don'), 'show' => $canCreateFoodBuffOrder && \Illuminate\Support\Facades\Route::has('food.dat-don')],
             ['id' => 'lich-da-xac-nhan', 'icon' => 'calendar', 'label' => 'Lịch đã xác nhận', 'path' => route('food.lich-da-xac-nhan'), 'show' => ($canCreateFoodBuffOrder || $canManageThongKeBuff) && \Illuminate\Support\Facades\Route::has('food.lich-da-xac-nhan')],
             ['id' => 'food-reviews', 'icon' => 'charts', 'label' => 'Đánh giá', 'path' => route('food.reviews.index'), 'show' => $canManageFoodReviews && \Illuminate\Support\Facades\Route::has('food.reviews.index')],
+            ['id' => 'food-reviews-gift-attempts', 'icon' => 'list', 'label' => 'Lịch sử nhận quà', 'path' => route('food.reviews.gift-attempts'), 'show' => $canManageFoodReviews && \Illuminate\Support\Facades\Route::has('food.reviews.gift-attempts')],
             ['id' => 'food-reviews-qr', 'icon' => 'check-circle', 'label' => 'QR nhận quà 5 sao', 'path' => route('food.qr-public-review-gift'), 'show' => $canManageFoodReviews && \Illuminate\Support\Facades\Route::has('food.qr-public-review-gift')],
             ['id' => 'khach-hang', 'icon' => 'users', 'label' => 'Khách hàng', 'path' => route('food.khach-hang'), 'show' => $canManageBaoCao],
             ['id' => 'cong-no', 'icon' => 'chart-bar', 'label' => 'Công nợ', 'path' => route('food.cong-no'), 'show' => !$isEmployee && $canViewCongNo],
@@ -167,7 +174,7 @@
         $navItemsById = collect($navItems)->keyBy('id');
         $menuGroupDefs = [
             ['key' => 'tong-quan', 'label' => 'Tổng quan', 'ids' => ['tong-quan', 'doanh-so', 'bao-cao-ban-hang', 'cong-no']],
-            ['key' => 'don-hang', 'label' => 'Đơn hàng & Seeding', 'ids' => ['dat-don', 'lich-da-xac-nhan', 'lich-dat-don', 'thong-ke-buff', 'food-reviews', 'food-reviews-qr']],
+            ['key' => 'don-hang', 'label' => 'Đơn hàng & Seeding', 'ids' => ['dat-don', 'lich-da-xac-nhan', 'lich-dat-don', 'thong-ke-buff', 'food-reviews', 'food-reviews-gift-attempts', 'food-reviews-qr']],
             ['key' => 'danh-muc', 'label' => 'Danh mục', 'ids' => ['san-pham', 'nguyen-lieu', 'cong-thuc', 'chi-nhanh', 'khach-hang']],
             ['key' => 'nhan-su', 'label' => 'Nhân sự', 'ids' => ['nhan-vien', 'cham-cong', 'xin-nghi', 'ung-luong', 'luong', 'luong-cua-toi', 'qr-cham-cong']],
         ];

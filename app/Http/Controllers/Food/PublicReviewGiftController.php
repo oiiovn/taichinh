@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Food;
 use App\Http\Controllers\Controller;
 use App\Models\FoodGiftConfig;
 use App\Models\FoodReview;
+use App\Models\FoodReviewGiftAttempt;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -12,8 +13,25 @@ use Illuminate\View\View;
 
 class PublicReviewGiftController extends Controller
 {
-    public function show(): View
+    public function show(Request $request): View
     {
+        $isFormReturn = $request->session()->has('gift_popup')
+            || $request->session()->has('gift_used_popup')
+            || $request->session()->has('gift_expired_popup')
+            || $request->session()->has('error')
+            || $request->session()->hasOldInput();
+
+        if (! $isFormReturn) {
+            $this->logAttempt(
+                $request,
+                '',
+                '',
+                null,
+                FoodReviewGiftAttempt::RESULT_PAGE_OPEN,
+                'Khách mở trang nhận quà từ link QR.'
+            );
+        }
+
         return view('pages.food.public-review-gift', [
             'title' => 'Nhận quà đánh giá 5 sao',
         ]);
@@ -36,6 +54,8 @@ class PublicReviewGiftController extends Controller
             ->first();
 
         if (! $review) {
+            $this->logAttempt($request, $inputCode, $normalized, null, FoodReviewGiftAttempt::RESULT_NOT_FOUND, 'Không tìm thấy mã đơn 5 sao hợp lệ.');
+
             return back()->withInput()->with('error', 'Không tìm thấy mã đơn 5 sao hợp lệ.');
         }
 
@@ -43,6 +63,16 @@ class PublicReviewGiftController extends Controller
         if ($review->review_date) {
             $expireAt = Carbon::parse($review->review_date)->addDays(7)->endOfDay();
             if (now()->gt($expireAt)) {
+                $this->logAttempt(
+                    $request,
+                    $inputCode,
+                    $normalized,
+                    $review,
+                    FoodReviewGiftAttempt::RESULT_EXPIRED,
+                    'Mã quà đã hết hạn (sau 7 ngày kể từ ngày đánh giá).',
+                    $review->gift_code
+                );
+
                 return back()
                     ->with('gift_expired_popup', true)
                     ->with('gift_code', $review->gift_code)
@@ -53,6 +83,16 @@ class PublicReviewGiftController extends Controller
         }
 
         if (($review->gift_status ?? 'chua_thuong') === 'da_thuong') {
+            $this->logAttempt(
+                $request,
+                $inputCode,
+                $normalized,
+                $review,
+                FoodReviewGiftAttempt::RESULT_ALREADY_REWARDED,
+                'Mã đơn đã được thưởng trước đó.',
+                $review->gift_code
+            );
+
             return back()
                 ->with('gift_used_popup', true)
                 ->with('gift_code', $review->gift_code)
@@ -76,6 +116,17 @@ class PublicReviewGiftController extends Controller
             $review->gift_item_name = (string) $giftConfig->item_name;
             $review->save();
         }
+
+        $this->logAttempt(
+            $request,
+            $inputCode,
+            $normalized,
+            $review,
+            FoodReviewGiftAttempt::RESULT_SUCCESS,
+            'Hiển thị mã quà thành công.',
+            $renderCode
+        );
+
         return back()
             ->with('gift_popup', true)
             ->with('gift_code', $renderCode)
@@ -86,14 +137,34 @@ class PublicReviewGiftController extends Controller
             ->with('gift_branch_link', $review->branch?->branch_link ?? null);
     }
 
+    private function logAttempt(
+        Request $request,
+        string $inputCode,
+        string $normalized,
+        ?FoodReview $review,
+        string $result,
+        string $message,
+        ?string $giftCode = null
+    ): void {
+        FoodReviewGiftAttempt::query()->create([
+            'order_code_input' => $inputCode !== '' ? $inputCode : '(mở link QR)',
+            'order_code_normalized' => $normalized !== '' ? $normalized : null,
+            'food_review_id' => $review?->id,
+            'result' => $result,
+            'result_message' => $message,
+            'gift_code' => $giftCode,
+            'ip_address' => $request->ip(),
+            'user_agent' => mb_substr((string) $request->userAgent(), 0, 500) ?: null,
+        ]);
+    }
+
     private function generateNumericGiftCode(): string
     {
         do {
-            $code = 'FR-' . str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
+            $code = 'FR-'.str_pad((string) random_int(0, 9999), 4, '0', STR_PAD_LEFT);
             $exists = FoodReview::query()->where('gift_code', $code)->exists();
         } while ($exists);
 
         return $code;
     }
 }
-

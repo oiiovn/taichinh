@@ -18,12 +18,21 @@ class AttendanceLog extends Model
 
     protected $fillable = [
         'employee_id',
+        'food_branch_id',
         'work_date',
         'check_in_at',
         'check_out_at',
         'break_start_at',
         'break_end_at',
         'note',
+        'check_in_latitude',
+        'check_in_longitude',
+        'check_out_latitude',
+        'check_out_longitude',
+        'check_in_method',
+        'check_out_method',
+        'check_in_distance_meters',
+        'check_out_distance_meters',
     ];
 
     protected function casts(): array
@@ -34,12 +43,23 @@ class AttendanceLog extends Model
             'check_out_at' => 'datetime',
             'break_start_at' => 'datetime',
             'break_end_at' => 'datetime',
+            'check_in_latitude' => 'decimal:7',
+            'check_in_longitude' => 'decimal:7',
+            'check_out_latitude' => 'decimal:7',
+            'check_out_longitude' => 'decimal:7',
+            'check_in_distance_meters' => 'integer',
+            'check_out_distance_meters' => 'integer',
         ];
     }
 
     public function employee(): BelongsTo
     {
         return $this->belongsTo(Employee::class);
+    }
+
+    public function foodBranch(): BelongsTo
+    {
+        return $this->belongsTo(FoodBranch::class, 'food_branch_id');
     }
 
     public static function paidWorkStartEffectiveFrom(): Carbon

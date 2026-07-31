@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Resources\Api\Food\FoodMeResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,7 +18,7 @@ class AuthController extends Controller
     /**
      * POST /api/v1/login
      * Body: email, password
-     * Trả về: token (plainTextToken), user (id, name, email).
+     * Trả về: token, token_type, user; thêm food (me-like) khi user có quyền/employee Food.
      */
     public function login(Request $request): JsonResponse
     {
@@ -35,7 +36,7 @@ class AuthController extends Controller
 
         $token = $user->createToken('mobile-app')->plainTextToken;
 
-        return response()->json([
+        $payload = [
             'token' => $token,
             'token_type' => 'Bearer',
             'user' => [
@@ -43,7 +44,20 @@ class AuthController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
             ],
-        ]);
+        ];
+
+        $user->load(['employee.foodBranches']);
+        if (
+            $user->employee
+            || $user->canUseFoodEmployee()
+            || $user->canUseQrChamCong()
+            || $user->canManageFoodChamCong()
+            || $user->canManageFoodEmployees()
+        ) {
+            $payload['food'] = (new FoodMeResource($user))->resolve();
+        }
+
+        return response()->json($payload);
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Food;
 use App\Http\Controllers\Controller;
 use App\Models\FoodBranch;
 use App\Models\FoodReview;
+use App\Models\FoodReviewGiftAttempt;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -78,6 +79,56 @@ class FoodReviewController extends Controller
             'q' => $q,
             'rating' => $rating,
             'branchId' => $branchId,
+            'fromDate' => $from,
+            'toDate' => $to,
+        ]);
+    }
+
+    public function giftAttempts(Request $request): View|RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
+        }
+        if (! $user->is_admin && ! $user->canManageFoodReviews()) {
+            abort(403, 'Bạn không có quyền xem lịch sử nhận quà.');
+        }
+
+        $q = trim((string) $request->input('q', ''));
+        $result = trim((string) $request->input('result', ''));
+        $from = $request->input('from_date');
+        $to = $request->input('to_date');
+
+        $query = FoodReviewGiftAttempt::query()
+            ->with(['review.branch'])
+            ->orderByDesc('id');
+
+        if ($q !== '') {
+            $query->where(function ($sub) use ($q) {
+                $sub->where('order_code_input', 'like', "%{$q}%")
+                    ->orWhere('order_code_normalized', 'like', "%{$q}%")
+                    ->orWhere('gift_code', 'like', "%{$q}%")
+                    ->orWhere('ip_address', 'like', "%{$q}%");
+            });
+        }
+        if ($result !== '' && array_key_exists($result, FoodReviewGiftAttempt::resultLabels())) {
+            $query->where('result', $result);
+        }
+        if ($from) {
+            $query->whereDate('created_at', '>=', $from);
+        }
+        if ($to) {
+            $query->whereDate('created_at', '<=', $to);
+        }
+
+        $attempts = $query->paginate(40)->appends($request->query());
+
+        return view('pages.food.reviews.gift-attempts', [
+            'title' => 'Lịch sử QR nhận quà',
+            'attempts' => $attempts,
+            'resultLabels' => FoodReviewGiftAttempt::resultLabels(),
+            'q' => $q,
+            'result' => $result,
             'fromDate' => $from,
             'toDate' => $to,
         ]);

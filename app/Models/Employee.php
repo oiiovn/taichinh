@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Employee extends Model
@@ -59,6 +60,13 @@ class Employee extends Model
     public function attendanceLogs(): HasMany
     {
         return $this->hasMany(AttendanceLog::class)->orderBy('work_date', 'desc');
+    }
+
+    public function foodBranches(): BelongsToMany
+    {
+        return $this->belongsToMany(FoodBranch::class, 'employee_food_branch')
+            ->withPivot('is_primary')
+            ->withTimestamps();
     }
 
     public function leaveRequests(): HasMany

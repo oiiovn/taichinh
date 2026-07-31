@@ -232,6 +232,7 @@ Route::middleware('auth')->group(function () {
 
         Route::middleware(['food.reviews'])->group(function () {
             Route::get('/food/danh-gia', [\App\Http\Controllers\Food\FoodReviewController::class, 'index'])->name('food.reviews.index');
+            Route::get('/food/danh-gia/lich-su-nhan-qua', [\App\Http\Controllers\Food\FoodReviewController::class, 'giftAttempts'])->name('food.reviews.gift-attempts');
             Route::get('/food/danh-gia/import', [\App\Http\Controllers\Food\FoodReviewController::class, 'showImport'])->name('food.reviews.import');
             Route::post('/food/danh-gia/import-text', [\App\Http\Controllers\Food\FoodReviewController::class, 'importText'])->name('food.reviews.import-text');
             Route::post('/food/danh-gia/{review}/mark-rewarded', [\App\Http\Controllers\Food\FoodReviewController::class, 'markRewarded'])->name('food.reviews.mark-rewarded');

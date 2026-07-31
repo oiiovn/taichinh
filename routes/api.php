@@ -2,6 +2,10 @@
 
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\Food\AttendanceController as FoodAttendanceController;
+use App\Http\Controllers\Api\Food\BranchController as FoodBranchController;
+use App\Http\Controllers\Api\Food\ManagerController as FoodManagerController;
+use App\Http\Controllers\Api\Food\MeController as FoodMeController;
 use App\Http\Controllers\TaiChinhController;
 use App\Http\Controllers\TaiChinh\GiaoDichController;
 use Illuminate\Http\Request;
@@ -41,5 +45,27 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('/dashboard/analytics', [DashboardController::class, 'analytics'])->name('dashboard.analytics');
         Route::get('/dashboard/debt', [DashboardController::class, 'debt'])->name('dashboard.debt');
         Route::get('/dashboard/projection', [DashboardController::class, 'projection'])->name('dashboard.projection');
+    });
+
+    // F&B mobile attendance
+    Route::prefix('food')->name('food.')->middleware(['auth:sanctum', 'food.mobile.employee'])->group(function () {
+        Route::get('/me', [FoodMeController::class, 'show'])->name('me');
+        Route::get('/branches', [FoodBranchController::class, 'index'])->name('branches');
+        Route::get('/attendance/today', [FoodAttendanceController::class, 'today'])->name('attendance.today');
+        Route::get('/attendance/history', [FoodAttendanceController::class, 'history'])->name('attendance.history');
+        Route::post('/attendance/check-in', [FoodAttendanceController::class, 'checkIn'])
+            ->middleware('food.mobile.qr')
+            ->name('attendance.check-in');
+        Route::post('/attendance/check-out', [FoodAttendanceController::class, 'checkOut'])
+            ->middleware('food.mobile.qr')
+            ->name('attendance.check-out');
+    });
+
+    // F&B mobile manager (không bắt buộc là employee)
+    Route::prefix('food/manager')->name('food.manager.')->middleware(['auth:sanctum', 'food.mobile.manager'])->group(function () {
+        Route::get('/branches', [FoodManagerController::class, 'branches'])->name('branches');
+        Route::get('/employees', [FoodManagerController::class, 'employees'])->name('employees');
+        Route::get('/attendance/today', [FoodManagerController::class, 'attendanceToday'])->name('attendance.today');
+        Route::get('/attendance/history', [FoodManagerController::class, 'attendanceHistory'])->name('attendance.history');
     });
 });

@@ -18,6 +18,7 @@
                 <tr>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Nhân viên</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Chức vụ</th>
+                    <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Chi nhánh</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Hình thức lương</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Mức lương</th>
                     <th class="px-4 py-3 font-medium text-gray-700 dark:text-gray-300">Ngày bắt đầu</th>
@@ -29,6 +30,13 @@
                     <tr class="border-b border-gray-100 dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
                         <td class="px-4 py-2 font-medium text-gray-900 dark:text-white">{{ $emp->user->name ?? '—' }}<br><span class="text-xs text-gray-500">{{ $emp->user->email ?? '' }}</span></td>
                         <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $emp->position ?: '—' }}</td>
+                        <td class="px-4 py-2 text-gray-700 dark:text-gray-300">
+                            @if($emp->foodBranches->isEmpty())
+                                <span class="text-amber-600 dark:text-amber-400">Chưa gán</span>
+                            @else
+                                {{ $emp->foodBranches->map(fn ($b) => $b->name.($b->pivot->is_primary ? ' ★' : ''))->implode(', ') }}
+                            @endif
+                        </td>
                         <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ \App\Models\Employee::salaryTypeLabels()[$emp->salary_type] ?? $emp->salary_type }}</td>
                         <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $fmt($emp->salary_rate) }} đ</td>
                         <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $emp->start_date?->format('d/m/Y') ?? '—' }}</td>
@@ -43,7 +51,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có nhân viên. Nhấn "Thêm nhân viên" để thêm.</td>
+                        <td colspan="7" class="px-4 py-8 text-center text-gray-500 dark:text-gray-400">Chưa có nhân viên. Nhấn "Thêm nhân viên" để thêm.</td>
                     </tr>
                 @endforelse
             </tbody>

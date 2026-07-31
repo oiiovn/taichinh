@@ -38,9 +38,12 @@
 
     <div class="flex items-center justify-between gap-3">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Quản lý đánh giá</h2>
-        @if(auth()->user()?->is_admin)
-            <a href="{{ route('food.reviews.import') }}" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700">Nhập đánh giá</a>
-        @endif
+        <div class="flex items-center gap-2">
+            <a href="{{ route('food.reviews.gift-attempts') }}" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Lịch sử nhận quà</a>
+            @if(auth()->user()?->is_admin)
+                <a href="{{ route('food.reviews.import') }}" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700">Nhập đánh giá</a>
+            @endif
+        </div>
     </div>
 
     <form method="GET" class="grid grid-cols-1 gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 md:grid-cols-6 dark:border-gray-700 dark:bg-gray-800/50">

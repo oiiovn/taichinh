@@ -26,6 +26,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'food.reviews' => \App\Http\Middleware\EnsureUserCanManageFoodReviews::class,
             'food.san_pham' => \App\Http\Middleware\EnsureUserCanManageFoodSanPham::class,
             'food.restrict.qr.only' => \App\Http\Middleware\RestrictQrChamCongOnlyUser::class,
+            'food.mobile.employee' => \App\Http\Middleware\EnsureFoodMobileEmployee::class,
+            'food.mobile.qr' => \App\Http\Middleware\EnsureFoodMobileQrAttendance::class,
+            'food.mobile.manager' => \App\Http\Middleware\EnsureFoodMobileManager::class,
         ]);
         $middleware->validateCsrfTokens(except: []);
     })
@@ -64,6 +67,18 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('tai-chinh:warm-view')->everyFifteenMinutes();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (\App\Exceptions\Food\AttendanceException $e, \Illuminate\Http\Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+                'error' => ['code' => $e->errorCode],
+            ], $e->httpStatus);
+        });
+
         $exceptions->render(function (\Symfony\Component\HttpKernel\Exception\HttpException $e, \Illuminate\Http\Request $request) {
             if ($e->getStatusCode() !== 403 || $request->expectsJson() || ! in_array($request->method(), ['GET', 'HEAD'], true)) {
                 return null;

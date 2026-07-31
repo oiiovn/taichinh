@@ -50,6 +50,11 @@
                 @error('shift_start_time')<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>@enderror
             </div>
         </div>
+        @include('pages.food.nhan-vien._branches', [
+            'foodBranches' => $foodBranches,
+            'selectedBranchIds' => $selectedBranchIds,
+            'primaryBranchId' => $primaryBranchId,
+        ])
         <div class="flex gap-2">
             <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Thêm</button>
             <a href="{{ route('food.nhan-vien') }}" class="rounded-lg border border-gray-300 px-4 py-2 text-sm dark:border-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Hủy</a>
