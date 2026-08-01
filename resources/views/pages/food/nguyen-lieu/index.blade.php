@@ -103,7 +103,7 @@
                     <input type="number" name="order_qty" step="0.0001" min="0" value="{{ old('order_qty') }}" placeholder="vd 1000 — để trống = theo gợi ý" class="{{ $inputClass }}">
                 </div>
                 <div>
-                    <label class="{{ $labelClass }}">Giá nhập gần nhất (đ)</label>
+                    <label class="{{ $labelClass }}">Giá/đv (đ) — nếu có tồn đầu thì nhập tổng tiền lô</label>
                     <input type="number" name="last_unit_cost" step="1" min="0" value="{{ old('last_unit_cost') }}" class="{{ $inputClass }}">
                 </div>
                 <div class="sm:col-span-2 lg:col-span-3">
@@ -146,8 +146,8 @@
                             <p class="text-sm font-semibold tabular-nums">{{ $fmtQty($reorder) }}</p>
                         </div>
                         <div class="rounded-lg bg-gray-50 px-2 py-1.5 dark:bg-gray-800/80">
-                            <p class="text-[10px] uppercase text-gray-500">Giá nhập</p>
-                            <p class="text-sm font-semibold tabular-nums">{{ $m->last_unit_cost !== null ? number_format($m->last_unit_cost, 0, ',', '.') : '—' }}</p>
+                            <p class="text-[10px] uppercase text-gray-500">Giá/đv</p>
+                            <p class="text-sm font-semibold tabular-nums">{{ $m->last_unit_cost !== null ? number_format($m->last_unit_cost, 0, ',', '.').' đ' : '—' }}</p>
                         </div>
                     </div>
                     <div class="mt-2 flex flex-wrap gap-2 border-t border-gray-100 pt-2 dark:border-gray-800">
@@ -165,7 +165,7 @@
                             @csrf
                             <input type="hidden" name="food_branch_id" value="{{ $branchId }}">
                             <input type="number" name="qty" step="0.0001" min="0.0001" required placeholder="Nhập SL" class="{{ $inputClass }}">
-                            <input type="number" name="last_unit_cost" step="1" min="0" placeholder="Giá/đv" class="{{ $inputClass }}">
+                            <input type="number" name="last_unit_cost" step="1" min="0" placeholder="Tổng tiền" class="{{ $inputClass }}">
                             <input type="text" name="note" placeholder="Ghi chú nhập" class="col-span-2 {{ $inputClass }}">
                             <button type="submit" class="col-span-2 rounded-lg bg-emerald-600 py-2 text-sm font-medium text-white">Nhập kho</button>
                         </form>
@@ -198,7 +198,7 @@
                                 <input type="text" name="unit" value="{{ $m->unit }}" required class="{{ $inputClass }}">
                                 <input type="number" name="reorder_point" step="0.0001" min="0" value="{{ $reorder }}" class="{{ $inputClass }}" placeholder="Điểm đặt hàng CN này">
                                 <input type="number" name="order_qty" step="0.0001" min="0" value="{{ $m->order_qty }}" class="{{ $inputClass }}" placeholder="SL mỗi lần đặt (lô)">
-                                <input type="number" name="last_unit_cost" step="1" min="0" value="{{ $m->last_unit_cost }}" class="{{ $inputClass }}" placeholder="Giá nhập">
+                                <input type="number" name="last_unit_cost" step="1" min="0" value="{{ $m->last_unit_cost }}" class="{{ $inputClass }}" placeholder="Giá/đv">
                                 <label class="flex items-center gap-2 text-xs"><input type="checkbox" name="active" value="1" @checked($m->active) class="rounded"> Đang dùng</label>
                                 <button type="submit" class="rounded-lg bg-brand-600 py-2 text-sm text-white">Cập nhật</button>
                             </form>
@@ -220,7 +220,7 @@
                         <th class="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300">ĐVT</th>
                         <th class="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300">Tồn (CN)</th>
                         <th class="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300">Điểm ĐH</th>
-                        <th class="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300">Giá nhập</th>
+                        <th class="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300">Giá/đv</th>
                         <th class="px-3 py-2.5 font-medium text-gray-700 dark:text-gray-300">Thao tác</th>
                     </tr>
                 </thead>
@@ -259,7 +259,7 @@
                                         @csrf
                                         <input type="hidden" name="food_branch_id" value="{{ $branchId }}">
                                         <input type="number" name="qty" step="0.0001" min="0.0001" required placeholder="Nhập" class="w-24 {{ $inputClass }}">
-                                        <input type="number" name="last_unit_cost" step="1" min="0" placeholder="Giá" class="w-24 {{ $inputClass }}">
+                                        <input type="number" name="last_unit_cost" step="1" min="0" placeholder="Tổng tiền" class="w-24 {{ $inputClass }}">
                                         <button type="submit" class="rounded bg-emerald-600 px-2 py-1 text-xs text-white">Nhập</button>
                                     </form>
                                     <form action="{{ route('food.nguyen-lieu.stock-out', $m) }}" method="post" class="flex flex-wrap gap-1">

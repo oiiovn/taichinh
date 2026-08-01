@@ -26,6 +26,7 @@
 
         return $html;
     };
+    $fmtCost = fn ($n) => \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($n);
 @endphp
 <div class="space-y-3 md:space-y-5" x-data="{ addOpen: false }">
     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -98,6 +99,15 @@
                 <a href="{{ route('food.cong-thuc.show', $tpl) }}" class="block">
                     <h3 class="text-sm font-semibold text-gray-950 dark:text-white">{!! $highlightSauceName($tpl->name) !!}</h3>
                     <p class="mt-1 text-xs text-gray-500">{{ $tpl->items_count }} NL · {{ $tpl->products_count }} sản phẩm</p>
+                    @php $cost = $recipeCosts[$tpl->id] ?? null; @endphp
+                    @if($cost && ($cost['total'] > 0 || ($cost['missing_price_count'] ?? 0) > 0))
+                        <p class="mt-1 text-xs font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                            Giá vốn CT: {{ $fmtCost($cost['total']) }} đ
+                            @if(($cost['missing_price_count'] ?? 0) > 0)
+                                <span class="font-normal text-amber-600 dark:text-amber-400">({{ $cost['missing_price_count'] }} NL chưa có giá)</span>
+                            @endif
+                        </p>
+                    @endif
                 </a>
                 <div class="mt-2 flex gap-3 border-t border-gray-100 pt-2 dark:border-gray-800">
                     <a href="{{ route('food.cong-thuc.show', $tpl) }}" class="text-xs font-medium text-brand-600 dark:text-brand-400">Mở</a>
@@ -126,6 +136,7 @@
                     <th class="px-3 py-2.5 font-medium">Tên</th>
                     <th class="px-3 py-2.5 font-medium">Số NL</th>
                     <th class="px-3 py-2.5 font-medium">Số SP gắn</th>
+                    <th class="px-3 py-2.5 font-medium text-right">Giá vốn CT</th>
                     <th class="px-3 py-2.5 font-medium"></th>
                 </tr>
             </thead>
@@ -135,6 +146,17 @@
                         <td class="px-3 py-2 font-medium text-gray-900 dark:text-white">{!! $highlightSauceName($tpl->name) !!}</td>
                         <td class="px-3 py-2 tabular-nums">{{ $tpl->items_count }}</td>
                         <td class="px-3 py-2 tabular-nums">{{ $tpl->products_count }}</td>
+                        <td class="px-3 py-2 text-right tabular-nums">
+                            @php $cost = $recipeCosts[$tpl->id] ?? null; @endphp
+                            @if($cost && $cost['total'] > 0)
+                                <span class="font-semibold text-emerald-700 dark:text-emerald-300">{{ $fmtCost($cost['total']) }} đ</span>
+                            @else
+                                <span class="text-gray-400">—</span>
+                            @endif
+                            @if($cost && ($cost['missing_price_count'] ?? 0) > 0)
+                                <div class="text-[10px] text-amber-600 dark:text-amber-400">{{ $cost['missing_price_count'] }} NL thiếu giá</div>
+                            @endif
+                        </td>
                         <td class="px-3 py-2">
                             <a href="{{ route('food.cong-thuc.show', $tpl) }}" class="mr-3 text-brand-600 hover:underline dark:text-brand-400">Mở</a>
                             <form action="{{ route('food.cong-thuc.duplicate', $tpl) }}" method="post" class="inline">
@@ -144,7 +166,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" class="px-3 py-8 text-center text-gray-500">
+                    <tr><td colspan="5" class="px-3 py-8 text-center text-gray-500">
                         @if(($search ?? '') !== '')
                             Không tìm thấy công thức khớp “{{ $search }}”.
                             <a href="{{ route('food.cong-thuc', ['clear_search' => 1]) }}" class="ml-1 font-medium text-brand-600 hover:underline">Xóa bộ lọc</a>

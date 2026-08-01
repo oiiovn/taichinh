@@ -281,6 +281,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/food/san-pham', [\App\Http\Controllers\Food\SanPhamController::class, 'store'])->name('food.san-pham.store');
             Route::put('/food/san-pham/{id}', [\App\Http\Controllers\Food\SanPhamController::class, 'update'])->name('food.san-pham.update');
             Route::post('/food/san-pham/bulk-gia-von', [\App\Http\Controllers\Food\SanPhamController::class, 'bulkGiaVon'])->name('food.san-pham.bulk-gia-von');
+            Route::post('/food/san-pham/bulk-destroy', [\App\Http\Controllers\Food\SanPhamController::class, 'bulkDestroy'])->name('food.san-pham.bulk-destroy');
             Route::delete('/food/san-pham/{id}', [\App\Http\Controllers\Food\SanPhamController::class, 'destroy'])->name('food.san-pham.destroy');
             Route::get('/food/san-pham/{id}/cong-thuc', [\App\Http\Controllers\Food\NguyenLieuController::class, 'productRecipe'])->name('food.san-pham.cong-thuc');
             Route::post('/food/san-pham/{id}/cong-thuc', [\App\Http\Controllers\Food\NguyenLieuController::class, 'assignProductTemplate'])->name('food.san-pham.cong-thuc.assign');

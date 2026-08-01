@@ -14,7 +14,15 @@ class FoodRecipeTemplate extends Model
         'user_id',
         'name',
         'note',
+        'batch_yield',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'batch_yield' => 'decimal:6',
+        ];
+    }
 
     public function user(): BelongsTo
     {

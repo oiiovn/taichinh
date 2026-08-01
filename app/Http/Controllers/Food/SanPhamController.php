@@ -234,6 +234,33 @@ class SanPhamController extends Controller
         return response()->json(['ok' => true, 'updated' => $updated]);
     }
 
+    public function bulkDestroy(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        if (! $user) {
+            return response()->json(['ok' => false, 'message' => 'Unauthorized'], 401);
+        }
+        if (! $user->is_admin) {
+            return response()->json(['ok' => false, 'message' => 'Chỉ admin mới được xóa hàng loạt.'], 403);
+        }
+
+        $v = Validator::make($request->all(), [
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+        if ($v->fails()) {
+            return response()->json(['ok' => false, 'message' => $v->errors()->first()], 422);
+        }
+
+        $ids = array_map('intval', $request->input('ids'));
+        $deleted = FoodProduct::query()
+            ->where('user_id', $user->id)
+            ->whereIn('id', $ids)
+            ->delete();
+
+        return response()->json(['ok' => true, 'deleted' => $deleted]);
+    }
+
     public function destroy(Request $request, int $id): JsonResponse
     {
         $user = $request->user();

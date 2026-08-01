@@ -33,7 +33,21 @@ class RecipeBomService
     }
 
     /**
+     * @return array<int, float> template_id => sản lượng / mẻ (tối thiểu 0.000001)
+     */
+    public function batchYieldsForUser(int $userId): array
+    {
+        $yields = [];
+        foreach (FoodRecipeTemplate::query()->where('user_id', $userId)->get(['id', 'batch_yield']) as $tpl) {
+            $yields[(int) $tpl->id] = max((float) ($tpl->batch_yield ?? 1), 0.000001);
+        }
+
+        return $yields;
+    }
+
+    /**
      * @param  Collection<int, Collection<int, FoodRecipeTemplateItem>>  $itemsByTemplate
+     * @param  array<int, float>  $batchYields
      * @param  array<int, float>  $consumed  material_id => qty
      * @param  array<int, array<string, float>>|null  $via  material_id => [ma_hang => qty]
      */
@@ -41,6 +55,7 @@ class RecipeBomService
         int $templateId,
         float $multiplier,
         Collection $itemsByTemplate,
+        array $batchYields,
         array &$consumed,
         ?array &$via = null,
         ?string $viaKey = null,
@@ -56,6 +71,7 @@ class RecipeBomService
 
         $stack[] = $templateId;
         $lines = $itemsByTemplate->get($templateId, collect());
+        $yield = $batchYields[$templateId] ?? 1.0;
 
         foreach ($lines as $line) {
             $qty = (float) $line->qty_per_unit;
@@ -72,6 +88,7 @@ class RecipeBomService
                     $childId,
                     $multiplier * $qty,
                     $itemsByTemplate,
+                    $batchYields,
                     $consumed,
                     $via,
                     $viaKey,
@@ -86,7 +103,7 @@ class RecipeBomService
             if ($mid <= 0) {
                 continue;
             }
-            $use = $multiplier * $qty;
+            $use = $multiplier * $qty / $yield;
             $consumed[$mid] = ($consumed[$mid] ?? 0) + $use;
             if ($via !== null && $viaKey !== null) {
                 $via[$mid][$viaKey] = ($via[$mid][$viaKey] ?? 0) + $use;
@@ -178,7 +195,8 @@ class RecipeBomService
     {
         $consumed = [];
         $via = null;
-        $this->accumulate($templateId, 1.0, $this->itemsGroupedForUser($userId), $consumed, $via);
+        $batchYields = $this->batchYieldsForUser($userId);
+        $this->accumulate($templateId, 1.0, $this->itemsGroupedForUser($userId), $batchYields, $consumed, $via);
 
         return (float) ($consumed[$materialId] ?? 0);
     }

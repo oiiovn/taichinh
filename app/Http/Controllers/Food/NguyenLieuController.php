@@ -12,6 +12,7 @@ use App\Models\FoodProductRecipe;
 use App\Models\FoodRecipeTemplate;
 use App\Models\FoodRecipeTemplateItem;
 use App\Services\Food\MaterialConsumptionService;
+use App\Services\Food\RecipeCostService;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -132,6 +133,14 @@ class NguyenLieuController extends Controller
         }
 
         $material = DB::transaction(function () use ($user, $validated, $code, $branch, $stockQty, $reorder, $orderQty, $request) {
+            $unitCost = null;
+            if (isset($validated['last_unit_cost'])) {
+                $importTotal = (float) $validated['last_unit_cost'];
+                $unitCost = $stockQty > 0
+                    ? $this->unitCostFromImportTotal($importTotal, $stockQty)
+                    : (int) round($importTotal);
+            }
+
             $material = FoodMaterial::query()->create([
                 'user_id' => $user->id,
                 'code' => $code,
@@ -139,9 +148,7 @@ class NguyenLieuController extends Controller
                 'type' => $validated['type'],
                 'unit' => trim($validated['unit']),
                 'order_qty' => $orderQty,
-                'last_unit_cost' => isset($validated['last_unit_cost'])
-                    ? (int) round((float) $validated['last_unit_cost'])
-                    : null,
+                'last_unit_cost' => $unitCost,
                 'note' => $validated['note'] ?? null,
                 'active' => $request->boolean('active', true),
             ]);
@@ -358,7 +365,10 @@ class NguyenLieuController extends Controller
             $stock->save();
 
             if ($type === FoodMaterialStockMovement::TYPE_IN && isset($validated['last_unit_cost'])) {
-                $material->last_unit_cost = (int) round((float) $validated['last_unit_cost']);
+                $material->last_unit_cost = $this->unitCostFromImportTotal(
+                    (float) $validated['last_unit_cost'],
+                    $qty
+                );
                 $material->save();
             }
 
@@ -492,10 +502,16 @@ class NguyenLieuController extends Controller
             ->orderBy('name')
             ->get();
 
+        $recipeCosts = app(RecipeCostService::class)->totalsForTemplates(
+            (int) $user->id,
+            $templates->pluck('id')->all()
+        );
+
         return view('pages.food.nguyen-lieu.cong-thuc-index', [
             'title' => 'Công thức định lượng',
             'templates' => $templates,
             'search' => $search,
+            'recipeCosts' => $recipeCosts,
         ]);
     }
 
@@ -550,10 +566,13 @@ class NguyenLieuController extends Controller
 
         $bom = app(\App\Services\Food\RecipeBomService::class);
         $itemsByTemplate = $bom->itemsGroupedForUser((int) $user->id);
+        $batchYields = $bom->batchYieldsForUser((int) $user->id);
 
         $bomPreview = $this->formatBomRows(
-            $this->expandTemplateQty($bom, $itemsByTemplate, (int) $congThuc->id, 1.0)
+            $this->expandTemplateQty($bom, $itemsByTemplate, $batchYields, (int) $congThuc->id, 1.0)
         );
+
+        $recipeCost = app(RecipeCostService::class)->forTemplate((int) $user->id, (int) $congThuc->id);
 
         // Mỗi dòng CT con → danh sách NL gốc đã nhân hệ số
         $nestedByItemId = [];
@@ -565,6 +584,7 @@ class NguyenLieuController extends Controller
                 $this->expandTemplateQty(
                     $bom,
                     $itemsByTemplate,
+                    $batchYields,
                     (int) $item->child_template_id,
                     (float) $item->qty_per_unit
                 )
@@ -581,22 +601,25 @@ class NguyenLieuController extends Controller
             'typeLabels' => FoodMaterial::typeLabels(),
             'bomPreview' => $bomPreview,
             'nestedByItemId' => $nestedByItemId,
+            'recipeCost' => $recipeCost,
         ]);
     }
 
     /**
      * @param  Collection<int, Collection<int, FoodRecipeTemplateItem>>  $itemsByTemplate
+     * @param  array<int, float>  $batchYields
      * @return array<int, float>
      */
     private function expandTemplateQty(
         \App\Services\Food\RecipeBomService $bom,
         Collection $itemsByTemplate,
+        array $batchYields,
         int $templateId,
         float $multiplier
     ): array {
         $consumed = [];
         $via = null;
-        $bom->accumulate($templateId, $multiplier, $itemsByTemplate, $consumed, $via);
+        $bom->accumulate($templateId, $multiplier, $itemsByTemplate, $batchYields, $consumed, $via);
 
         return $consumed;
     }
@@ -639,11 +662,13 @@ class NguyenLieuController extends Controller
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'note' => ['nullable', 'string', 'max:500'],
+            'batch_yield' => ['required', 'numeric', 'gt:0'],
         ]);
 
         $congThuc->update([
             'name' => trim($validated['name']),
             'note' => $validated['note'] ?? null,
+            'batch_yield' => round((float) $validated['batch_yield'], 6),
         ]);
 
         return redirect()->route('food.cong-thuc.show', $congThuc)->with('success', 'Đã cập nhật công thức.');
@@ -674,6 +699,7 @@ class NguyenLieuController extends Controller
                 'user_id' => $user->id,
                 'name' => $congThuc->name.' (bản sao)',
                 'note' => $congThuc->note,
+                'batch_yield' => $congThuc->batch_yield ?? 1,
             ]);
 
             foreach ($congThuc->items as $item) {
@@ -948,5 +974,15 @@ class NguyenLieuController extends Controller
         unset($rows);
 
         return $result;
+    }
+
+    /** Tổng tiền nhập kho ÷ số lượng nhập → giá/đv dùng cho công thức. */
+    private function unitCostFromImportTotal(float $importTotal, float $qty): int
+    {
+        if ($qty <= 0) {
+            return (int) round($importTotal);
+        }
+
+        return (int) round($importTotal / $qty);
     }
 }

@@ -281,6 +281,7 @@ class MaterialConsumptionService
             ->groupBy('food_product_id');
 
         $itemsByTemplate = $this->bom->itemsGroupedForUser($userId);
+        $batchYields = $this->bom->batchYieldsForUser($userId);
 
         $consumed = [];
         $via = [];
@@ -309,6 +310,7 @@ class MaterialConsumptionService
                         $tplId,
                         $qtySold,
                         $itemsByTemplate,
+                        $batchYields,
                         $consumed,
                         $via,
                         $maHang

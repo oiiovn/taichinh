@@ -27,12 +27,28 @@
 
         return $html;
     };
+    $fmtCost = fn ($n) => \App\Helpers\BaoCaoHelper::formatGiaVonNguyen($n);
+    $recipeCost = $recipeCost ?? ['total' => 0, 'missing_price_count' => 0, 'rows' => []];
+    $batchYield = max((float) ($template->batch_yield ?? 1), 0.000001);
+    $batchTotalCost = $recipeCost['total'] > 0 ? (int) round($recipeCost['total'] * $batchYield) : 0;
 @endphp
 <div class="space-y-3 md:space-y-5" x-data="{ productFilter: '' }">
     <div class="flex flex-wrap items-center justify-between gap-2">
         <div>
             <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{!! $highlightSauceName($template->name) !!}</h2>
             <p class="text-sm text-gray-500">Định lượng dùng chung · gán nhiều sản phẩm</p>
+            @if($recipeCost['total'] > 0 || $recipeCost['missing_price_count'] > 0)
+                <p class="mt-1 text-sm">
+                    <span class="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">Giá vốn / 1 đv: {{ $fmtCost($recipeCost['total']) }} đ</span>
+                    @if($batchYield > 1 && $batchTotalCost > 0)
+                        <span class="text-gray-500"> · mẻ {{ $fmtQty($batchYield) }} đv = {{ $fmtCost($batchTotalCost) }} đ</span>
+                    @endif
+                    <span class="text-gray-500"> · theo giá nhập NL</span>
+                    @if($recipeCost['missing_price_count'] > 0)
+                        <span class="text-amber-600 dark:text-amber-400"> · {{ $recipeCost['missing_price_count'] }} NL chưa có giá nhập</span>
+                    @endif
+                </p>
+            @endif
         </div>
         <div class="flex flex-wrap gap-2">
             <a href="{{ route('food.cong-thuc') }}" class="rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-gray-700">← Danh sách CT</a>
@@ -57,6 +73,11 @@
             <div>
                 <label class="{{ $labelClass }}">Ghi chú</label>
                 <input type="text" name="note" value="{{ $template->note }}" maxlength="500" class="{{ $inputClass }}">
+            </div>
+            <div class="sm:col-span-2">
+                <label class="{{ $labelClass }}">Sản lượng / mẻ</label>
+                <input type="number" name="batch_yield" step="0.000001" min="0.000001" required value="{{ old('batch_yield', $template->batch_yield ?? 1) }}" class="{{ $inputClass }} max-w-xs">
+                <p class="mt-1 text-xs text-gray-500">Định lượng NL bên dưới là cho bao nhiêu đv thành phẩm. VD: mẻ 300 cái, chi phí NL 350k → giá vốn / 1 cái ≈ 1.167đ.</p>
             </div>
             <div class="flex flex-wrap gap-2 sm:col-span-2">
                 <button type="submit" class="rounded-lg bg-brand-600 px-3 py-2 text-sm font-semibold text-white">Lưu tên</button>
@@ -168,7 +189,38 @@
             </table>
         </div>
 
-        @if(!empty($bomPreview))
+        @if(!empty($recipeCost['rows']))
+            <div class="mt-3 rounded-lg border border-dashed border-emerald-200 bg-emerald-50/50 p-3 dark:border-emerald-900 dark:bg-emerald-950/20">
+                <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-emerald-800 dark:text-emerald-300">
+                    Chi phí NL gốc / 1 đv (đã bung CT lồng{{ $batchYield > 1 ? ', chia mẻ '.$fmtQty($batchYield) : '' }})
+                </p>
+                <ul class="max-h-48 space-y-1 overflow-y-auto text-sm">
+                    @foreach($recipeCost['rows'] as $row)
+                        <li class="flex justify-between gap-2">
+                            <span class="min-w-0">
+                                {{ $row['name'] }}
+                                <span class="text-xs text-gray-500">({{ $typeLabels[$row['type']] ?? '' }}) · {{ $fmtQty($row['qty']) }} {{ $row['unit'] }}</span>
+                            </span>
+                            <span class="shrink-0 text-right tabular-nums">
+                                @if($row['line_cost'] !== null)
+                                    <span class="font-medium text-emerald-800 dark:text-emerald-200">{{ $fmtCost($row['line_cost']) }} đ</span>
+                                    <span class="block text-[10px] text-gray-500">{{ $fmtCost($row['unit_cost']) }} đ/{{ $row['unit'] }}</span>
+                                @else
+                                    <span class="text-amber-600 dark:text-amber-400">Chưa có giá</span>
+                                @endif
+                            </span>
+                        </li>
+                    @endforeach
+                </ul>
+                @if($recipeCost['total'] > 0)
+                    <p class="mt-2 border-t border-emerald-200 pt-2 text-right text-sm font-semibold tabular-nums text-emerald-800 dark:border-emerald-800 dark:text-emerald-200">
+                        Tổng: {{ $fmtCost($recipeCost['total']) }} đ
+                    </p>
+                @endif
+            </div>
+        @endif
+
+        @if(empty($recipeCost['rows']) && !empty($bomPreview))
             <div class="mt-3 rounded-lg border border-dashed border-brand-200 bg-brand-50/50 p-3 dark:border-brand-900 dark:bg-brand-950/20">
                 <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-brand-700 dark:text-brand-300">Quy ra NL gốc / 1 sp (đã bung CT lồng)</p>
                 <ul class="max-h-40 space-y-1 overflow-y-auto text-sm">

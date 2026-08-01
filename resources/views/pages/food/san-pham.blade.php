@@ -10,7 +10,7 @@
         'is_combo' => (bool) $p->is_combo,
     ])->values()->toJson();
 @endphp
-<div class="space-y-6" x-data="sanPhamPage({{ $productsJson }})" x-cloak>
+<div class="space-y-6" x-data="sanPhamPage({{ $productsJson }}, @json((bool) auth()->user()?->is_admin))" x-cloak>
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Sản phẩm</h2>
 
     {{-- Dán mẫu từ sheet --}}
@@ -32,12 +32,20 @@
         <button type="button" @click="showAddModal = true" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Thêm sản phẩm</button>
     </div>
 
-    {{-- Giá vốn hàng loạt (khi có chọn) --}}
+    {{-- Toolbar hàng loạt (khi có chọn) --}}
     <div x-show="selectedIds.length > 0" x-transition class="flex flex-wrap items-center gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-900/20">
-        <span class="text-sm text-gray-700 dark:text-gray-300">Đã chọn <span x-text="selectedIds.length"></span> hàng — Giá vốn hàng loạt:</span>
+        <span class="text-sm text-gray-700 dark:text-gray-300">Đã chọn <span x-text="selectedIds.length"></span> hàng</span>
+        <span class="hidden h-4 w-px bg-amber-300 sm:inline dark:bg-amber-700" aria-hidden="true"></span>
+        <span class="text-sm text-gray-700 dark:text-gray-300">Giá vốn hàng loạt:</span>
         <input type="text" x-model="bulkGiaVonStr" inputmode="decimal" placeholder="21,147" class="w-28 rounded-lg border border-gray-200 px-2 py-1.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
         <span class="text-sm text-gray-500">đ</span>
-        <button type="button" @click="doBulkGiaVon()" :disabled="bulkSaving" class="rounded-lg bg-amber-600 px-3 py-1.5 text-sm text-white hover:bg-amber-700 disabled:opacity-50">Áp dụng</button>
+        <button type="button" @click="doBulkGiaVon()" :disabled="bulkSaving" class="rounded-lg bg-amber-600 px-3 py-1.5 text-sm text-white hover:bg-amber-700 disabled:opacity-50">Áp dụng giá vốn</button>
+        <template x-if="isAdmin">
+            <button type="button" @click="doBulkDelete()" :disabled="bulkDeleting" class="rounded-lg border border-red-300 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-100 disabled:opacity-50 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400 dark:hover:bg-red-900/40">
+                <span x-show="!bulkDeleting">Xóa đã chọn</span>
+                <span x-show="bulkDeleting">Đang xóa...</span>
+            </button>
+        </template>
         <button type="button" @click="selectedIds = []" class="rounded-lg border border-gray-300 px-3 py-1.5 text-sm dark:border-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700">Bỏ chọn</button>
     </div>
 
@@ -104,12 +112,14 @@
 
 <script>
 document.addEventListener('alpine:init', () => {
-    Alpine.data('sanPhamPage', (initialProducts) => ({
+    Alpine.data('sanPhamPage', (initialProducts, isAdmin = false) => ({
         products: initialProducts,
+        isAdmin: !!isAdmin,
         searchQuery: '',
         selectedIds: [],
         bulkGiaVonStr: '',
         bulkSaving: false,
+        bulkDeleting: false,
         formatGiaVon(n) {
             if (n == null || isNaN(n)) return '';
             const num = Number(n);
@@ -198,6 +208,31 @@ document.addEventListener('alpine:init', () => {
                 }
             } catch (_) {}
             this.bulkSaving = false;
+        },
+        async doBulkDelete() {
+            if (!this.isAdmin || this.selectedIds.length === 0) return;
+            const count = this.selectedIds.length;
+            const ok = await new Promise((resolve) => {
+                window.dispatchEvent(new CustomEvent('confirm-delete-open', {
+                    detail: { message: `Xóa ${count} sản phẩm đã chọn? Hành động không thể hoàn tác.`, resolve }
+                }));
+            });
+            if (!ok) return;
+            this.bulkDeleting = true;
+            try {
+                const r = await fetch('{{ route("food.san-pham.bulk-destroy") }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content, 'Accept': 'application/json' },
+                    body: JSON.stringify({ ids: this.selectedIds })
+                });
+                const j = await r.json();
+                if (j.ok) {
+                    const removed = new Set(this.selectedIds);
+                    this.products = this.products.filter(p => !removed.has(p.id));
+                    this.selectedIds = [];
+                }
+            } catch (_) {}
+            this.bulkDeleting = false;
         },
         async doAdd() {
             const ma = (this.addForm.ma_hang || '').trim();
