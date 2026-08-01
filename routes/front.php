@@ -302,6 +302,7 @@ Route::middleware('auth')->group(function () {
             Route::get('/food/nguyen-lieu/dat-hang', [\App\Http\Controllers\Food\NguyenLieuController::class, 'datHang'])->name('food.nguyen-lieu.dat-hang');
             Route::post('/food/nguyen-lieu', [\App\Http\Controllers\Food\NguyenLieuController::class, 'store'])->name('food.nguyen-lieu.store');
             Route::put('/food/nguyen-lieu/{nguyenLieu}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'update'])->name('food.nguyen-lieu.update');
+            Route::patch('/food/nguyen-lieu/{nguyenLieu}/gia-don-vi', [\App\Http\Controllers\Food\NguyenLieuController::class, 'updateUnitCost'])->name('food.nguyen-lieu.update-unit-cost');
             Route::delete('/food/nguyen-lieu/{nguyenLieu}', [\App\Http\Controllers\Food\NguyenLieuController::class, 'destroy'])->name('food.nguyen-lieu.destroy');
             Route::post('/food/nguyen-lieu/{nguyenLieu}/nhap', [\App\Http\Controllers\Food\NguyenLieuController::class, 'stockIn'])->name('food.nguyen-lieu.stock-in');
             Route::post('/food/nguyen-lieu/{nguyenLieu}/xuat', [\App\Http\Controllers\Food\NguyenLieuController::class, 'stockOut'])->name('food.nguyen-lieu.stock-out');

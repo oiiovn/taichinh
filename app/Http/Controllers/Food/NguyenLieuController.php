@@ -226,18 +226,21 @@ class NguyenLieuController extends Controller
         }
 
         DB::transaction(function () use ($nguyenLieu, $validated, $code, $branch, $orderQty, $request) {
-            $nguyenLieu->fill([
+            $fill = [
                 'code' => $code,
                 'name' => trim($validated['name']),
                 'type' => $validated['type'],
                 'unit' => trim($validated['unit']),
                 'order_qty' => $orderQty,
-                'last_unit_cost' => isset($validated['last_unit_cost'])
-                    ? (int) round((float) $validated['last_unit_cost'])
-                    : null,
                 'note' => $validated['note'] ?? null,
                 'active' => $request->boolean('active', true),
-            ]);
+            ];
+            if ($request->has('last_unit_cost')) {
+                $fill['last_unit_cost'] = filled($validated['last_unit_cost'] ?? null)
+                    ? (int) round((float) $validated['last_unit_cost'])
+                    : null;
+            }
+            $nguyenLieu->fill($fill);
             $nguyenLieu->save();
 
             $stock = FoodMaterialStock::forMaterialBranch($nguyenLieu->id, $branch->id);
@@ -248,6 +251,30 @@ class NguyenLieuController extends Controller
         return redirect()
             ->route('food.nguyen-lieu', ['branch_id' => $branch->id])
             ->with('success', 'Đã cập nhật.');
+    }
+
+    public function updateUnitCost(Request $request, FoodMaterial $nguyenLieu): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user || (int) $nguyenLieu->user_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'last_unit_cost' => ['nullable', 'numeric', 'min:0'],
+            'branch_id' => ['nullable', 'integer', 'exists:food_branches,id'],
+        ]);
+
+        $nguyenLieu->last_unit_cost = filled($validated['last_unit_cost'] ?? null)
+            ? (int) round((float) $validated['last_unit_cost'])
+            : null;
+        $nguyenLieu->save();
+
+        return redirect()
+            ->route('food.nguyen-lieu', array_filter([
+                'branch_id' => $validated['branch_id'] ?? $request->input('branch_id'),
+            ]))
+            ->with('success', 'Đã cập nhật giá/đv cho '.$nguyenLieu->name.'.');
     }
 
     public function destroy(Request $request, FoodMaterial $nguyenLieu): RedirectResponse
@@ -457,8 +484,36 @@ class NguyenLieuController extends Controller
     private function ensureStocksForBranch(int $userId, int $branchId): void
     {
         $materialIds = FoodMaterial::query()->where('user_id', $userId)->pluck('id');
+        if ($materialIds->isEmpty()) {
+            return;
+        }
+
+        $existingIds = FoodMaterialStock::query()
+            ->where('food_branch_id', $branchId)
+            ->whereIn('food_material_id', $materialIds)
+            ->pluck('food_material_id')
+            ->flip();
+
+        $now = now();
+        $rows = [];
         foreach ($materialIds as $mid) {
-            FoodMaterialStock::forMaterialBranch((int) $mid, $branchId);
+            if (isset($existingIds[(int) $mid])) {
+                continue;
+            }
+            $rows[] = [
+                'food_material_id' => (int) $mid,
+                'food_branch_id' => $branchId,
+                'stock_on_hand' => 0,
+                'reorder_point' => 0,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ];
+        }
+
+        if ($rows !== []) {
+            foreach (array_chunk($rows, 200) as $chunk) {
+                FoodMaterialStock::query()->insert($chunk);
+            }
         }
     }
 
@@ -905,26 +960,32 @@ class NguyenLieuController extends Controller
             return $result;
         }
 
+        $idSet = $ids->flip();
         $bom = app(\App\Services\Food\RecipeBomService::class);
+        $itemsByTemplate = $bom->itemsGroupedForUser($userId);
+        $batchYields = $bom->batchYieldsForUser($userId);
+
         $templates = FoodRecipeTemplate::query()
             ->where('user_id', $userId)
             ->with(['products' => fn ($q) => $q->select('id', 'ten_hang', 'ma_hang', 'food_recipe_template_id')->orderBy('ten_hang')])
-            ->get()
-            ->keyBy('id');
+            ->get();
 
-        foreach ($ids as $mid) {
-            $tplIds = $bom->templateIdsUsingMaterial($userId, $mid);
-            foreach ($tplIds as $tplId) {
-                $tpl = $templates->get($tplId);
-                if (! $tpl) {
+        foreach ($templates as $tpl) {
+            $consumed = [];
+            $via = null;
+            $bom->accumulate((int) $tpl->id, 1.0, $itemsByTemplate, $batchYields, $consumed, $via);
+
+            foreach ($consumed as $mid => $qty) {
+                $mid = (int) $mid;
+                if (! isset($idSet[$mid])) {
                     continue;
                 }
-                $qty = $bom->materialQtyInTemplate($userId, $tplId, $mid);
+                $qty = (float) $qty;
                 if ($qty <= 0) {
                     continue;
                 }
-                $products = $tpl->products;
-                if ($products->isEmpty()) {
+
+                if ($tpl->products->isEmpty()) {
                     $result[$mid][] = [
                         'label' => 'CT: '.$tpl->name,
                         'qty' => $qty,
@@ -933,7 +994,8 @@ class NguyenLieuController extends Controller
 
                     continue;
                 }
-                foreach ($products as $product) {
+
+                foreach ($tpl->products as $product) {
                     $result[$mid][] = [
                         'label' => trim((string) ($product->ten_hang ?: $product->ma_hang)) ?: 'SP #'.$product->id,
                         'qty' => $qty,

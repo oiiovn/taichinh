@@ -128,7 +128,7 @@
                         <div class="min-w-0">
                             <p class="text-[10px] font-semibold uppercase tracking-wide text-gray-500">{{ $typeLabels[$m->type] ?? $m->type }}</p>
                             <h3 class="text-sm font-semibold text-gray-950 dark:text-white">
-                                @include('pages.food.nguyen-lieu.partials.material-usage-tip', ['material' => $m, 'materialUsages' => $materialUsages ?? []])
+                                {{ $m->name }}
                             </h3>
                             @if($m->code)<p class="text-[11px] text-gray-500">{{ $m->code }}</p>@endif
                         </div>
@@ -161,6 +161,14 @@
                         </form>
                     </div>
                     <div x-show="stockOpen === {{ $m->id }}" x-cloak class="mt-2 space-y-2 border-t border-gray-100 pt-2 dark:border-gray-800">
+                        <div class="rounded-lg border border-brand-100 bg-brand-50/50 p-2 dark:border-brand-900 dark:bg-brand-950/20">
+                            <p class="mb-1 text-[11px] font-semibold uppercase text-brand-700 dark:text-brand-300">Sửa giá/đv thủ công</p>
+                            @include('pages.food.nguyen-lieu.partials.unit-cost-form', ['material' => $m, 'branchId' => $branchId, 'inputClass' => $inputClass, 'formClass' => 'grid grid-cols-[1fr_auto] gap-2'])
+                        </div>
+                        <div class="rounded-lg border border-gray-200 bg-gray-50/80 p-2 dark:border-gray-700 dark:bg-gray-800/50">
+                            <p class="mb-1 text-[11px] font-semibold uppercase text-gray-600 dark:text-gray-300">Sửa tồn kho</p>
+                            @include('pages.food.nguyen-lieu.partials.stock-adjust-form', ['material' => $m, 'branchId' => $branchId, 'stockQty' => $stockQty, 'inputClass' => $inputClass, 'formClass' => 'grid grid-cols-[1fr_auto] gap-2'])
+                        </div>
                         <form action="{{ route('food.nguyen-lieu.stock-in', $m) }}" method="post" class="grid grid-cols-2 gap-2">
                             @csrf
                             <input type="hidden" name="food_branch_id" value="{{ $branchId }}">
@@ -175,13 +183,6 @@
                             <input type="number" name="qty" step="0.0001" min="0.0001" required placeholder="Xuất SL" class="{{ $inputClass }}">
                             <input type="text" name="note" placeholder="Ghi chú xuất" class="{{ $inputClass }}">
                             <button type="submit" class="col-span-2 rounded-lg bg-orange-500 py-2 text-sm font-medium text-white">Xuất kho</button>
-                        </form>
-                        <form action="{{ route('food.nguyen-lieu.stock-adjust', $m) }}" method="post" class="grid grid-cols-2 gap-2">
-                            @csrf
-                            <input type="hidden" name="food_branch_id" value="{{ $branchId }}">
-                            <input type="number" name="stock_on_hand" step="0.0001" min="0" required value="{{ $stockQty }}" class="{{ $inputClass }}">
-                            <input type="text" name="note" placeholder="Ghi chú chỉnh tồn" class="{{ $inputClass }}">
-                            <button type="submit" class="col-span-2 rounded-lg border border-gray-300 py-2 text-sm font-medium dark:border-gray-600">Đặt tồn tuyệt đối</button>
                         </form>
                         <details class="rounded-lg border border-gray-100 p-2 dark:border-gray-800">
                             <summary class="cursor-pointer text-xs font-medium text-gray-600 dark:text-gray-400">Sửa thông tin</summary>
@@ -240,9 +241,26 @@
                             </td>
                             <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ $typeLabels[$m->type] ?? $m->type }}</td>
                             <td class="px-3 py-2 text-gray-700 dark:text-gray-300">{{ $m->unit }}</td>
-                            <td class="px-3 py-2 font-semibold tabular-nums">{{ $fmtQty($stockQty) }}</td>
+                            <td class="px-3 py-2 tabular-nums">
+                                <div class="font-semibold">{{ $fmtQty($stockQty) }}</div>
+                                @include('pages.food.nguyen-lieu.partials.stock-adjust-form', [
+                                    'material' => $m,
+                                    'branchId' => $branchId,
+                                    'stockQty' => $stockQty,
+                                    'inputClass' => 'w-24 rounded border border-gray-200 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900',
+                                    'formClass' => 'mt-1 flex flex-wrap items-center gap-1',
+                                ])
+                            </td>
                             <td class="px-3 py-2 tabular-nums">{{ $fmtQty($reorder) }}</td>
-                            <td class="px-3 py-2 tabular-nums">{{ $m->last_unit_cost !== null ? number_format($m->last_unit_cost, 0, ',', '.').' đ' : '—' }}</td>
+                            <td class="px-3 py-2 tabular-nums">
+                                <div class="font-medium">{{ $m->last_unit_cost !== null ? number_format($m->last_unit_cost, 0, ',', '.').' đ' : '—' }}</div>
+                                @include('pages.food.nguyen-lieu.partials.unit-cost-form', [
+                                    'material' => $m,
+                                    'branchId' => $branchId,
+                                    'inputClass' => 'w-24 rounded border border-gray-200 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900',
+                                    'formClass' => 'mt-1 flex flex-wrap items-center gap-1',
+                                ])
+                            </td>
                             <td class="px-3 py-2">
                                 <div class="flex flex-wrap gap-2">
                                     <button type="button" @click="stockOpen = stockOpen === {{ $m->id }} ? null : {{ $m->id }}" class="text-brand-600 hover:underline dark:text-brand-400">Kho</button>
@@ -255,6 +273,25 @@
                                     </form>
                                 </div>
                                 <div x-show="stockOpen === {{ $m->id }}" x-cloak class="mt-2 max-w-md space-y-2 rounded-lg border border-gray-200 p-2 dark:border-gray-700">
+                                    <div class="rounded border border-brand-100 bg-brand-50/50 p-2 dark:border-brand-900 dark:bg-brand-950/20">
+                                        <p class="mb-1 text-[10px] font-semibold uppercase text-brand-700 dark:text-brand-300">Giá/đv thủ công</p>
+                                        @include('pages.food.nguyen-lieu.partials.unit-cost-form', [
+                                            'material' => $m,
+                                            'branchId' => $branchId,
+                                            'inputClass' => 'w-full rounded border border-gray-200 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900',
+                                            'formClass' => 'flex flex-wrap gap-1',
+                                        ])
+                                    </div>
+                                    <div class="rounded border border-gray-200 bg-gray-50/80 p-2 dark:border-gray-700 dark:bg-gray-800/50">
+                                        <p class="mb-1 text-[10px] font-semibold uppercase text-gray-600 dark:text-gray-300">Sửa tồn kho</p>
+                                        @include('pages.food.nguyen-lieu.partials.stock-adjust-form', [
+                                            'material' => $m,
+                                            'branchId' => $branchId,
+                                            'stockQty' => $stockQty,
+                                            'inputClass' => 'w-full rounded border border-gray-200 px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-900',
+                                            'formClass' => 'flex flex-wrap gap-1',
+                                        ])
+                                    </div>
                                     <form action="{{ route('food.nguyen-lieu.stock-in', $m) }}" method="post" class="flex flex-wrap gap-1">
                                         @csrf
                                         <input type="hidden" name="food_branch_id" value="{{ $branchId }}">
