@@ -327,6 +327,14 @@ class User extends Authenticatable
             return (bool) $this->is_admin;
         }
 
+        if ($path === 'food/danh-gia/import') {
+            return $this->is_admin || $this->canManageFoodReviews();
+        }
+
+        if ($path === 'food/danh-gia/import-text' && strtoupper((string) $method) === 'POST') {
+            return $this->is_admin || $this->canManageFoodReviews();
+        }
+
         return false;
     }
 

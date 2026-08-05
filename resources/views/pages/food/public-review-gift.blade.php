@@ -9,6 +9,23 @@
             <h1 class="text-lg font-semibold text-gray-900 dark:text-white">Nhận quà đánh giá 5 sao - FRESH Bánh Tráng Trộn</h1>
             <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Nhập mã đơn hàng đã đánh giá 5 sao của FRESH - Bánh Tráng Trộn (ví dụ: <span class="font-mono">#01046-444399361</span>).</p>
 
+            <div class="mt-3 rounded-xl border-2 border-amber-400 bg-amber-50 px-3 py-2.5 text-sm font-medium text-amber-900 shadow-sm dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-100">
+                <p class="flex items-start gap-2">
+                    <span class="shrink-0 text-base" aria-hidden="true">⏰</span>
+                    <span>Đánh giá 5 sao sẽ được cập nhật mỗi 24 giờ. Nếu bạn vừa mới đánh giá, hãy quay lại sau 24h.</span>
+                </p>
+            </div>
+
+            <div class="mt-3 rounded-xl border-2 border-emerald-500 bg-gradient-to-br from-emerald-50 to-brand-50 px-3 py-3 text-sm shadow-sm dark:border-emerald-500/50 dark:from-emerald-950/50 dark:to-brand-950/30">
+                <p class="font-semibold text-emerald-900 dark:text-emerald-100">
+                    🎁 Bạn sẽ nhận món free cho hết năm nay — chỉ cần đánh giá 5 sao cho quán!
+                </p>
+                <p class="mt-1.5 text-emerald-800 dark:text-emerald-200">
+                    Liên hệ Zalo:
+                    <a href="https://zalo.me/0934584939" target="_blank" rel="noopener noreferrer" class="font-bold underline decoration-emerald-600 underline-offset-2 hover:text-emerald-950 dark:hover:text-white">0934584939</a>
+                </p>
+            </div>
+
             @if(session('error'))
                 <div class="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300">{{ session('error') }}</div>
             @endif

@@ -161,7 +161,7 @@ class FoodReviewController extends Controller
         if (! $user) {
             return redirect()->route('login')->with('error', 'Vui lòng đăng nhập.');
         }
-        if (! $user->canAccessFoodReviewsSubpages()) {
+        if (! $user->canManageFoodReviews()) {
             abort(403, 'Bạn không có quyền nhập đánh giá.');
         }
 
@@ -175,7 +175,7 @@ class FoodReviewController extends Controller
     public function importText(Request $request): RedirectResponse
     {
         $user = $request->user();
-        if (! $user || ! $user->canAccessFoodReviewsSubpages()) {
+        if (! $user || ! $user->canManageFoodReviews()) {
             abort(403, 'Bạn không có quyền thực hiện thao tác này.');
         }
 

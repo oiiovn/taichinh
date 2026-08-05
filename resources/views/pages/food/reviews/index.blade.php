@@ -30,6 +30,7 @@
 @endphp
     @php
         $canMarkRewarded = auth()->user()?->is_admin || auth()->user()?->canManageFoodReviews();
+        $canImportReviews = auth()->user()?->canManageFoodReviews();
         $showReviewServerFilters = auth()->user()?->is_admin;
         $hasFoodMobileAppBar = auth()->user()
             && method_exists(auth()->user(), 'isFoodReviewsOnlyUser')
@@ -43,18 +44,19 @@
         <div class="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">{{ session('error') }}</div>
     @endif
 
-    <div class="flex flex-wrap items-center justify-between gap-3">
+    <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-3">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Quản lý đánh giá</h2>
-        @if($showReviewServerFilters)
-        <div class="hidden sm:flex items-center gap-2">
-            @if(auth()->user()?->canAccessFoodReviewsSubpages())
-                <a href="{{ route('food.reviews.gift-attempts') }}" class="rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Lịch sử nhận quà</a>
+        <div class="flex flex-wrap items-center gap-2">
+            @if($canImportReviews)
+                <a href="{{ route('food.reviews.import') }}" class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white shadow-sm hover:bg-blue-700 sm:w-auto sm:rounded-lg sm:px-3 sm:py-2 sm:text-xs sm:font-medium">
+                    <svg class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    Nhập đánh giá
+                </a>
             @endif
-            @if(auth()->user()?->is_admin)
-                <a href="{{ route('food.reviews.import') }}" class="rounded-lg bg-blue-600 px-3 py-2 text-xs font-medium text-white hover:bg-blue-700">Nhập đánh giá</a>
+            @if($showReviewServerFilters && auth()->user()?->canAccessFoodReviewsSubpages())
+                <a href="{{ route('food.reviews.gift-attempts') }}" class="hidden sm:inline-flex rounded-lg border border-gray-300 bg-white px-3 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700">Lịch sử nhận quà</a>
             @endif
         </div>
-        @endif
     </div>
 
     <div @class([
