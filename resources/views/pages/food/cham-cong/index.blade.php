@@ -57,6 +57,7 @@ $displayNote = function ($log, $emp) {
 $inputClass = 'w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 outline-none transition focus:border-brand-400 focus:ring-2 focus:ring-brand-100 dark:border-gray-600 dark:bg-gray-900 dark:text-white dark:focus:ring-brand-900/40';
 $labelClass = 'mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400';
 $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_time') || old('note');
+$isSaleDay = fn ($date) => isset(($saleDateSet ?? [])[\Carbon\Carbon::parse($date)->toDateString()]);
 @endphp
 <div class="space-y-3 md:space-y-6" x-data="{ editOpen: false, editLog: null, addOpen: {{ $hasManualOld ? 'true' : 'false' }} }">
     {{-- Header (desktop); mobile dùng sticky app bar của layout Food --}}
@@ -141,6 +142,55 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
             </form>
         </div>
         @endif
+
+        {{-- Ngày sale: tính công từ giờ vào (kể cả trước 11:30) --}}
+        <div class="rounded-xl border border-amber-200 bg-amber-50/60 p-3 shadow-sm dark:border-amber-800/60 dark:bg-amber-900/20">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+                <div class="min-w-0">
+                    <p class="text-sm font-semibold text-amber-950 dark:text-amber-100">Ngày sale</p>
+                    <p class="mt-0.5 text-xs text-amber-800/90 dark:text-amber-200/80">Ngày được đánh dấu sale sẽ tính tiền công từ giờ vào thật. Ngày thường vẫn chỉ tính từ 11:30.</p>
+                </div>
+            </div>
+            <form action="{{ route('food.cham-cong.sale-days.store') }}" method="post" class="mt-3 flex flex-wrap items-end gap-2">
+                @csrf
+                <input type="hidden" name="month" value="{{ $month ?? $from->format('Y-m') }}">
+                @if(!empty($selectedEmployeeId))
+                    <input type="hidden" name="employee_id" value="{{ (int) $selectedEmployeeId }}">
+                @endif
+                <div class="min-w-0 flex-1 sm:max-w-[10rem]">
+                    <label class="{{ $labelClass }}">Ngày sale</label>
+                    <input type="date" name="work_date" value="{{ old('work_date') }}" required class="{{ $inputClass }}">
+                </div>
+                <div class="min-w-0 flex-[2] sm:max-w-xs">
+                    <label class="{{ $labelClass }}">Ghi chú</label>
+                    <input type="text" name="note" value="{{ old('note') }}" maxlength="255" placeholder="Tùy chọn" class="{{ $inputClass }}">
+                </div>
+                <button type="submit" class="shrink-0 rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-amber-700">Thêm ngày sale</button>
+            </form>
+            @if(($saleDays ?? collect())->isNotEmpty())
+                <ul class="mt-3 flex flex-wrap gap-2">
+                    @foreach($saleDays as $saleDay)
+                        <li class="inline-flex items-center gap-1 rounded-full border border-amber-300/80 bg-white py-0.5 pl-2.5 pr-1 text-xs font-medium text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+                            <span>{{ $formatWorkDate($saleDay->work_date) }}</span>
+                            @if(filled($saleDay->note))
+                                <span class="max-w-[8rem] truncate text-amber-700/80 dark:text-amber-300/80" title="{{ $saleDay->note }}">· {{ $saleDay->note }}</span>
+                            @endif
+                            <form action="{{ route('food.cham-cong.sale-days.destroy', $saleDay) }}" method="post" class="inline">
+                                @csrf
+                                @method('DELETE')
+                                <input type="hidden" name="month" value="{{ $month ?? $from->format('Y-m') }}">
+                                @if(!empty($selectedEmployeeId))
+                                    <input type="hidden" name="employee_id" value="{{ (int) $selectedEmployeeId }}">
+                                @endif
+                                <button type="submit" class="rounded-full p-1 text-amber-700 transition hover:bg-amber-100 hover:text-amber-900 dark:text-amber-300 dark:hover:bg-amber-900/50" title="Bỏ ngày sale">✕</button>
+                            </form>
+                        </li>
+                    @endforeach
+                </ul>
+            @else
+                <p class="mt-2 text-xs text-amber-800/80 dark:text-amber-200/70">Chưa có ngày sale trong khoảng đang xem.</p>
+            @endif
+        </div>
 
         {{-- Manual add form: collapsible on mobile, always open on md+ --}}
         @if($employeesForSelect->isNotEmpty())
@@ -235,6 +285,9 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                             <h3 class="text-sm font-semibold text-gray-950 dark:text-white">{{ $formatWorkDate($log->work_date) }}</h3>
                         </div>
                         <div class="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                            @if($isSaleDay($log->work_date))
+                                <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">Sale</span>
+                            @endif
                             @if($isOff)
                                 <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-800 dark:text-slate-300">OFF</span>
                             @elseif($log->work_minutes !== null)
@@ -343,7 +396,14 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                             @if($isManager && empty($selectedEmployeeId))
                                 <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $log->employee?->user?->name ?? '—' }}</td>
                             @endif
-                            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $formatWorkDate($log->work_date) }}</td>
+                            <td class="px-4 py-2 text-gray-900 dark:text-white">
+                                <span class="inline-flex items-center gap-1.5">
+                                    {{ $formatWorkDate($log->work_date) }}
+                                    @if($isSaleDay($log->work_date))
+                                        <span class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">Sale</span>
+                                    @endif
+                                </span>
+                            </td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->check_in_at?->format('H:i') ?? '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->check_out_at?->format('H:i') ?? '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->break_start_at ? $log->break_start_at->format('H:i') . ' – ' . ($log->break_end_at?->format('H:i') ?? '—') : '—' }}</td>
@@ -461,6 +521,9 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                     <div class="flex items-start justify-between gap-2 px-3 pt-2.5">
                         <h3 class="text-sm font-semibold text-gray-950 dark:text-white">{{ $formatWorkDate($log->work_date) }}</h3>
                         <div class="flex shrink-0 flex-wrap items-center justify-end gap-1">
+                            @if($isSaleDay($log->work_date))
+                                <span class="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">Sale</span>
+                            @endif
                             @if($isOff)
                                 <span class="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-slate-600 dark:bg-slate-800 dark:text-slate-300">OFF</span>
                             @elseif($log->work_minutes !== null)
@@ -536,7 +599,14 @@ $hasManualOld = old('employee_id') || old('check_in_time') || old('check_out_tim
                             $li = $lateInfo($log, $employee);
                         @endphp
                         <tr class="border-b border-gray-100 dark:border-gray-700/50">
-                            <td class="px-4 py-2 text-gray-900 dark:text-white">{{ $formatWorkDate($log->work_date) }}</td>
+                            <td class="px-4 py-2 text-gray-900 dark:text-white">
+                                <span class="inline-flex items-center gap-1.5">
+                                    {{ $formatWorkDate($log->work_date) }}
+                                    @if($isSaleDay($log->work_date))
+                                        <span class="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:bg-amber-900/50 dark:text-amber-200">Sale</span>
+                                    @endif
+                                </span>
+                            </td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->check_in_at?->format('H:i') ?? '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->check_out_at?->format('H:i') ?? '—' }}</td>
                             <td class="px-4 py-2 text-gray-700 dark:text-gray-300">{{ $log->break_start_at ? $log->break_start_at->format('H:i') . ' – ' . ($log->break_end_at?->format('H:i') ?? '—') : '—' }}</td>

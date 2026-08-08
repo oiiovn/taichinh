@@ -80,7 +80,16 @@ class AttendanceLog extends Model
             return false;
         }
 
-        return Carbon::parse($this->work_date)->startOfDay()->gte(self::paidWorkStartEffectiveFrom());
+        if (! Carbon::parse($this->work_date)->startOfDay()->gte(self::paidWorkStartEffectiveFrom())) {
+            return false;
+        }
+
+        // Ngày sale: tính công từ giờ vào thật (kể cả trước 11:30)
+        if (FoodAttendanceSaleDay::isSaleDay($this->work_date)) {
+            return false;
+        }
+
+        return true;
     }
 
     public function getWorkMinutesAttribute(): ?int

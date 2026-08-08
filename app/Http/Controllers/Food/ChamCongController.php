@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Food;
 use App\Http\Controllers\Controller;
 use App\Models\AttendanceLog;
 use App\Models\Employee;
+use App\Models\FoodAttendanceSaleDay;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -85,6 +86,12 @@ class ChamCongController extends Controller
         }
 
         $employeesForSelect = $isManager ? Employee::with('user')->where('active', true)->orderBy('id')->get() : collect();
+        $saleDays = FoodAttendanceSaleDay::query()
+            ->whereBetween('work_date', [$from->toDateString(), $to->toDateString()])
+            ->orderBy('work_date')
+            ->get();
+        $saleDates = $saleDays->map(fn ($d) => $d->work_date->toDateString())->all();
+        $saleDateSet = array_fill_keys($saleDates, true);
 
         return view('pages.food.cham-cong.index', [
             'title' => 'Chấm công',
@@ -101,7 +108,53 @@ class ChamCongController extends Controller
             'hasCheckedOutToday' => $todayLog && $todayLog->check_out_at !== null,
             'hasBreakStartToday' => $todayLog && $todayLog->break_start_at !== null,
             'hasBreakEndToday' => $todayLog && $todayLog->break_end_at !== null,
+            'saleDates' => $saleDates,
+            'saleDateSet' => $saleDateSet,
+            'saleDays' => $saleDays,
         ]);
+    }
+
+    public function storeSaleDay(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->canManageFoodChamCong()) {
+            abort(403, 'Chỉ quản lý mới được đánh dấu ngày sale.');
+        }
+
+        $validated = $request->validate([
+            'work_date' => ['required', 'date'],
+            'note' => ['nullable', 'string', 'max:255'],
+            'month' => ['nullable', 'string', 'regex:/^\d{4}-\d{2}$/'],
+            'employee_id' => ['nullable', 'integer'],
+        ]);
+
+        $workDate = Carbon::parse($validated['work_date'])->startOfDay();
+        FoodAttendanceSaleDay::query()->updateOrCreate(
+            ['work_date' => $workDate->toDateString()],
+            ['note' => filled($validated['note'] ?? null) ? trim((string) $validated['note']) : null]
+        );
+
+        return redirect()->route('food.cham-cong', array_filter([
+            'month' => $validated['month'] ?? $workDate->format('Y-m'),
+            'employee_id' => $validated['employee_id'] ?? null,
+        ]))->with('success', 'Đã đánh dấu ngày sale '.$workDate->format('d/m/Y').' (tính công từ giờ vào, kể cả trước 11:30).');
+    }
+
+    public function destroySaleDay(Request $request, FoodAttendanceSaleDay $saleDay): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->canManageFoodChamCong()) {
+            abort(403, 'Chỉ quản lý mới được bỏ đánh dấu ngày sale.');
+        }
+
+        $month = $request->input('month', $saleDay->work_date?->format('Y-m'));
+        $workLabel = $saleDay->work_date?->format('d/m/Y') ?? '';
+        $saleDay->delete();
+
+        return redirect()->route('food.cham-cong', array_filter([
+            'month' => $month,
+            'employee_id' => $request->input('employee_id'),
+        ]))->with('success', 'Đã bỏ ngày sale'.($workLabel !== '' ? ' '.$workLabel : '').'.');
     }
 
     public function store(Request $request): RedirectResponse

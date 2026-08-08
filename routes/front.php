@@ -204,6 +204,8 @@ Route::middleware('auth')->group(function () {
         if ($hasFoodEmployeeControllers) {
             Route::get('/food/cham-cong', [\App\Http\Controllers\Food\ChamCongController::class, 'index'])->name('food.cham-cong');
             Route::post('/food/cham-cong', [\App\Http\Controllers\Food\ChamCongController::class, 'store'])->name('food.cham-cong.store');
+            Route::post('/food/cham-cong/ngay-sale', [\App\Http\Controllers\Food\ChamCongController::class, 'storeSaleDay'])->name('food.cham-cong.sale-days.store');
+            Route::delete('/food/cham-cong/ngay-sale/{saleDay}', [\App\Http\Controllers\Food\ChamCongController::class, 'destroySaleDay'])->name('food.cham-cong.sale-days.destroy');
             Route::post('/food/cham-cong/manual', [\App\Http\Controllers\Food\ChamCongController::class, 'storeManual'])->name('food.cham-cong.store-manual');
             Route::put('/food/cham-cong/{log}', [\App\Http\Controllers\Food\ChamCongController::class, 'update'])->name('food.cham-cong.update');
             Route::delete('/food/cham-cong/{log}', [\App\Http\Controllers\Food\ChamCongController::class, 'destroy'])->name('food.cham-cong.destroy');
