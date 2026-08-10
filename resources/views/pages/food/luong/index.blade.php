@@ -7,7 +7,7 @@
     $labelClass = 'mb-1 block text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400';
 @endphp
 @php $paymentFormOpen = $errors->any() || old('employee_id') || old('amount'); @endphp
-<div class="space-y-3 md:space-y-6" @if($canRecordPayment ?? false) x-data="{ payOpen: {{ $paymentFormOpen ? 'true' : 'false' }} }" @endif>
+<div class="space-y-3 md:space-y-6" @if($canRecordPayment ?? false) x-data="{ payOpen: {{ $paymentFormOpen ? 'true' : 'false' }}, editPayOpen: false, editPay: null }" @endif>
     <div class="flex items-center justify-between gap-3">
         <h2 class="hidden text-lg font-semibold text-gray-900 dark:text-white md:block">Bảng lương</h2>
         @if($canRecordPayment ?? false)
@@ -141,8 +141,26 @@
                                     <span class="font-medium text-gray-800 dark:text-gray-200">{{ $paymentTypes[$pay->payment_type] ?? $pay->payment_type }}</span>
                                     <span class="text-gray-500"> · {{ $paymentMethods[$pay->payment_method] ?? $pay->payment_method }}</span>
                                     <span class="block text-gray-400">{{ $pay->paid_at?->format('d/m H:i') }}</span>
+                                    @if($pay->note)<span class="block text-gray-500">{{ $pay->note }}</span>@endif
                                 </div>
-                                <span class="shrink-0 font-semibold tabular-nums text-gray-900 dark:text-white">{{ $fmt($pay->amount) }} đ</span>
+                                <div class="flex shrink-0 flex-col items-end gap-1">
+                                    <span class="font-semibold tabular-nums text-gray-900 dark:text-white">{{ $fmt($pay->amount) }} đ</span>
+                                    @if($canRecordPayment ?? false)
+                                        <div class="flex items-center gap-2">
+                                            <button type="button"
+                                                @click="editPayOpen = true; editPay = { id: {{ $pay->id }}, payment_type: '{{ $pay->payment_type }}', payment_method: '{{ $pay->payment_method }}', amount: {{ (int) $pay->amount }}, paid_at: '{{ $pay->paid_at?->format('Y-m-d') ?? '' }}', note: {{ json_encode($pay->note ?? '') }} }"
+                                                class="text-[10px] font-medium text-brand-600 dark:text-brand-400">Sửa</button>
+                                            <form id="form-delete-pay-m-{{ $pay->id }}" action="{{ route('food.luong.destroy-payment', $pay) }}" method="POST" class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <input type="hidden" name="month" value="{{ $month }}">
+                                                <button type="button"
+                                                    @click="$dispatch('confirm-delete-open', { formId: 'form-delete-pay-m-{{ $pay->id }}', message: @js('Xóa bản ghi trả lương '.$fmt($pay->amount).' đ?') })"
+                                                    class="text-[10px] font-medium text-red-600 dark:text-red-400">Xóa</button>
+                                            </form>
+                                        </div>
+                                    @endif
+                                </div>
                             </div>
                         @endforeach
                     </div>
@@ -209,6 +227,21 @@
                                     <span class="block text-gray-500">{{ $pay->paid_at?->format('d/m/Y H:i') }}</span>
                                     @if($pay->note)<span class="block">{{ $pay->note }}</span>@endif
                                     @if($pay->creator)<span class="block text-gray-400">Ghi bởi: {{ $pay->creator->name }}</span>@endif
+                                    @if($canRecordPayment ?? false)
+                                        <div class="mt-1 flex items-center gap-2">
+                                            <button type="button"
+                                                @click="editPayOpen = true; editPay = { id: {{ $pay->id }}, payment_type: '{{ $pay->payment_type }}', payment_method: '{{ $pay->payment_method }}', amount: {{ (int) $pay->amount }}, paid_at: '{{ $pay->paid_at?->format('Y-m-d') ?? '' }}', note: {{ json_encode($pay->note ?? '') }} }"
+                                                class="text-xs font-medium text-brand-600 hover:underline dark:text-brand-400">Sửa</button>
+                                            <form id="form-delete-pay-{{ $pay->id }}" action="{{ route('food.luong.destroy-payment', $pay) }}" method="POST" class="inline">
+                                                @csrf
+                                                @method('DELETE')
+                                                <input type="hidden" name="month" value="{{ $month }}">
+                                                <button type="button"
+                                                    @click="$dispatch('confirm-delete-open', { formId: 'form-delete-pay-{{ $pay->id }}', message: @js('Xóa bản ghi trả lương '.$fmt($pay->amount).' đ?') })"
+                                                    class="text-xs font-medium text-red-600 hover:underline dark:text-red-400">Xóa</button>
+                                            </form>
+                                        </div>
+                                    @endif
                                 </div>
                             @empty
                                 <span class="text-gray-400">Chưa ghi nhận</span>
@@ -223,5 +256,67 @@
             </tbody>
         </table>
     </div>
+
+    @if($canRecordPayment ?? false)
+        <div x-show="editPayOpen" x-cloak class="fixed inset-0 z-50 flex items-end justify-center bg-black/50 p-0 sm:items-center sm:p-4" @keydown.escape.window="editPayOpen = false">
+            <div x-show="editPayOpen" x-transition class="w-full max-w-md rounded-t-2xl border border-gray-200 bg-white p-5 shadow-xl dark:border-gray-700 dark:bg-gray-800 sm:rounded-2xl sm:p-6" @click.stop>
+                <div class="mb-4 flex items-center justify-between gap-3">
+                    <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Sửa chi tiết trả lương</h3>
+                    <button type="button" @click="editPayOpen = false" class="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700">✕</button>
+                </div>
+                <template x-if="editPay">
+                    <form :action="'{{ url('/food/luong/thanh-toan') }}/' + editPay.id" method="POST">
+                        @csrf
+                        @method('PUT')
+                        <input type="hidden" name="month" value="{{ $month }}">
+                        <div class="space-y-3">
+                            <div>
+                                <label class="{{ $labelClass }}">Loại thanh toán</label>
+                                <select name="payment_type" x-model="editPay.payment_type" required class="{{ $inputClass }}">
+                                    @foreach($paymentTypes as $key => $label)
+                                        <option value="{{ $key }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="{{ $labelClass }}">Hình thức</label>
+                                <select name="payment_method" x-model="editPay.payment_method" required class="{{ $inputClass }}">
+                                    @foreach($paymentMethods as $key => $label)
+                                        <option value="{{ $key }}">{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </div>
+                            <div>
+                                <label class="{{ $labelClass }}">Số tiền (đ)</label>
+                                <input type="number" name="amount" min="1" step="1" required x-model="editPay.amount" class="{{ $inputClass }}">
+                            </div>
+                            <div>
+                                <label class="{{ $labelClass }}">Ngày thanh toán</label>
+                                <input type="date" name="paid_at" required x-model="editPay.paid_at" class="{{ $inputClass }}">
+                            </div>
+                            <div>
+                                <label class="{{ $labelClass }}">Nội dung / ghi chú</label>
+                                <input type="text" name="note" maxlength="1000" x-model="editPay.note" class="{{ $inputClass }}" placeholder="Tùy chọn">
+                            </div>
+                        </div>
+                        <div class="mt-5 flex gap-2">
+                            <button type="submit" class="flex-1 rounded-xl bg-brand-600 px-4 py-3 text-sm font-semibold text-white hover:bg-brand-700">Lưu</button>
+                            <button type="button" @click="editPayOpen = false" class="rounded-xl border border-gray-300 px-4 py-3 text-sm font-medium dark:border-gray-600 dark:text-gray-300">Hủy</button>
+                        </div>
+                    </form>
+                </template>
+                <template x-if="editPay">
+                    <form id="form-delete-pay-edit" :action="'{{ url('/food/luong/thanh-toan') }}/' + editPay.id" method="POST" class="mt-3">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="month" value="{{ $month }}">
+                        <button type="button"
+                            @click="$dispatch('confirm-delete-open', { formId: 'form-delete-pay-edit', message: 'Xóa bản ghi trả lương này?' })"
+                            class="w-full rounded-xl border border-red-200 px-4 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-900/20">Xóa bản ghi này</button>
+                    </form>
+                </template>
+            </div>
+        </div>
+    @endif
 </div>
 @endsection

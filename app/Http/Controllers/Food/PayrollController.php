@@ -99,6 +99,50 @@ class PayrollController extends Controller
             ->with('success', 'Đã ghi nhận thanh toán lương.');
     }
 
+    public function updatePayment(Request $request, EmployeeSalaryPayment $payment): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->canRecordFoodSalaryPayment()) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'month' => ['required', 'date_format:Y-m'],
+            'payment_type' => ['required', Rule::in(array_keys(EmployeeSalaryPayment::paymentTypeLabels()))],
+            'amount' => ['required', 'numeric', 'min:1'],
+            'payment_method' => ['required', Rule::in(array_keys(EmployeeSalaryPayment::paymentMethodLabels()))],
+            'note' => ['nullable', 'string', 'max:1000'],
+            'paid_at' => ['required', 'date'],
+        ]);
+
+        $payment->update([
+            'payment_type' => $validated['payment_type'],
+            'amount' => (int) round((float) $validated['amount']),
+            'payment_method' => $validated['payment_method'],
+            'note' => $validated['note'] ?? null,
+            'paid_at' => Carbon::parse($validated['paid_at']),
+        ]);
+
+        return redirect()
+            ->route('food.luong', ['month' => $validated['month']])
+            ->with('success', 'Đã cập nhật chi tiết trả lương.');
+    }
+
+    public function destroyPayment(Request $request, EmployeeSalaryPayment $payment): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user || ! $user->canRecordFoodSalaryPayment()) {
+            abort(403);
+        }
+
+        $month = $request->input('month', $payment->pay_period_month?->format('Y-m') ?? now()->format('Y-m'));
+        $payment->delete();
+
+        return redirect()
+            ->route('food.luong', ['month' => $month])
+            ->with('success', 'Đã xóa bản ghi trả lương.');
+    }
+
     /** Trang xem lương cá nhân cho nhân viên. */
     public function myPayroll(Request $request): View|\Illuminate\Http\RedirectResponse
     {

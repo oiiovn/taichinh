@@ -223,6 +223,8 @@ Route::middleware('auth')->group(function () {
         if ($hasFoodEmployeeControllers) {
             Route::get('/food/luong', [\App\Http\Controllers\Food\PayrollController::class, 'index'])->name('food.luong');
             Route::post('/food/luong/ghi-thanh-toan', [\App\Http\Controllers\Food\PayrollController::class, 'storePayment'])->name('food.luong.store-payment');
+            Route::put('/food/luong/thanh-toan/{payment}', [\App\Http\Controllers\Food\PayrollController::class, 'updatePayment'])->name('food.luong.update-payment');
+            Route::delete('/food/luong/thanh-toan/{payment}', [\App\Http\Controllers\Food\PayrollController::class, 'destroyPayment'])->name('food.luong.destroy-payment');
         }
         if ($hasFoodEmployeeControllers && class_exists(\App\Http\Controllers\Food\NhanVienController::class)) {
             Route::middleware(['food.employee.manager'])->group(function () {

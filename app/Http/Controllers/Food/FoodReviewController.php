@@ -8,6 +8,7 @@ use App\Models\FoodReview;
 use App\Models\FoodReviewGiftAttempt;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -142,17 +143,157 @@ class FoodReviewController extends Controller
             $query->whereDate('created_at', '<=', $to);
         }
 
-        $attempts = $query->paginate(40)->appends($request->query());
+        $allAttempts = $query->get();
+        $groups = $this->groupGiftAttemptsByIp($allAttempts);
+        $dailyStats = $this->buildGiftAttemptDailyStats($allAttempts);
+
+        $page = max(1, (int) $request->input('page', 1));
+        $perPage = 25;
+        $groupsPage = new LengthAwarePaginator(
+            $groups->forPage($page, $perPage)->values(),
+            $groups->count(),
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
+        );
 
         return view('pages.food.reviews.gift-attempts', [
             'title' => 'Lịch sử QR nhận quà',
-            'attempts' => $attempts,
+            'groups' => $groupsPage,
             'resultLabels' => FoodReviewGiftAttempt::resultLabels(),
             'q' => $q,
             'result' => $result,
             'fromDate' => $from,
             'toDate' => $to,
+            'dailyStats' => $dailyStats,
         ]);
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, FoodReviewGiftAttempt>  $attempts
+     * @return \Illuminate\Support\Collection<int, array{
+     *     key: string,
+     *     ip: ?string,
+     *     attempts: \Illuminate\Support\Collection<int, FoodReviewGiftAttempt>,
+     *     count: int,
+     *     primary: FoodReviewGiftAttempt,
+     *     latest_at: \Carbon\Carbon|null,
+     *     has_success: bool
+     * }>
+     */
+    protected function groupGiftAttemptsByIp($attempts)
+    {
+        return $attempts
+            ->groupBy(fn (FoodReviewGiftAttempt $a) => filled($a->ip_address) ? $a->ip_address : '__no_ip__')
+            ->map(function ($items, $ipKey) {
+                $sorted = $items->sortByDesc(fn (FoodReviewGiftAttempt $a) => $a->created_at?->timestamp ?? 0)->values();
+                $success = $sorted->firstWhere('result', FoodReviewGiftAttempt::RESULT_SUCCESS);
+                $primary = $success ?? $sorted->first();
+
+                return [
+                    'key' => md5((string) $ipKey),
+                    'ip' => $ipKey === '__no_ip__' ? null : (string) $ipKey,
+                    'attempts' => $sorted,
+                    'count' => $sorted->count(),
+                    'primary' => $primary,
+                    'latest_at' => $sorted->max('created_at'),
+                    'has_success' => $success !== null,
+                ];
+            })
+            ->sortByDesc(fn (array $g) => $g['latest_at']?->timestamp ?? 0)
+            ->values();
+    }
+
+    /**
+     * @param  \Illuminate\Support\Collection<int, FoodReviewGiftAttempt>  $attempts
+     * @return array{
+     *     days: list<string>,
+     *     dayLabels: list<string>,
+     *     rows: array<string, array<string, int>>,
+     *     series: list<array{name: string, key: string, data: list<int>}>,
+     *     totals: array<string, int>,
+     *     grandTotal: int,
+     *     successRate: float|null,
+     *     uniqueIps: int,
+     *     resultColors: array<string, string>
+     * }
+     */
+    protected function buildGiftAttemptDailyStats($attempts): array
+    {
+        $resultKeys = array_keys(FoodReviewGiftAttempt::resultLabels());
+        $resultColors = [
+            FoodReviewGiftAttempt::RESULT_PAGE_OPEN => '#3b82f6',
+            FoodReviewGiftAttempt::RESULT_NOT_FOUND => '#9ca3af',
+            FoodReviewGiftAttempt::RESULT_EXPIRED => '#f59e0b',
+            FoodReviewGiftAttempt::RESULT_ALREADY_REWARDED => '#ef4444',
+            FoodReviewGiftAttempt::RESULT_SUCCESS => '#10b981',
+        ];
+
+        $rows = [];
+        $uniqueIps = [];
+
+        foreach ($attempts as $attempt) {
+            $day = $attempt->created_at?->format('Y-m-d');
+            if (! $day) {
+                continue;
+            }
+
+            if (! isset($rows[$day])) {
+                $rows[$day] = array_fill_keys($resultKeys, 0);
+                $rows[$day]['total'] = 0;
+            }
+
+            $result = $attempt->result;
+            if (array_key_exists($result, $rows[$day])) {
+                $rows[$day][$result]++;
+            }
+            $rows[$day]['total']++;
+
+            if (filled($attempt->ip_address)) {
+                $uniqueIps[$attempt->ip_address] = true;
+            }
+        }
+
+        ksort($rows);
+        $days = array_keys($rows);
+        $dayLabels = array_map(
+            fn (string $d) => \Carbon\Carbon::parse($d)->format('d/m'),
+            $days
+        );
+
+        $series = [];
+        foreach ($resultKeys as $key) {
+            $series[] = [
+                'name' => FoodReviewGiftAttempt::resultLabels()[$key],
+                'key' => $key,
+                'data' => array_map(fn (string $d) => (int) ($rows[$d][$key] ?? 0), $days),
+            ];
+        }
+
+        $totals = array_fill_keys($resultKeys, 0);
+        $grandTotal = 0;
+        foreach ($rows as $row) {
+            foreach ($resultKeys as $key) {
+                $totals[$key] += (int) ($row[$key] ?? 0);
+            }
+            $grandTotal += (int) ($row['total'] ?? 0);
+        }
+
+        $pageOpens = (int) ($totals[FoodReviewGiftAttempt::RESULT_PAGE_OPEN] ?? 0);
+        $successes = (int) ($totals[FoodReviewGiftAttempt::RESULT_SUCCESS] ?? 0);
+        $successRate = $pageOpens > 0 ? round($successes / $pageOpens * 100, 1) : null;
+
+        return [
+            'days' => $days,
+            'dayLabels' => $dayLabels,
+            'rows' => $rows,
+            'series' => $series,
+            'totals' => $totals,
+            'grandTotal' => $grandTotal,
+            'successRate' => $successRate,
+            'uniqueIps' => count($uniqueIps),
+            'resultColors' => $resultColors,
+        ];
     }
 
     public function showImport(Request $request): View|RedirectResponse
