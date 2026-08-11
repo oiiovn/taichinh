@@ -123,6 +123,7 @@ class FoodReviewController extends Controller
 
         $query = FoodReviewGiftAttempt::query()
             ->with(['review.branch'])
+            ->where('result', '!=', FoodReviewGiftAttempt::RESULT_PAGE_OPEN)
             ->orderByDesc('id');
 
         if ($q !== '') {
@@ -133,7 +134,7 @@ class FoodReviewController extends Controller
                     ->orWhere('ip_address', 'like', "%{$q}%");
             });
         }
-        if ($result !== '' && array_key_exists($result, FoodReviewGiftAttempt::resultLabels())) {
+        if ($result !== '' && array_key_exists($result, FoodReviewGiftAttempt::trackedResultLabels())) {
             $query->where('result', $result);
         }
         if ($from) {
@@ -160,7 +161,7 @@ class FoodReviewController extends Controller
         return view('pages.food.reviews.gift-attempts', [
             'title' => 'Lịch sử QR nhận quà',
             'groups' => $groupsPage,
-            'resultLabels' => FoodReviewGiftAttempt::resultLabels(),
+            'resultLabels' => FoodReviewGiftAttempt::trackedResultLabels(),
             'q' => $q,
             'result' => $result,
             'fromDate' => $from,
@@ -220,9 +221,8 @@ class FoodReviewController extends Controller
      */
     protected function buildGiftAttemptDailyStats($attempts): array
     {
-        $resultKeys = array_keys(FoodReviewGiftAttempt::resultLabels());
+        $resultKeys = array_keys(FoodReviewGiftAttempt::trackedResultLabels());
         $resultColors = [
-            FoodReviewGiftAttempt::RESULT_PAGE_OPEN => '#3b82f6',
             FoodReviewGiftAttempt::RESULT_NOT_FOUND => '#9ca3af',
             FoodReviewGiftAttempt::RESULT_EXPIRED => '#f59e0b',
             FoodReviewGiftAttempt::RESULT_ALREADY_REWARDED => '#ef4444',
@@ -279,9 +279,8 @@ class FoodReviewController extends Controller
             $grandTotal += (int) ($row['total'] ?? 0);
         }
 
-        $pageOpens = (int) ($totals[FoodReviewGiftAttempt::RESULT_PAGE_OPEN] ?? 0);
         $successes = (int) ($totals[FoodReviewGiftAttempt::RESULT_SUCCESS] ?? 0);
-        $successRate = $pageOpens > 0 ? round($successes / $pageOpens * 100, 1) : null;
+        $successRate = $grandTotal > 0 ? round($successes / $grandTotal * 100, 1) : null;
 
         return [
             'days' => $days,

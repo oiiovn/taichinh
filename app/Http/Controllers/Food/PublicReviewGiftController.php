@@ -15,23 +15,6 @@ class PublicReviewGiftController extends Controller
 {
     public function show(Request $request): View
     {
-        $isFormReturn = $request->session()->has('gift_popup')
-            || $request->session()->has('gift_used_popup')
-            || $request->session()->has('gift_expired_popup')
-            || $request->session()->has('error')
-            || $request->session()->hasOldInput();
-
-        if (! $isFormReturn) {
-            $this->logAttempt(
-                $request,
-                '',
-                '',
-                null,
-                FoodReviewGiftAttempt::RESULT_PAGE_OPEN,
-                'Khách mở trang nhận quà từ link QR.'
-            );
-        }
-
         return view('pages.food.public-review-gift', [
             'title' => 'Nhận quà đánh giá 5 sao',
         ]);

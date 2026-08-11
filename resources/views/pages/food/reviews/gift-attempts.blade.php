@@ -57,7 +57,7 @@
                 <div class="rounded-lg bg-blue-50 px-3 py-2 dark:bg-blue-900/20">
                     <p class="text-[10px] font-semibold uppercase tracking-wide text-blue-700/80 dark:text-blue-300/80">Tỷ lệ thành công</p>
                     <p class="mt-0.5 text-lg font-semibold tabular-nums text-blue-800 dark:text-blue-200">{{ $stats['successRate'] !== null ? $stats['successRate'].'%' : '—' }}</p>
-                    <p class="text-[10px] text-blue-600/80 dark:text-blue-300/70">Thành công / Mở QR</p>
+                    <p class="text-[10px] text-blue-600/80 dark:text-blue-300/70">Thành công / Tổng lượt nhập</p>
                 </div>
                 <div class="rounded-lg bg-gray-50 px-3 py-2 dark:bg-gray-800/80">
                     <p class="text-[10px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">IP khác nhau</p>
@@ -89,9 +89,9 @@
                         @foreach($stats['days'] as $day)
                             @php
                                 $row = $stats['rows'][$day] ?? [];
-                                $opens = (int) ($row['page_open'] ?? 0);
+                                $total = (int) ($row['total'] ?? 0);
                                 $succ = (int) ($row['success'] ?? 0);
-                                $dayRate = $opens > 0 ? round($succ / $opens * 100, 1) : null;
+                                $dayRate = $total > 0 ? round($succ / $total * 100, 1) : null;
                             @endphp
                             <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40">
                                 <td class="whitespace-nowrap px-3 py-2 font-medium text-gray-900 dark:text-white">{{ \Carbon\Carbon::parse($day)->format('d/m/Y') }}</td>

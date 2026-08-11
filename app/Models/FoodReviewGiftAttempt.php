@@ -41,6 +41,15 @@ class FoodReviewGiftAttempt extends Model
         ];
     }
 
+    /** Các loại kết quả hiển thị trong lịch sử (bỏ mở link QR). */
+    public static function trackedResultLabels(): array
+    {
+        $labels = self::resultLabels();
+        unset($labels[self::RESULT_PAGE_OPEN]);
+
+        return $labels;
+    }
+
     public function resultLabel(): string
     {
         return self::resultLabels()[$this->result] ?? $this->result;

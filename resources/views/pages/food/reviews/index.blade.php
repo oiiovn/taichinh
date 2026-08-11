@@ -36,7 +36,7 @@
             && method_exists(auth()->user(), 'isFoodReviewsOnlyUser')
             && ! auth()->user()->isFoodReviewsOnlyUser();
     @endphp
-    <div class="max-w-full overflow-x-hidden space-y-3 md:space-y-4" x-data="{ q: '', hasMatch() { const items = this.$root.querySelectorAll('.review-item'); return Array.from(items).some((el) => el.style.display !== 'none'); } }">
+    <div class="max-w-full overflow-x-hidden space-y-3 md:space-y-4">
     @if(session('success'))
         <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-700 dark:border-green-800 dark:bg-green-900/20 dark:text-green-400">{{ session('success') }}</div>
     @endif
@@ -64,10 +64,11 @@
         'top-[calc(3.75rem+env(safe-area-inset-top,0px))]' => $hasFoodMobileAppBar,
         'top-0 pt-[env(safe-area-inset-top)]' => ! $hasFoodMobileAppBar,
     ])>
-        <form method="GET" class="@if($showReviewServerFilters) grid grid-cols-1 gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 md:grid-cols-6 dark:border-gray-700 dark:bg-gray-800/50 @else w-full @endif">
+        <form method="GET" class="@if($showReviewServerFilters) grid grid-cols-1 gap-2 rounded-xl border border-gray-200 bg-gray-50 p-3 md:grid-cols-6 dark:border-gray-700 dark:bg-gray-800/50 @else flex w-full gap-2 @endif">
             <input
-                type="text"
-                x-model.debounce.120ms="q"
+                type="search"
+                name="q"
+                value="{{ $q }}"
                 placeholder="Tìm mã: #..., FR-..., khách..."
                 class="w-full min-w-0 rounded-lg border border-gray-200 bg-white px-3 py-2.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white @if($showReviewServerFilters) md:col-span-2 @endif"
             >
@@ -86,25 +87,19 @@
             </select>
             <input type="date" name="from_date" value="{{ $fromDate }}" class="hidden md:block rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
             <input type="date" name="to_date" value="{{ $toDate }}" class="hidden md:block rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
-            <div class="hidden md:block md:col-span-6">
-                <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Lọc</button>
+            <div class="flex gap-2 md:col-span-6">
+                <button type="submit" class="hidden rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 md:inline-flex">Lọc</button>
+                <button type="submit" class="inline-flex flex-1 items-center justify-center rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 md:hidden">Lọc</button>
             </div>
+            @else
+            <button type="submit" class="shrink-0 rounded-lg bg-brand-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-brand-700">Tìm</button>
             @endif
         </form>
     </div>
 
     <div class="min-w-0 space-y-2">
         @forelse($reviews as $r)
-            @php
-                $searchText = mb_strtolower(trim(implode(' ', [
-                    (string) ($r->review_code ?? ''),
-                    (string) ($r->gift_code ?? ''),
-                    (string) ($r->customer_name ?? ''),
-                    (string) ($r->review_content ?? ''),
-                    (string) ($r->branch?->name ?? ''),
-                ])));
-            @endphp
-            <div x-show="!q || ($el.dataset.search || '').includes(q.toLowerCase())" data-search="{{ $searchText }}" class="review-item min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+            <div class="review-item min-w-0 overflow-hidden rounded-xl border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
                 <div class="flex min-w-0 flex-wrap items-start justify-between gap-2">
                     <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                         <span class="break-all font-mono text-xs font-bold text-gray-900 dark:text-gray-100">{{ $r->review_code }}</span>
@@ -171,9 +166,8 @@
                 @endif
             </div>
         @empty
-            <p class="py-6 text-center text-xs text-gray-500 dark:text-gray-400">Chưa có đánh giá.</p>
+            <p class="py-6 text-center text-xs text-gray-500 dark:text-gray-400">{{ $q !== '' ? 'Không tìm thấy đánh giá phù hợp.' : 'Chưa có đánh giá.' }}</p>
         @endforelse
-        <p x-show="q && !hasMatch()" class="py-4 text-center text-xs text-gray-500 dark:text-gray-400">Không có kết quả phù hợp.</p>
     </div>
 
     <div class="min-w-0 overflow-x-auto">
