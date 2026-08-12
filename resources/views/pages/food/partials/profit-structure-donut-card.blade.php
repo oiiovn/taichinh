@@ -60,52 +60,53 @@
         (function renderProfitDonut() {
             var el = document.getElementById('food-profit-donut-chart');
             if (!el || el._rendered) return;
-            if (typeof window.ApexCharts === 'undefined') {
-                var s = document.createElement('script');
-                s.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.min.js';
-                s.onload = function() { el._rendered = false; renderProfitDonut(); };
-                document.head.appendChild(s);
-                return;
-            }
-            el._rendered = true;
-            var series = JSON.parse(el.getAttribute('data-series') || '[]');
-            var labels = JSON.parse(el.getAttribute('data-labels') || '[]');
-            var colors = JSON.parse(el.getAttribute('data-colors') || '[]');
-            var totalFmt = el.getAttribute('data-total-fmt') || '0';
-            new window.ApexCharts(el, {
-                series: series,
-                labels: labels,
-                chart: { type: 'donut', height: 240, fontFamily: 'inherit' },
-                colors: colors,
-                stroke: { width: 2, colors: ['#fff'] },
-                plotOptions: {
-                    pie: {
-                        donut: {
-                            size: '72%',
-                            labels: {
-                                show: true,
-                                name: { show: true, fontSize: '11px', color: '#6b7280' },
-                                value: { show: false },
-                                total: {
+            function draw() {
+                if (typeof window.ApexCharts === 'undefined') return false;
+                el._rendered = true;
+                var series = JSON.parse(el.getAttribute('data-series') || '[]');
+                var labels = JSON.parse(el.getAttribute('data-labels') || '[]');
+                var colors = JSON.parse(el.getAttribute('data-colors') || '[]');
+                var totalFmt = el.getAttribute('data-total-fmt') || '0';
+                new window.ApexCharts(el, {
+                    series: series,
+                    labels: labels,
+                    chart: { type: 'donut', height: 240, fontFamily: 'inherit' },
+                    colors: colors,
+                    stroke: { width: 2, colors: ['#fff'] },
+                    plotOptions: {
+                        pie: {
+                            donut: {
+                                size: '72%',
+                                labels: {
                                     show: true,
-                                    label: 'Tổng lợi nhuận',
-                                    fontSize: '11px',
-                                    color: '#6b7280',
-                                    formatter: function() { return totalFmt + ' đ'; },
+                                    name: { show: true, fontSize: '11px', color: '#6b7280' },
+                                    value: { show: false },
+                                    total: {
+                                        show: true,
+                                        label: 'Tổng lợi nhuận',
+                                        fontSize: '11px',
+                                        color: '#6b7280',
+                                        formatter: function() { return totalFmt + ' đ'; },
+                                    },
                                 },
                             },
                         },
                     },
-                },
-                dataLabels: { enabled: false },
-                legend: { show: false },
-                tooltip: {
-                    y: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' đ'; } },
-                },
-            }).render();
+                    dataLabels: { enabled: false },
+                    legend: { show: false },
+                    tooltip: {
+                        y: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' đ'; } },
+                    },
+                }).render();
+                return true;
+            }
+            if (draw()) return;
+            var tries = 0;
+            var timer = setInterval(function() {
+                tries++;
+                if (draw() || tries >= 40) clearInterval(timer);
+            }, 120);
         })();
-        if (document.readyState === 'complete') setTimeout(renderProfitDonut, 0);
-        else window.addEventListener('load', function() { setTimeout(renderProfitDonut, 0); });
         </script>
     @else
         <div class="flex flex-1 items-center justify-center px-4 py-10">

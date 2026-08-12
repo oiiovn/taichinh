@@ -65,12 +65,15 @@
             data-labels="{{ json_encode($chartLabels) }}"
             data-quyettoan="{{ json_encode($chartDoanhSoQuyetToan) }}"
             data-loinhuan="{{ json_encode($chartDoanhSoLoiNhuan) }}"></div>
+        <p id="food-doanhso-chart-empty" class="hidden py-10 text-center text-sm text-gray-500 dark:text-gray-400">Không có dữ liệu biểu đồ trong kỳ lọc.</p>
     </div>
 </div>
 
+@push('scripts')
 <script>
 (function() {
     var chartEl = document.getElementById('food-doanhso-chart');
+    var emptyEl = document.getElementById('food-doanhso-chart-empty');
     if (!chartEl) return;
 
     var rawDates = JSON.parse(chartEl.getAttribute('data-dates') || '[]');
@@ -106,22 +109,34 @@
             buckets[key].loiNhuan += rawLoiNhuan[i] || 0;
         });
         var keys = Object.keys(buckets).sort();
-        return {
+        var result = {
             labels: keys.map(function(k) { return buckets[k].label; }),
             quyetToan: keys.map(function(k) { return buckets[k].quyetToan; }),
             loiNhuan: keys.map(function(k) { return buckets[k].loiNhuan; }),
         };
+        if (result.labels.length < 2) {
+            return { labels: rawLabels, quyetToan: rawQuyetToan, loiNhuan: rawLoiNhuan };
+        }
+        return result;
+    }
+
+    function hasData(data) {
+        return data.labels.length > 0 && (
+            data.quyetToan.some(function(v) { return v !== 0; }) ||
+            data.loiNhuan.some(function(v) { return v !== 0; })
+        );
     }
 
     function buildOptions(data) {
         var isDark = document.documentElement.classList.contains('dark');
+        var chartType = data.labels.length === 1 ? 'bar' : 'area';
         return {
             series: [
                 { name: 'Quyết toán', data: data.quyetToan },
                 { name: 'Lợi nhuận', data: data.loiNhuan }
             ],
             chart: {
-                type: 'area',
+                type: chartType,
                 height: 300,
                 width: '100%',
                 toolbar: { show: false },
@@ -129,12 +144,15 @@
                 fontFamily: 'inherit',
             },
             colors: ['#f59e0b', '#3b82f6'],
-            stroke: { curve: 'smooth', width: 2.5 },
-            fill: {
+            stroke: { curve: 'smooth', width: chartType === 'area' ? 2.5 : 0 },
+            fill: chartType === 'area' ? {
                 type: 'gradient',
                 gradient: { shadeIntensity: 1, opacityFrom: 0.35, opacityTo: 0.04, stops: [0, 90, 100] },
-            },
-            markers: { size: 4, strokeWidth: 2, strokeColors: '#fff', hover: { size: 6 } },
+            } : { opacity: 0.85 },
+            plotOptions: chartType === 'bar' ? {
+                bar: { borderRadius: 6, columnWidth: '42%' }
+            } : {},
+            markers: { size: chartType === 'area' ? 4 : 0, strokeWidth: 2, strokeColors: ['#fff', '#fff'], hover: { size: 6 } },
             dataLabels: { enabled: false },
             grid: {
                 borderColor: isDark ? '#374151' : '#e5e7eb',
@@ -158,7 +176,6 @@
                 position: 'bottom',
                 horizontalAlign: 'center',
                 fontSize: '12px',
-                markers: { width: 10, height: 10, radius: 10 },
             },
             tooltip: {
                 shared: true,
@@ -169,17 +186,22 @@
     }
 
     function renderChart(mode) {
-        if (typeof window.ApexCharts === 'undefined') {
-            var s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.min.js';
-            s.onload = function() { renderChart(mode); };
-            document.head.appendChild(s);
+        var data = aggregate(mode || 'day');
+        if (!hasData(data)) {
+            if (chartInstance) {
+                chartInstance.destroy();
+                chartInstance = null;
+            }
+            chartEl.classList.add('hidden');
+            if (emptyEl) emptyEl.classList.remove('hidden');
             return;
         }
-        var data = aggregate(mode || 'day');
+        chartEl.classList.remove('hidden');
+        if (emptyEl) emptyEl.classList.add('hidden');
+
         if (chartInstance) {
-            chartInstance.updateOptions(buildOptions(data));
-            return;
+            chartInstance.destroy();
+            chartInstance = null;
         }
         chartInstance = new window.ApexCharts(chartEl, buildOptions(data));
         chartInstance.render();
@@ -187,8 +209,16 @@
 
     window.foodDoanhSoChartSetMode = renderChart;
 
-    if (document.readyState === 'complete') renderChart('day');
-    else window.addEventListener('load', function() { renderChart('day'); });
+    function boot(attempts) {
+        if (typeof window.ApexCharts === 'undefined') {
+            if (attempts <= 0) return;
+            setTimeout(function() { boot(attempts - 1); }, 120);
+            return;
+        }
+        renderChart('day');
+    }
+
+    boot(40);
 })();
 
 (function initDoanhSoDatePickers() {
@@ -206,3 +236,4 @@
     else window.addEventListener('load', run);
 })();
 </script>
+@endpush
