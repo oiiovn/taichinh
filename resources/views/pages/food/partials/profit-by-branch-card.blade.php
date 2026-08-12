@@ -8,34 +8,20 @@
         ['box' => 'bg-violet-50 dark:bg-violet-900/30', 'icon' => 'text-violet-600 dark:text-violet-400', 'ring' => 'ring-violet-100 dark:ring-violet-800/50'],
     ];
 @endphp
-<div class="relative mb-8 overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
-    {{-- Decorative background --}}
-    <div class="pointer-events-none absolute right-0 top-0 hidden h-40 w-56 opacity-90 sm:block" aria-hidden="true">
-        <svg viewBox="0 0 220 160" class="h-full w-full" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="118" y="18" width="88" height="58" rx="10" fill="#ecfdf5" stroke="#a7f3d0" stroke-width="1"/>
-            <path d="M128 58 L148 42 L168 50 L188 34 L198 58" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="198" cy="34" r="3" fill="#10b981"/>
-            <ellipse cx="168" cy="118" rx="34" ry="10" fill="#fef3c7" opacity="0.8"/>
-            <circle cx="152" cy="92" r="22" fill="#fde68a"/>
-            <circle cx="176" cy="86" r="18" fill="#fcd34d"/>
-            <circle cx="164" cy="104" r="16" fill="#fbbf24"/>
-            <text x="158" y="98" fill="#b45309" font-size="14" font-weight="700">đ</text>
-        </svg>
-    </div>
-
-    <div class="relative border-b border-gray-100 px-4 pb-4 pt-5 dark:border-gray-800 sm:px-6">
-        <div class="flex items-start gap-3 pr-0 sm:pr-44">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 ring-1 ring-emerald-100 dark:bg-emerald-900/30 dark:ring-emerald-800/50">
+<div class="flex h-full flex-col overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div class="border-b border-gray-100 px-4 pb-4 pt-5 dark:border-gray-800 sm:px-5">
+        <div class="flex items-start gap-3">
+            <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-emerald-50 ring-1 ring-emerald-100 dark:bg-emerald-900/30 dark:ring-emerald-800/50">
                 <svg class="h-6 w-6 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.75">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/>
                     <path stroke-linecap="round" stroke-linejoin="round" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/>
                 </svg>
             </div>
             <div class="min-w-0">
-                <h3 class="text-lg font-bold leading-snug text-gray-900 dark:text-white">
+                <h3 class="text-sm font-bold leading-snug text-gray-900 dark:text-white">
                     Báo cáo lợi nhuận <span class="text-emerald-600 dark:text-emerald-400">theo chi nhánh</span>
                 </h3>
-                <p class="mt-0.5 text-sm text-gray-500 dark:text-gray-400">Tổng hợp lợi nhuận theo quyết toán</p>
+                <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">Tổng hợp lợi nhuận theo quyết toán</p>
             </div>
         </div>
     </div>
@@ -118,14 +104,16 @@
             </ul>
         </div>
 
-        <div class="border-t border-gray-100 px-4 py-3 dark:border-gray-800 sm:px-6">
+        <div class="mt-auto border-t border-gray-100 px-4 py-3 dark:border-gray-800 sm:px-5">
             <p class="flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
                 <span class="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
                     <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </span>
                 Dữ liệu được cập nhật mới nhất
-                @if(isset($from) && isset($to))
-                    <span class="text-gray-400">· {{ $from->format('d/m/Y') }} – {{ $to->format('d/m/Y') }}</span>
+                @if(isset($updatedAt) && $updatedAt)
+                    <span class="text-gray-400">: {{ $updatedAt->format('d/m/Y H:i') }}</span>
+                @elseif(isset($from) && isset($to))
+                    <span class="text-gray-400">: {{ $to->format('d/m/Y') }}</span>
                 @endif
             </p>
         </div>
