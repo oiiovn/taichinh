@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\FoodBranch;
 use App\Models\FoodReview;
 use App\Models\FoodReviewGiftAttempt;
+use App\Services\Food\FoodReviewGiftVerificationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -79,7 +80,18 @@ class FoodReviewController extends Controller
             });
         }
         if ($rating !== null && $rating !== '') {
-            $query->where('rating', (int) $rating);
+            $ratingInt = (int) $rating;
+            if ($ratingInt === 5) {
+                $query->where(function ($sub) {
+                    $sub->where('rating', 5)
+                        ->orWhere(function ($assumed) {
+                            $assumed->whereNull('rating')
+                                ->where('gift_verification_status', FoodReviewGiftVerificationService::STATUS_PENDING);
+                        });
+                });
+            } else {
+                $query->where('rating', $ratingInt);
+            }
         }
         if ($branchId) {
             $query->where('food_branch_id', $branchId);
@@ -226,6 +238,7 @@ class FoodReviewController extends Controller
             FoodReviewGiftAttempt::RESULT_NOT_FOUND => '#9ca3af',
             FoodReviewGiftAttempt::RESULT_EXPIRED => '#f59e0b',
             FoodReviewGiftAttempt::RESULT_ALREADY_REWARDED => '#ef4444',
+            FoodReviewGiftAttempt::RESULT_REVOKED => '#64748b',
             FoodReviewGiftAttempt::RESULT_SUCCESS => '#10b981',
         ];
 
@@ -352,6 +365,8 @@ class FoodReviewController extends Controller
                 'raw_chunk' => $row['raw_chunk'] ?: $model->raw_chunk,
             ]);
             $model->save();
+
+            app(FoodReviewGiftVerificationService::class)->syncAfterImport($model->fresh());
 
             $isNew ? $created++ : $updated++;
         }

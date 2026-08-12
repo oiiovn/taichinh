@@ -17,6 +17,8 @@ class FoodReviewGiftAttempt extends Model
 
     public const RESULT_SUCCESS = 'success';
 
+    public const RESULT_REVOKED = 'revoked';
+
     protected $table = 'food_review_gift_attempts';
 
     protected $fillable = [
@@ -38,6 +40,7 @@ class FoodReviewGiftAttempt extends Model
             self::RESULT_ALREADY_REWARDED => 'Mã đã thưởng',
             self::RESULT_EXPIRED => 'Mã hết hạn',
             self::RESULT_NOT_FOUND => 'Không tìm thấy mã',
+            self::RESULT_REVOKED => 'Quà đã huỷ',
         ];
     }
 

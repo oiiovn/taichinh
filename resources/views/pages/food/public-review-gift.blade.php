@@ -11,8 +11,8 @@
 
             <div class="mt-3 rounded-xl border-2 border-amber-400 bg-amber-50 px-3 py-2.5 text-sm font-medium text-amber-900 shadow-sm dark:border-amber-500/60 dark:bg-amber-950/40 dark:text-amber-100">
                 <p class="flex items-start gap-2">
-                    <span class="shrink-0 text-base" aria-hidden="true">⏰</span>
-                    <span>Đánh giá 5 sao sẽ được cập nhật mỗi 24 giờ. Nếu bạn vừa mới đánh giá, hãy quay lại sau 24h.</span>
+                    <span class="shrink-0 text-base" aria-hidden="true">🎁</span>
+                    <span>Quà hiển thị ngay sau khi nhập mã. Hệ thống xác minh đánh giá 5 sao sau 4 giờ — nếu chưa đánh giá 5 sao, quà sẽ bị huỷ.</span>
                 </p>
             </div>
 

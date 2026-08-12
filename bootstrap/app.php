@@ -65,6 +65,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->job(new \App\Jobs\CoachingEffectivenessOutcomeJob)->dailyAt('04:00');
         // Làm ấm cache view Tài chính (SWR) mỗi 15 phút — tránh mất dữ liệu tab Chiến lược khi cache hết hạn
         $schedule->command('tai-chinh:warm-view')->everyFifteenMinutes();
+        // Xác minh quà đánh giá 5 sao sau 4h (huỷ nếu chưa có 5 sao trên hệ thống)
+        $schedule->command('food:verify-review-gifts')->hourly();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\App\Exceptions\Food\AttendanceException $e, \Illuminate\Http\Request $request) {

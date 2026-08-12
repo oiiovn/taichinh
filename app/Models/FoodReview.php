@@ -23,6 +23,9 @@ class FoodReview extends Model
         'gift_item_name',
         'gift_status',
         'gift_rendered_at',
+        'gift_verification_status',
+        'gift_verified_at',
+        'gift_revoked_at',
         'gift_rewarded_by_user_id',
         'gift_rewarded_at',
         'raw_chunk',
@@ -32,8 +35,47 @@ class FoodReview extends Model
         'review_date' => 'date',
         'rating' => 'integer',
         'gift_rendered_at' => 'datetime',
+        'gift_verified_at' => 'datetime',
+        'gift_revoked_at' => 'datetime',
         'gift_rewarded_at' => 'datetime',
     ];
+
+    public function isGiftVerified(): bool
+    {
+        return ($this->gift_verification_status ?? null) === 'verified';
+    }
+
+    public function isGiftPendingVerification(): bool
+    {
+        return ($this->gift_verification_status ?? null) === 'pending';
+    }
+
+    public function isGiftRevoked(): bool
+    {
+        return ($this->gift_verification_status ?? null) === 'revoked';
+    }
+
+    /** Đánh giá 5 sao đã xác nhận từ import / dữ liệu thật (không phải tạm). */
+    public function hasConfirmedFiveStarRating(): bool
+    {
+        return (int) ($this->rating ?? 0) === 5;
+    }
+
+    /** Mã đúng format + đang chờ xác minh quà → tạm coi là 5 sao. */
+    public function isRatingAssumed(): bool
+    {
+        return $this->rating === null && $this->isGiftPendingVerification();
+    }
+
+    /** Số sao hiển thị: ưu tiên dữ liệu thật, không thì tạm 5 sao khi đang chờ xác minh. */
+    public function displayRating(): ?int
+    {
+        if ($this->rating !== null) {
+            return (int) $this->rating;
+        }
+
+        return $this->isRatingAssumed() ? 5 : null;
+    }
 
     public function user(): BelongsTo
     {
