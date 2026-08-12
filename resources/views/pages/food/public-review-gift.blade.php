@@ -117,8 +117,9 @@
                             <span>Mã ghi chú: {{ session('gift_code') }}</span>
                             <button
                                 type="button"
-                                id="btn-copy-gift-note"
                                 class="ml-1 text-[11px] italic font-medium text-blue-600 hover:underline dark:text-blue-300"
+                                data-copy-text="{{ e(trim((string) session('gift_code')).' '.trim((string) session('gift_item_name', 'Bánh Tráng Trộn'))) }}"
+                                onclick="navigator.clipboard && navigator.clipboard.writeText(this.getAttribute('data-copy-text'))"
                             >(Nhấn để coppy)</button>
                         </div>
                     @endif
@@ -154,18 +155,6 @@
 @endsection
 
 @push('scripts')
-@if(session('gift_code'))
-<script>
-(function () {
-    var btn = document.getElementById('btn-copy-gift-note');
-    if (!btn || !navigator.clipboard) return;
-    var copyText = {!! json_encode(trim((string) session('gift_code')).' '.trim((string) session('gift_item_name', 'Bánh Tráng Trộn')), JSON_UNESCAPED_UNICODE) !!};
-    btn.addEventListener('click', function () {
-        navigator.clipboard.writeText(copyText);
-    });
-})();
-</script>
-@endif
 <style>
     .confetti-piece {
         position: absolute;
