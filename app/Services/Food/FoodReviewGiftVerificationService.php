@@ -37,7 +37,7 @@ class FoodReviewGiftVerificationService
     {
         $existing = $this->findByNormalizedCode($normalized);
         if ($existing) {
-            return $existing;
+            return $this->ensureDefaultFiveStarRating($existing);
         }
 
         $reviewCode = $this->normalizeReviewCode($normalized);
@@ -45,8 +45,20 @@ class FoodReviewGiftVerificationService
         return FoodReview::query()->create([
             'user_id' => $this->systemUserId(),
             'review_code' => $reviewCode,
-            'rating' => null,
+            'rating' => 5,
+            'rating_confirmed' => false,
         ]);
+    }
+
+    public function ensureDefaultFiveStarRating(FoodReview $review): FoodReview
+    {
+        if ($review->rating === null) {
+            $review->rating = 5;
+            $review->rating_confirmed = false;
+            $review->save();
+        }
+
+        return $review;
     }
 
     public function isRevoked(FoodReview $review): bool
@@ -174,10 +186,15 @@ class FoodReviewGiftVerificationService
             return;
         }
 
-        if ($rating === 5 && $review->gift_rendered_at) {
-            $status = $review->gift_verification_status ?? null;
-            if (in_array($status, [self::STATUS_PENDING, self::STATUS_REVOKED], true)) {
-                $this->markVerified($review);
+        if ($rating === 5) {
+            $review->rating_confirmed = true;
+            $review->save();
+
+            if ($review->gift_rendered_at) {
+                $status = $review->gift_verification_status ?? null;
+                if (in_array($status, [self::STATUS_PENDING, self::STATUS_REVOKED], true)) {
+                    $this->markVerified($review);
+                }
             }
         }
     }

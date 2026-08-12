@@ -18,6 +18,7 @@ class FoodReview extends Model
         'review_time_text',
         'customer_name',
         'rating',
+        'rating_confirmed',
         'review_content',
         'gift_code',
         'gift_item_name',
@@ -34,6 +35,7 @@ class FoodReview extends Model
     protected $casts = [
         'review_date' => 'date',
         'rating' => 'integer',
+        'rating_confirmed' => 'boolean',
         'gift_rendered_at' => 'datetime',
         'gift_verified_at' => 'datetime',
         'gift_revoked_at' => 'datetime',
@@ -55,26 +57,21 @@ class FoodReview extends Model
         return ($this->gift_verification_status ?? null) === 'revoked';
     }
 
-    /** Đánh giá 5 sao đã xác nhận từ import / dữ liệu thật (không phải tạm). */
+    /** Đánh giá 5 sao đã xác nhận từ import Shopee (không chỉ mặc định khi khách nhập mã). */
     public function hasConfirmedFiveStarRating(): bool
     {
-        return (int) ($this->rating ?? 0) === 5;
+        return (int) ($this->rating ?? 0) === 5 && (bool) ($this->rating_confirmed ?? false);
     }
 
-    /** Mã đúng format + đang chờ xác minh quà → tạm coi là 5 sao. */
-    public function isRatingAssumed(): bool
+    /** 5 sao mặc định khi khách nhập mã, chưa import xác nhận. */
+    public function isDefaultFiveStarRating(): bool
     {
-        return $this->rating === null && $this->isGiftPendingVerification();
+        return (int) ($this->rating ?? 0) === 5 && ! (bool) ($this->rating_confirmed ?? false);
     }
 
-    /** Số sao hiển thị: ưu tiên dữ liệu thật, không thì tạm 5 sao khi đang chờ xác minh. */
-    public function displayRating(): ?int
+    public function displayRating(): int
     {
-        if ($this->rating !== null) {
-            return (int) $this->rating;
-        }
-
-        return $this->isRatingAssumed() ? 5 : null;
+        return (int) ($this->rating ?? 5);
     }
 
     public function user(): BelongsTo

@@ -80,18 +80,7 @@ class FoodReviewController extends Controller
             });
         }
         if ($rating !== null && $rating !== '') {
-            $ratingInt = (int) $rating;
-            if ($ratingInt === 5) {
-                $query->where(function ($sub) {
-                    $sub->where('rating', 5)
-                        ->orWhere(function ($assumed) {
-                            $assumed->whereNull('rating')
-                                ->where('gift_verification_status', FoodReviewGiftVerificationService::STATUS_PENDING);
-                        });
-                });
-            } else {
-                $query->where('rating', $ratingInt);
-            }
+            $query->where('rating', (int) $rating);
         }
         if ($branchId) {
             $query->where('food_branch_id', $branchId);
@@ -360,7 +349,8 @@ class FoodReviewController extends Controller
                 'review_date' => $row['review_date'] ?: $model->review_date,
                 'review_time_text' => $row['review_time_text'] ?: $model->review_time_text,
                 'customer_name' => $row['customer_name'] ?: $model->customer_name,
-                'rating' => $row['rating'] ?? $model->rating,
+                'rating' => $row['rating'] ?? $model->rating ?? 5,
+                'rating_confirmed' => true,
                 'review_content' => $row['review_content'] ?: $model->review_content,
                 'raw_chunk' => $row['raw_chunk'] ?: $model->raw_chunk,
             ]);
