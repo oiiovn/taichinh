@@ -14,7 +14,7 @@ class FoodReviewGiftVerificationService
 
     public const STATUS_REVOKED = 'revoked';
 
-    public const VERIFY_HOURS = 4;
+    public const VERIFY_HOURS = 48;
 
     public function isValidOrderCodeFormat(string $normalized): bool
     {
