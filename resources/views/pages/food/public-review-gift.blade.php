@@ -1,6 +1,7 @@
 @extends('layouts.fullscreen-layout')
 
 @php($hideFullscreenFooter = true)
+@php($shopeeFoodOrderUrl = 'https://shopeefood.vn/u/2db8mfG')
 
 @section('content')
 <div class="mx-auto flex min-h-[calc(100vh-120px)] w-full max-w-xl items-center justify-center px-4 py-8">
@@ -45,6 +46,14 @@
                 </div>
                 <button type="submit" class="w-full rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Quay thưởng đơn sau</button>
             </form>
+            <a
+                href="{{ $shopeeFoodOrderUrl }}"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-emerald-500 bg-emerald-50 px-4 py-2.5 text-sm font-semibold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-500/50 dark:bg-emerald-950/40 dark:text-emerald-100 dark:hover:bg-emerald-950/60"
+            >
+                🛒 Đặt món ShopeeFood
+            </a>
         @endunless
 
         @if(session('gift_popup') || session('gift_used_popup') || session('gift_expired_popup'))
@@ -104,12 +113,16 @@
                         <p>Nhập mã bên dưới vào phần <strong>ghi chú</strong> khi đặt bất kỳ món nào.</p>
                     </div>
                     @if(session('gift_code'))
+                        @php
+                            $giftCopyText = trim((string) session('gift_code')).' '.trim((string) session('gift_item_name', 'Bánh Tráng Trộn'));
+                        @endphp
                         <div class="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-sm font-semibold text-amber-700 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-200">
                             <span>Mã ghi chú: {{ session('gift_code') }}</span>
                             <button
                                 type="button"
                                 class="ml-1 text-[11px] italic font-medium text-blue-600 hover:underline dark:text-blue-300"
-                                onclick="navigator.clipboard && navigator.clipboard.writeText('{{ session('gift_code') }} Tặng {{ session('gift_item_name', 'Bánh Tráng Trộn') }}')"
+                                data-copy-text='@json($giftCopyText)'
+                                onclick="navigator.clipboard && navigator.clipboard.writeText(JSON.parse(this.dataset.copyText))"
                             >(Nhấn để coppy)</button>
                         </div>
                     @endif
@@ -121,14 +134,20 @@
                     <p class="mt-4 text-sm font-medium text-brand-600 dark:text-brand-400">👉 Cứ đơn trước viết đánh giá 5 sao thì đơn sau nhận free 1 món.</p>
                 @endif
 
-                <div class="mt-6 flex items-center gap-2 sm:justify-end">
-                    @if(session('gift_branch_link'))
+                <div class="mt-6 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+                    <a
+                        href="{{ $shopeeFoodOrderUrl }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="inline-flex flex-1 items-center justify-center rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white hover:bg-emerald-700 sm:flex-none sm:py-2"
+                    >🛒 Đặt món ShopeeFood</a>
+                    @if(session('gift_branch_link') && session('gift_branch_link') !== $shopeeFoodOrderUrl)
                         <a
                             href="{{ session('gift_branch_link') }}"
                             target="_blank"
                             rel="noopener noreferrer"
-                            class="inline-flex flex-1 items-center justify-center rounded-lg bg-emerald-600 px-4 py-3 text-sm font-medium text-white hover:bg-emerald-700 sm:flex-none sm:py-2"
-                        >Mua ngay</a>
+                            class="inline-flex flex-1 items-center justify-center rounded-lg border border-emerald-600 bg-white px-4 py-3 text-sm font-medium text-emerald-700 hover:bg-emerald-50 sm:flex-none sm:py-2 dark:border-emerald-500 dark:bg-gray-900 dark:text-emerald-300 dark:hover:bg-emerald-950/30"
+                        >Chi nhánh gần bạn</a>
                     @endif
                     <a href="{{ route('food.public-review-gift') }}" class="flex-1 rounded-lg bg-brand-600 px-4 py-3 text-center text-sm font-medium text-white hover:bg-brand-700 sm:flex-none sm:py-2">Đã hiểu</a>
                 </div>
