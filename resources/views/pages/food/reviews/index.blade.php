@@ -104,11 +104,9 @@
                     <div class="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                         <span class="break-all font-mono text-xs font-bold text-gray-900 dark:text-gray-100">{{ $r->review_code }}</span>
                         <span class="text-xs text-gray-500 dark:text-gray-400">{{ $r->review_time_text ?? ($r->review_date?->format('d/m/Y') ?? '—') }}</span>
-                        @php
-                            $displayRating = $r->displayRating();
-                            $defaultFiveStar = $r->isDefaultFiveStarRating();
-                        @endphp
-                        <span class="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-200" title="{{ $defaultFiveStar ? '5 sao mặc định (chờ import xác nhận)' : ($displayRating.'/5') }}">
+                        @php $displayRating = $r->displayRating(); @endphp
+                        @if($displayRating !== null)
+                        <span class="inline-flex items-center gap-1 rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-200" title="{{ $displayRating }}/5">
                                 <span class="inline-flex items-center gap-px" aria-hidden="true">
                                     @for($i = 1; $i <= 5; $i++)
                                         <svg class="h-3 w-3 {{ $i <= $displayRating ? 'text-amber-500' : 'text-gray-300 dark:text-gray-600' }}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -117,8 +115,8 @@
                                     @endfor
                                 </span>
                         </span>
-                        @if($defaultFiveStar)
-                            <span class="rounded border border-dashed border-amber-400 bg-amber-50/80 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:border-amber-500/50 dark:bg-amber-900/20 dark:text-amber-200">Mặc định 5⭐</span>
+                        @else
+                            <span class="rounded border border-slate-300 bg-slate-50 px-2 py-0.5 text-[11px] font-medium text-slate-600 dark:border-slate-600 dark:bg-slate-900/40 dark:text-slate-300">Chưa có sao</span>
                         @endif
                         @if($r->isGiftPendingVerification())
                             <span class="rounded border border-amber-300 bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-800 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-200">Quà chờ xác minh</span>

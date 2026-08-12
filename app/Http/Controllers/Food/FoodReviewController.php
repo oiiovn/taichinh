@@ -349,7 +349,7 @@ class FoodReviewController extends Controller
                 'review_date' => $row['review_date'] ?: $model->review_date,
                 'review_time_text' => $row['review_time_text'] ?: $model->review_time_text,
                 'customer_name' => $row['customer_name'] ?: $model->customer_name,
-                'rating' => $row['rating'] ?? $model->rating ?? 5,
+                'rating' => 5,
                 'rating_confirmed' => true,
                 'review_content' => $row['review_content'] ?: $model->review_content,
                 'raw_chunk' => $row['raw_chunk'] ?: $model->raw_chunk,
@@ -401,16 +401,7 @@ class FoodReviewController extends Controller
                 $customerName = trim($m[1]);
             }
 
-            $rating = null;
-            if (preg_match('/(?<!\d)([1-5])(?:\.0)?(?!\d)/u', $chunk, $m)) {
-                $rating = (int) $m[1];
-            } elseif (preg_match('/\b([1-5])\s*sao\b/iu', $chunk, $m)) {
-                $rating = (int) $m[1];
-            }
-            if ($rating === null) {
-                // Dữ liệu seeding hiện tại đều là 5 sao, fallback để tránh bản ghi bị trống sao.
-                $rating = 5;
-            }
+            $rating = 5;
 
             $reviewContent = null;
             if (preg_match('/(?:đánh\s*giá|nhận\s*xét|nội\s*dung)\s*[:\-]\s*([\s\S]+)/iu', $chunk, $m)) {

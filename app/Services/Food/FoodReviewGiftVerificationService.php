@@ -37,7 +37,7 @@ class FoodReviewGiftVerificationService
     {
         $existing = $this->findByNormalizedCode($normalized);
         if ($existing) {
-            return $this->ensureDefaultFiveStarRating($existing);
+            return $existing;
         }
 
         $reviewCode = $this->normalizeReviewCode($normalized);
@@ -45,20 +45,9 @@ class FoodReviewGiftVerificationService
         return FoodReview::query()->create([
             'user_id' => $this->systemUserId(),
             'review_code' => $reviewCode,
-            'rating' => 5,
+            'rating' => null,
             'rating_confirmed' => false,
         ]);
-    }
-
-    public function ensureDefaultFiveStarRating(FoodReview $review): FoodReview
-    {
-        if ($review->rating === null) {
-            $review->rating = 5;
-            $review->rating_confirmed = false;
-            $review->save();
-        }
-
-        return $review;
     }
 
     public function isRevoked(FoodReview $review): bool

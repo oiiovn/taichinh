@@ -69,9 +69,9 @@ class FoodReview extends Model
         return (int) ($this->rating ?? 0) === 5 && ! (bool) ($this->rating_confirmed ?? false);
     }
 
-    public function displayRating(): int
+    public function displayRating(): ?int
     {
-        return (int) ($this->rating ?? 5);
+        return $this->rating !== null ? (int) $this->rating : null;
     }
 
     public function user(): BelongsTo
