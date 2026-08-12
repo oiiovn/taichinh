@@ -19,6 +19,7 @@ class FoodBranch extends Model
         'latitude',
         'longitude',
         'check_in_radius_meters',
+        'include_labor_in_settlement',
     ];
 
     protected function casts(): array
@@ -27,7 +28,14 @@ class FoodBranch extends Model
             'latitude' => 'decimal:7',
             'longitude' => 'decimal:7',
             'check_in_radius_meters' => 'integer',
+            'include_labor_in_settlement' => 'boolean',
         ];
+    }
+
+    /** Tiền công có được cộng vào quyết toán báo cáo bán hàng không. */
+    public function includesLaborInSettlement(): bool
+    {
+        return (bool) ($this->include_labor_in_settlement ?? true);
     }
 
     public function user(): BelongsTo

@@ -7,8 +7,10 @@
     $displayTotalCost = $display_total_cost ?? (float) $report->total_cost;
     $displayTienCong = $display_total_tien_cong ?? (float) $report->total_tien_cong;
     $displayBonus = (float) ($report->bonus ?? 0);
-    $quyetToan = $displayTotalCost + $displayTienCong + $displayBonus;
-    $baseTienCong = $displayTienCong + $displayBonus;
+    $includeLaborInSettlement = $report->laborIncludedInSettlement();
+    $settlementTienCong = $includeLaborInSettlement ? $displayTienCong : 0;
+    $quyetToan = $displayTotalCost + $settlementTienCong + $displayBonus;
+    $baseTienCong = $settlementTienCong + $displayBonus;
 @endphp
 <div class="space-y-6">
     @if(session('success'))
@@ -35,7 +37,13 @@
             <p class="mt-1 text-sm text-gray-700 dark:text-gray-300">{{ $report->total_orders }} đơn hàng</p>
             <div class="mt-3 space-y-1 text-sm">
                 <p class="text-gray-700 dark:text-gray-300">Tổng vốn: <span class="font-medium">{{ $fmtNguyen($displayTotalCost) }} đ</span></p>
-                <p class="text-gray-700 dark:text-gray-300">Tiền công: <span class="font-medium">{{ $fmtNguyen($displayTienCong) }} đ</span></p>
+                <p class="text-gray-700 dark:text-gray-300">
+                    Tiền công:
+                    <span class="font-medium">{{ $fmtNguyen($displayTienCong) }} đ</span>
+                    @if(! $includeLaborInSettlement && $displayTienCong > 0)
+                        <span class="text-xs text-amber-700 dark:text-amber-300">(không cộng vào quyết toán)</span>
+                    @endif
+                </p>
                 @if($displayBonus > 0)
                     <p class="text-gray-700 dark:text-gray-300">Thưởng: <span class="font-medium">{{ $fmtNguyen($displayBonus) }} đ</span></p>
                 @endif

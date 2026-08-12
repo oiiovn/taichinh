@@ -34,12 +34,17 @@ class FoodReportDebt extends Model
             return 0.0;
         }
         if ($this->only_tien_cong_khung_gio) {
+            if (! $report->laborIncludedInSettlement()) {
+                return 0.0;
+            }
+
             return $this->calculateLaborAmountByTimeWindow($report, '16:30', '22:00');
         }
         $bonus = (float) ($report->bonus ?? 0);
+
         return $this->only_tien_cong
-            ? (float) $report->total_tien_cong + $bonus
-            : (float) $report->total_cost + (float) $report->total_tien_cong + $bonus;
+            ? $report->settlementTienCong() + $bonus
+            : (float) $report->quyet_toan;
     }
 
     /** Số tiền trừ công nợ (đã nhập khi tạo). */

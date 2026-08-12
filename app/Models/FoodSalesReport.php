@@ -57,10 +57,24 @@ class FoodSalesReport extends Model
         return $this->hasMany(FoodReportDebt::class, 'food_sales_report_id');
     }
 
-    /** Quyết toán = Tổng vốn + Tiền công + Thưởng */
+    /** Quyết toán = Tổng vốn + Tiền công (nếu chi nhánh bật) + Thưởng */
+    public function laborIncludedInSettlement(): bool
+    {
+        if (! $this->relationLoaded('branch')) {
+            $this->loadMissing('branch');
+        }
+
+        return $this->branch?->includesLaborInSettlement() ?? true;
+    }
+
+    public function settlementTienCong(): float
+    {
+        return $this->laborIncludedInSettlement() ? (float) $this->total_tien_cong : 0.0;
+    }
+
     public function getQuyetToanAttribute(): float
     {
-        return (float) $this->total_cost + (float) $this->total_tien_cong + (float) ($this->bonus ?? 0);
+        return (float) $this->total_cost + $this->settlementTienCong() + (float) ($this->bonus ?? 0);
     }
 
     /** Lợi nhuận = doanh_so - quyet_toan - phi_buff - phi_ads (khi đã nhập doanh số) */

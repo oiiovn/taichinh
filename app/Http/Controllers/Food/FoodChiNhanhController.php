@@ -50,6 +50,7 @@ class FoodChiNhanhController extends Controller
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'check_in_radius_meters' => ['nullable', 'integer', 'min:10', 'max:5000'],
+            'include_labor_in_settlement' => ['sometimes', 'boolean'],
         ]);
 
         $branch = FoodBranch::query()->create([
@@ -60,6 +61,7 @@ class FoodChiNhanhController extends Controller
             'latitude' => $validated['latitude'] ?? null,
             'longitude' => $validated['longitude'] ?? null,
             'check_in_radius_meters' => $validated['check_in_radius_meters'] ?? 100,
+            'include_labor_in_settlement' => $request->boolean('include_labor_in_settlement', true),
         ]);
 
         $materialIds = FoodMaterial::query()->where('user_id', $user->id)->pluck('id');
@@ -87,6 +89,7 @@ class FoodChiNhanhController extends Controller
             'latitude' => ['nullable', 'numeric', 'between:-90,90'],
             'longitude' => ['nullable', 'numeric', 'between:-180,180'],
             'check_in_radius_meters' => ['nullable', 'integer', 'min:10', 'max:5000'],
+            'include_labor_in_settlement' => ['sometimes', 'boolean'],
         ]);
 
         $branch->update([
@@ -96,6 +99,7 @@ class FoodChiNhanhController extends Controller
             'latitude' => $validated['latitude'] ?? null,
             'longitude' => $validated['longitude'] ?? null,
             'check_in_radius_meters' => $validated['check_in_radius_meters'] ?? 100,
+            'include_labor_in_settlement' => $request->boolean('include_labor_in_settlement'),
         ]);
         return redirect()->route('food.chi-nhanh')->with('success', 'Đã cập nhật chi nhánh.');
     }

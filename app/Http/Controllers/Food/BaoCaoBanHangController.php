@@ -456,11 +456,13 @@ class BaoCaoBanHangController extends Controller
         }
         $bonus = (float) ($report->bonus ?? 0);
         if ($onlyTienCongKhungGio) {
-            $baseAmount = $this->calculateLaborAmountByTimeWindow($report, '16:30', '22:00');
+            $baseAmount = $report->laborIncludedInSettlement()
+                ? $this->calculateLaborAmountByTimeWindow($report, '16:30', '22:00')
+                : 0.0;
         } else {
             $baseAmount = $onlyTienCong
-                ? (float) $report->total_tien_cong + $bonus
-                : (float) $report->total_cost + (float) $report->total_tien_cong + $bonus;
+                ? $report->settlementTienCong() + $bonus
+                : (float) $report->quyet_toan;
         }
 
         $deductionAmount = (float) $request->input('deduction_amount', 0);

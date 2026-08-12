@@ -3,9 +3,9 @@
 @section('foodContent')
 @php
     $reportsCollection = $reports instanceof \Illuminate\Pagination\AbstractPaginator ? $reports->getCollection() : collect($reports);
-    $reportsBase = $reportsCollection->keyBy('id')->map(fn($r) => [
-        'base_full' => (float) $r->total_cost + (float) $r->total_tien_cong + (float) ($r->bonus ?? 0),
-        'base_tien_cong' => (float) $r->total_tien_cong + (float) ($r->bonus ?? 0),
+    $reportsBase = $reportsCollection->keyBy('id')->map(fn ($r) => [
+        'base_full' => (float) $r->quyet_toan,
+        'base_tien_cong' => (float) $r->settlementTienCong() + (float) ($r->bonus ?? 0),
     ])->toArray();
 @endphp
 <div class="space-y-6" x-data="{

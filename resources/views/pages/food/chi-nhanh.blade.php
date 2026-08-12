@@ -3,7 +3,7 @@
 @section('foodContent')
 <div class="space-y-6">
     <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Chi nhánh</h2>
-    <p class="text-sm text-gray-600 dark:text-gray-400">Tạo chi nhánh trước; khi tải báo cáo bán hàng lên có thể chọn chi nhánh tương ứng. Tọa độ GPS dùng cho chấm công mobile (bán kính mặc định 100m).</p>
+    <p class="text-sm text-gray-600 dark:text-gray-400">Tạo chi nhánh trước; khi tải báo cáo bán hàng lên có thể chọn chi nhánh tương ứng. Tọa độ GPS dùng cho chấm công mobile (bán kính mặc định 100m). Có thể tắt <strong>cộng tiền công vào quyết toán</strong> cho từng chi nhánh (vd. Lê Văn Quới, Tân Sơn).</p>
 
     @if(session('success'))
         <div class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800 dark:border-green-800 dark:bg-green-900/30 dark:text-green-200">{{ session('success') }}</div>
@@ -43,6 +43,11 @@
                     <label class="mb-1 block text-xs font-medium text-gray-600 dark:text-gray-400">Bán kính (m)</label>
                     <input type="number" name="check_in_radius_meters" min="10" max="5000" value="{{ old('check_in_radius_meters', 100) }}" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white">
                 </div>
+                <label class="flex min-w-[220px] items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800">
+                    <input type="hidden" name="include_labor_in_settlement" value="0">
+                    <input type="checkbox" name="include_labor_in_settlement" value="1" class="rounded border-gray-300" @checked(old('include_labor_in_settlement', true))>
+                    <span class="text-gray-700 dark:text-gray-200">Cộng tiền công vào quyết toán</span>
+                </label>
                 <button type="submit" class="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Thêm</button>
             </div>
         </form>
@@ -86,6 +91,11 @@
                                 <label class="mb-1 block text-xs text-gray-500 dark:text-gray-400">Bán kính (m)</label>
                                 <input type="number" name="check_in_radius_meters" min="10" max="5000" value="{{ $b->check_in_radius_meters ?? 100 }}" class="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900 dark:text-white">
                             </div>
+                            <label class="flex min-w-[220px] items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900">
+                                <input type="hidden" name="include_labor_in_settlement" value="0">
+                                <input type="checkbox" name="include_labor_in_settlement" value="1" class="rounded border-gray-300" @checked($b->include_labor_in_settlement ?? true)>
+                                <span class="text-gray-700 dark:text-gray-200">Cộng tiền công vào quyết toán</span>
+                            </label>
                             <div class="flex flex-wrap gap-2">
                                 <button type="submit" class="rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">Lưu</button>
                                 <a href="{{ route('food.qr-cham-cong', ['b' => $b->id]) }}" target="_blank" class="rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700">QR CN</a>
@@ -93,6 +103,9 @@
                         </div>
                         @if($b->latitude === null || $b->longitude === null)
                             <p class="text-xs text-amber-700 dark:text-amber-300">Chưa cấu hình GPS — app mobile sẽ từ chối chấm công tại chi nhánh này.</p>
+                        @endif
+                        @if(! ($b->include_labor_in_settlement ?? true))
+                            <p class="text-xs text-amber-700 dark:text-amber-300">Quyết toán báo cáo bán hàng: không cộng tiền công (chỉ vốn + thưởng).</p>
                         @endif
                     </form>
                     <form id="form-delete-cn-{{ $b->id }}" action="{{ route('food.chi-nhanh.destroy', $b) }}" method="POST" class="shrink-0">
