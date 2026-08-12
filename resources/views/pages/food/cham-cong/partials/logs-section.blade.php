@@ -14,8 +14,12 @@
             $noteText = $displayNote($log, $empCard);
             $name = $empCard?->user?->name ?? '—';
             $theme = $avatarThemes[$loop->index % count($avatarThemes)];
+            $isOff = ! $log->check_in_at && ! $log->check_out_at;
         @endphp
-        <article x-show="rowVisible({{ $loop->index }})" class="overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+        <article x-show="rowVisible({{ $loop->index }})" @class([
+            'overflow-hidden rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900',
+            'bg-slate-50/80 dark:bg-slate-900/30' => $isOff,
+        ])>
             <div class="flex items-start gap-3 p-4">
                 <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-bold ring-2 {{ $theme['bg'] }} {{ $theme['ring'] }}">{{ $initials($name) }}</span>
                 <div class="min-w-0 flex-1">
@@ -24,16 +28,45 @@
                     @endif
                     <div class="flex flex-wrap items-center gap-2">
                         <h3 class="text-sm font-bold text-gray-900 dark:text-white">{{ $formatWorkDate($log->work_date) }}</h3>
+                        @if($isOff)
+                            <span class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200">OFF</span>
+                        @elseif($log->work_minutes !== null)
+                            <span class="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">{{ $log->work_minutes }} phút</span>
+                        @endif
                         @if($isSaleDay($log->work_date))<span class="rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold uppercase text-orange-700">Sale</span>@endif
                     </div>
-                    <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
-                        <div><span class="text-gray-500">Vào:</span> <strong>{{ $log->check_in_at?->format('H:i') ?? '—' }}</strong></div>
-                        <div><span class="text-gray-500">Ra:</span> <strong>{{ $log->check_out_at?->format('H:i') ?? '—' }}</strong></div>
-                        <div><span class="text-gray-500">Phút làm:</span> <strong>{{ $log->work_minutes ?? '—' }}</strong></div>
-                        <div><span class="text-gray-500">Lương:</span> <strong>{{ $amt !== null ? $fmt($amt).' đ' : '—' }}</strong></div>
-                    </div>
-                    @if($li['penalty'] > 0)<p class="mt-1 text-xs text-red-600">Phạt trễ −{{ $fmt($li['penalty']) }} đ</p>@endif
-                    @if($noteText)<p class="mt-1 text-xs text-gray-500">{{ $noteText }}</p>@endif
+
+                    @if(! $isOff)
+                        <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+                            <div><span class="text-gray-500">Vào:</span> <strong>{{ $log->check_in_at?->format('H:i') ?? '—' }}</strong></div>
+                            <div><span class="text-gray-500">Ra:</span> <strong>{{ $log->check_out_at?->format('H:i') ?? '—' }}</strong></div>
+                            @if($log->work_minutes !== null)
+                                <div><span class="text-gray-500">Phút làm:</span> <strong>{{ $log->work_minutes }}</strong></div>
+                            @endif
+                            @if($amt !== null)
+                                <div><span class="text-gray-500">Lương:</span> <strong>{{ $fmt($amt) }} đ</strong></div>
+                            @endif
+                        </div>
+                    @endif
+
+                    @if((! $isOff && ($log->break_start_at || $amt !== null || $li['penalty'] > 0)) || filled($noteText))
+                        <div class="mt-2 space-y-1 text-xs">
+                            @if(! $isOff && $log->break_start_at)
+                                <div class="flex items-center justify-between gap-2">
+                                    <span class="text-gray-500">Nghỉ</span>
+                                    <span class="font-medium tabular-nums">{{ $log->break_start_at->format('H:i') }} – {{ $log->break_end_at?->format('H:i') ?? '—' }}</span>
+                                </div>
+                            @endif
+                            @if(! $isOff && $li['penalty'] > 0)
+                                <p class="text-red-600">Phạt trễ −{{ $fmt($li['penalty']) }} đ ({{ $li['minutes'] }} phút)</p>
+                            @endif
+                            @if(filled($noteText))
+                                <p class="rounded-lg bg-gray-50 px-2 py-1.5 text-[11px] leading-relaxed text-gray-600 dark:bg-gray-800 dark:text-gray-300">{{ $noteText }}</p>
+                            @endif
+                        </div>
+                    @elseif($isOff)
+                        <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Ngày nghỉ — không chấm công</p>
+                    @endif
                 </div>
             </div>
             @if($isManager)

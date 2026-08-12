@@ -7,8 +7,12 @@
     $name = $empRow?->user?->name ?? '—';
     $theme = $avatarThemes[$loop->index % count($avatarThemes)];
     $showEmployee = ($isManager ?? false) && empty($selectedEmployeeId);
+    $isOff = ! $log->check_in_at && ! $log->check_out_at;
 @endphp
-<tr x-show="rowVisible({{ $loop->index }})" x-cloak class="transition hover:bg-gray-50/70 dark:hover:bg-gray-800/30" data-row-index="{{ $loop->index }}">
+<tr x-show="rowVisible({{ $loop->index }})" x-cloak @class([
+    'transition hover:bg-gray-50/70 dark:hover:bg-gray-800/30',
+    'bg-slate-50/60 dark:bg-slate-900/20' => $isOff,
+]) data-row-index="{{ $loop->index }}">
     @if($showEmployee)
         <td class="px-5 py-3.5">
             <div class="flex items-center gap-3">
@@ -23,11 +27,20 @@
     <td class="px-4 py-3.5 text-gray-800 dark:text-gray-200">
         <div class="flex flex-wrap items-center gap-2">
             <span>{{ $formatWorkDate($log->work_date) }}</span>
+            @if($isOff)
+                <span class="rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-slate-700 dark:bg-slate-700 dark:text-slate-200">OFF</span>
+            @elseif($log->work_minutes !== null)
+                <span class="rounded-full bg-brand-50 px-2 py-0.5 text-[10px] font-semibold text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">{{ $log->work_minutes }} phút</span>
+            @endif
             @if($isSaleDay($log->work_date))
                 <span class="rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-700 dark:bg-orange-900/40 dark:text-orange-300">Sale</span>
             @endif
         </div>
     </td>
+    @if($isOff)
+        <td colspan="7" class="px-4 py-3.5 text-sm font-medium text-slate-500 dark:text-slate-400">Ngày nghỉ — không chấm công</td>
+        <td class="max-w-[180px] px-4 py-3.5 text-gray-600 dark:text-gray-400">{{ $noteText ?: '—' }}</td>
+    @else
     <td class="px-4 py-3.5 tabular-nums text-gray-700 dark:text-gray-300">{{ $log->check_in_at?->format('H:i') ?? '—' }}</td>
     <td class="px-4 py-3.5 tabular-nums text-gray-700 dark:text-gray-300">{{ $log->check_out_at?->format('H:i') ?? '—' }}</td>
     <td class="px-4 py-3.5 tabular-nums text-gray-700 dark:text-gray-300">{{ $log->break_start_at ? $log->break_start_at->format('H:i').' – '.($log->break_end_at?->format('H:i') ?? '—') : '—' }}</td>
@@ -36,6 +49,7 @@
     <td class="px-4 py-3.5 text-center tabular-nums text-gray-700 dark:text-gray-300">{{ ($empRow && $empRow->usesLatePenalty() && $li['minutes'] > 0) ? $li['minutes'] : '—' }}</td>
     <td class="px-4 py-3.5 text-right tabular-nums {{ $li['penalty'] > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-gray-700 dark:text-gray-300' }}">{{ ($empRow && $empRow->usesLatePenalty() && $li['penalty'] > 0) ? $fmt($li['penalty']).' đ' : '—' }}</td>
     <td class="max-w-[180px] px-4 py-3.5 text-gray-600 dark:text-gray-400">{{ $noteText ?? '—' }}</td>
+    @endif
     @if($isManager ?? false)
         <td class="px-4 py-3.5">
             <div class="flex items-center gap-2">
