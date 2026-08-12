@@ -175,66 +175,25 @@
 @elseif($tab === 'doanh-so')
     <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Doanh số</h2>
 
-    <div class="mb-4 flex flex-wrap items-center gap-3">
-        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Bộ lọc:</span>
-        @foreach($periods as $val => $label)
-            <a href="{{ route('food', ['tab' => 'doanh-so', 'period' => $val]) }}" class="rounded-lg border px-3 py-1.5 text-sm {{ $period === $val ? 'border-brand-500 bg-brand-50 text-brand-600 dark:bg-brand-500/20 dark:text-brand-400' : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700' }}">{{ $label }}</a>
-        @endforeach
-        <form method="get" action="{{ route('food') }}" class="flex flex-wrap items-center gap-2">
-            <input type="hidden" name="tab" value="doanh-so">
-            <input type="hidden" name="period" value="{{ $period }}">
-            <input type="text" id="food-doanhso-from-date" name="from_date" value="{{ $fromDateInput ?? '' }}" placeholder="Từ ngày" readonly class="relative z-10 w-[90px] min-h-[38px] cursor-pointer rounded-lg border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" autocomplete="off">
-            <input type="text" id="food-doanhso-to-date" name="to_date" value="{{ $toDateInput ?? '' }}" placeholder="Đến ngày" readonly class="relative z-10 w-[90px] min-h-[38px] cursor-pointer rounded-lg border border-gray-200 bg-white p-2 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" autocomplete="off">
-            <button type="submit" class="rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">Áp dụng</button>
-        </form>
-    </div>
+    @include('pages.food.partials.doanh-so-chart-card', [
+        'chartDoanhSoDates' => $chartDoanhSoDates ?? [],
+        'chartDoanhSoLoiNhuan' => $chartDoanhSoLoiNhuan ?? [],
+        'chartDoanhSoQuyetToan' => $chartDoanhSoQuyetToan ?? [],
+        'periods' => $periods,
+        'period' => $period,
+        'fromDateInput' => $fromDateInput ?? '',
+        'toDateInput' => $toDateInput ?? '',
+        'from' => $from ?? null,
+        'to' => $to ?? null,
+        'fmt' => $fmt,
+    ])
 
-    @if(isset($from) && isset($to))
-        <p class="mb-4 text-sm text-gray-500 dark:text-gray-400">Kỳ: {{ $from->format('d/m/Y') }} → {{ $to->format('d/m/Y') }}</p>
-    @endif
-
-    @php
-        $chartDoanhSoDates = $chartDoanhSoDates ?? [];
-        $chartDoanhSoLoiNhuan = $chartDoanhSoLoiNhuan ?? [];
-        $chartDoanhSoQuyetToan = $chartDoanhSoQuyetToan ?? [];
-    @endphp
-    <div class="mb-8 rounded-xl border border-gray-200 bg-white p-4 pr-8 dark:border-gray-700 dark:bg-gray-800">
-        <p class="mb-4 text-sm font-medium text-gray-700 dark:text-gray-300">Quyết toán &amp; lợi nhuận theo ngày</p>
-        <div id="food-doanhso-chart" class="min-h-[280px] w-full" data-dates="{{ json_encode($chartDoanhSoDates) }}" data-quyettoan="{{ json_encode($chartDoanhSoQuyetToan) }}" data-loinhuan="{{ json_encode($chartDoanhSoLoiNhuan) }}"></div>
-    </div>
-
-    @php
-        $profitByBranch = $profitByBranch ?? collect();
-    @endphp
-    <div class="mb-8 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-        <p class="mb-3 text-sm font-medium text-gray-700 dark:text-gray-300">Báo cáo lợi nhuận theo chi nhánh</p>
-        @if($profitByBranch->isNotEmpty())
-            <div class="overflow-x-auto">
-                <table class="w-full min-w-[520px] text-left text-sm">
-                    <thead class="border-b border-gray-200 dark:border-gray-700">
-                        <tr>
-                            <th class="px-2 py-2 font-medium text-gray-900 dark:text-white">Chi nhánh</th>
-                            <th class="px-2 py-2 font-medium text-gray-900 dark:text-white">Số báo cáo</th>
-                            <th class="px-2 py-2 font-medium text-gray-900 dark:text-white">Quyết toán</th>
-                            <th class="px-2 py-2 font-medium text-gray-900 dark:text-white">Lợi nhuận</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach($profitByBranch as $row)
-                            <tr class="border-b border-gray-100 dark:border-gray-700/60">
-                                <td class="px-2 py-2 text-gray-800 dark:text-gray-200">{{ $row['branch_name'] }}</td>
-                                <td class="px-2 py-2 text-gray-700 dark:text-gray-300">{{ $row['report_count'] }}</td>
-                                <td class="px-2 py-2 text-gray-700 dark:text-gray-300">{{ $fmt($row['quyet_toan']) }} đ</td>
-                                <td class="px-2 py-2 font-semibold {{ $row['loi_nhuan'] >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400' }}">{{ $fmt($row['loi_nhuan']) }} đ</td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
-            </div>
-        @else
-            <p class="text-sm text-gray-500 dark:text-gray-400">Không có dữ liệu lợi nhuận theo chi nhánh trong kỳ lọc.</p>
-        @endif
-    </div>
+    @include('pages.food.partials.profit-by-branch-card', [
+        'profitByBranch' => $profitByBranch ?? collect(),
+        'fmt' => $fmt,
+        'from' => $from ?? null,
+        'to' => $to ?? null,
+    ])
 
     <div class="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
         <table class="w-full min-w-[640px] text-left text-sm">
@@ -315,57 +274,6 @@
             </tbody>
         </table>
     </div>
-
-    <script>
-    (function renderDoanhSoChart() {
-        var el = document.getElementById('food-doanhso-chart');
-        if (!el) return;
-        if (el._chartRendered) return;
-        if (typeof window.ApexCharts === 'undefined') {
-            var s = document.createElement('script');
-            s.src = 'https://cdn.jsdelivr.net/npm/apexcharts@3.45.0/dist/apexcharts.min.js';
-            s.onload = function() { el._chartRendered = false; renderDoanhSoChart(); };
-            document.head.appendChild(s);
-            return;
-        }
-        el._chartRendered = true;
-        var dates = JSON.parse(el.getAttribute('data-dates') || '[]');
-        var quyetToan = JSON.parse(el.getAttribute('data-quyettoan') || '[]');
-        var loiNhuan = JSON.parse(el.getAttribute('data-loinhuan') || '[]');
-        new window.ApexCharts(el, {
-            series: [
-                { name: 'Quyết toán', data: quyetToan },
-                { name: 'Lợi nhuận', data: loiNhuan }
-            ],
-            chart: { type: 'line', height: 280, width: '100%', toolbar: { show: false }, zoom: { enabled: false } },
-            grid: { padding: { left: 24, right: 56, top: 16, bottom: 16 } },
-            stroke: { curve: 'smooth', width: 2 },
-            colors: ['#f59e0b', '#3b82f6'],
-            xaxis: { categories: dates, tickAmount: dates.length > 20 ? 12 : undefined, labels: { maxHeight: 40, rotate: -45 } },
-            yaxis: { labels: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' đ'; } } },
-            legend: { position: 'bottom', horizontalAlign: 'center' },
-            tooltip: { y: { formatter: function(v) { return new Intl.NumberFormat('vi-VN').format(v) + ' đ'; } } },
-            dataLabels: { enabled: false }
-        }).render();
-    })();
-    if (document.readyState === 'complete') setTimeout(renderDoanhSoChart, 0);
-    else window.addEventListener('load', function() { setTimeout(renderDoanhSoChart, 0); });
-
-    (function initDoanhSoDatePickers() {
-        function run() {
-            if (typeof window.flatpickr === 'undefined') return;
-            var fromEl = document.getElementById('food-doanhso-from-date');
-            var toEl = document.getElementById('food-doanhso-to-date');
-            if (!fromEl || !toEl) return;
-            var opts = { dateFormat: 'Y-m-d', allowInput: false, appendTo: document.body, static: false };
-            if (window.flatpickr.l10ns && window.flatpickr.l10ns.vn) opts.locale = 'vn';
-            window.flatpickr(fromEl, opts);
-            window.flatpickr(toEl, opts);
-        }
-        if (document.readyState === 'complete') run();
-        else window.addEventListener('load', run);
-    })();
-    </script>
 @else
     <h2 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">Tổng quan</h2>
     <p class="text-sm text-gray-500 dark:text-gray-400">Chọn tab ở menu bên trái.</p>
