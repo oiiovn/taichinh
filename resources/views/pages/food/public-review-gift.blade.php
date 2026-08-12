@@ -113,16 +113,12 @@
                         <p>Nhập mã bên dưới vào phần <strong>ghi chú</strong> khi đặt bất kỳ món nào.</p>
                     </div>
                     @if(session('gift_code'))
-                        @php
-                            $giftCopyText = trim((string) session('gift_code')).' '.trim((string) session('gift_item_name', 'Bánh Tráng Trộn'));
-                        @endphp
                         <div class="mt-2 rounded-md border border-amber-300 bg-amber-50 px-2 py-1 text-sm font-semibold text-amber-700 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-200">
                             <span>Mã ghi chú: {{ session('gift_code') }}</span>
                             <button
                                 type="button"
+                                id="btn-copy-gift-note"
                                 class="ml-1 text-[11px] italic font-medium text-blue-600 hover:underline dark:text-blue-300"
-                                data-copy-text='@json($giftCopyText)'
-                                onclick="navigator.clipboard && navigator.clipboard.writeText(JSON.parse(this.dataset.copyText))"
                             >(Nhấn để coppy)</button>
                         </div>
                     @endif
@@ -158,6 +154,18 @@
 @endsection
 
 @push('scripts')
+@if(session('gift_code'))
+<script>
+(function () {
+    var btn = document.getElementById('btn-copy-gift-note');
+    if (!btn || !navigator.clipboard) return;
+    var copyText = {!! json_encode(trim((string) session('gift_code')).' '.trim((string) session('gift_item_name', 'Bánh Tráng Trộn')), JSON_UNESCAPED_UNICODE) !!};
+    btn.addEventListener('click', function () {
+        navigator.clipboard.writeText(copyText);
+    });
+})();
+</script>
+@endif
 <style>
     .confetti-piece {
         position: absolute;
