@@ -9,8 +9,9 @@
         @endphp
         <article x-show="rowVisible({{ $loop->index }})" x-cloak @class([
             'rounded-2xl border bg-white p-4 shadow-sm dark:bg-gray-900',
-            'border-amber-300 dark:border-amber-700' => $m->needsReorder(),
-            'border-gray-200/80 dark:border-gray-700' => ! $m->needsReorder(),
+            'border-brand-300 dark:border-brand-700' => $m->isStockChecked(),
+            'border-amber-300 dark:border-amber-700' => $m->needsReorder() && ! $m->isStockChecked(),
+            'border-gray-200/80 dark:border-gray-700' => ! $m->needsReorder() && ! $m->isStockChecked(),
         ])>
             <div class="flex items-start gap-3">
                 <span @class([
@@ -26,14 +27,20 @@
                             @else
                                 <span class="inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">Nguyên liệu</span>
                             @endif
+                            @if($m->isStockChecked())
+                                <span class="ml-1 inline-flex rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-semibold text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">Đã kiểm tồn</span>
+                            @endif
                             <h3 class="mt-1 text-sm font-semibold text-gray-950 dark:text-white">
                                 @include('pages.food.nguyen-lieu.partials.material-usage-tip', ['material' => $m, 'materialUsages' => $materialUsages ?? []])
                             </h3>
                             @if($m->code)<p class="text-xs text-gray-500 dark:text-gray-400">{{ $m->code }}</p>@endif
                         </div>
-                        @if($m->needsReorder())
-                            <span class="shrink-0 rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">Cần đặt</span>
-                        @endif
+                        <div class="flex shrink-0 items-center gap-2">
+                            @include('pages.food.nguyen-lieu.partials.stock-checked-toggle', ['material' => $m, 'branchId' => $branchId])
+                            @if($m->needsReorder())
+                                <span class="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700 dark:bg-red-900/40 dark:text-red-300">Cần đặt</span>
+                            @endif
+                        </div>
                     </div>
                     <div class="mt-3 grid grid-cols-3 gap-2 text-center">
                         <div class="rounded-xl bg-gray-50 px-2 py-2 dark:bg-gray-800/80">

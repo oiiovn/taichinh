@@ -311,6 +311,7 @@ Route::middleware('auth')->group(function () {
             Route::post('/food/nguyen-lieu/{nguyenLieu}/nhap', [\App\Http\Controllers\Food\NguyenLieuController::class, 'stockIn'])->name('food.nguyen-lieu.stock-in');
             Route::post('/food/nguyen-lieu/{nguyenLieu}/xuat', [\App\Http\Controllers\Food\NguyenLieuController::class, 'stockOut'])->name('food.nguyen-lieu.stock-out');
             Route::post('/food/nguyen-lieu/{nguyenLieu}/dieu-chinh', [\App\Http\Controllers\Food\NguyenLieuController::class, 'stockAdjust'])->name('food.nguyen-lieu.stock-adjust');
+            Route::patch('/food/nguyen-lieu/{nguyenLieu}/kiem-ton', [\App\Http\Controllers\Food\NguyenLieuController::class, 'toggleStockChecked'])->name('food.nguyen-lieu.kiem-ton');
         });
     });
 

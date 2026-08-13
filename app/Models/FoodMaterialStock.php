@@ -14,6 +14,7 @@ class FoodMaterialStock extends Model
         'food_branch_id',
         'stock_on_hand',
         'reorder_point',
+        'stock_checked_at',
     ];
 
     protected function casts(): array
@@ -21,6 +22,7 @@ class FoodMaterialStock extends Model
         return [
             'stock_on_hand' => 'decimal:4',
             'reorder_point' => 'decimal:4',
+            'stock_checked_at' => 'datetime',
         ];
     }
 

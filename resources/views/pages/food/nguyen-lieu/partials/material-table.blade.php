@@ -24,7 +24,8 @@
                     @endphp
                     <tr x-show="rowVisible({{ $loop->index }})" x-cloak @class([
                         'transition hover:bg-gray-50/70 dark:hover:bg-gray-800/30',
-                        'bg-amber-50/40 dark:bg-amber-900/10' => $m->needsReorder(),
+                        'bg-brand-50/50 dark:bg-brand-950/20' => $m->isStockChecked(),
+                        'bg-amber-50/40 dark:bg-amber-900/10' => $m->needsReorder() && ! $m->isStockChecked(),
                     ]) data-row-index="{{ $loop->index }}">
                         <td class="px-4 py-3">
                             <span @class([
@@ -37,8 +38,13 @@
                             <div class="font-semibold text-gray-900 dark:text-white">
                                 @include('pages.food.nguyen-lieu.partials.material-usage-tip', ['material' => $m, 'materialUsages' => $materialUsages ?? []])
                             </div>
-                            @if($m->code)<p class="text-xs text-gray-500 dark:text-gray-400">{{ $m->code }}</p>@endif
-                            @unless($m->active)<span class="text-xs text-gray-400">Ngưng dùng</span>@endunless
+                            <div class="mt-0.5 flex flex-wrap items-center gap-1.5">
+                                @if($m->code)<p class="text-xs text-gray-500 dark:text-gray-400">{{ $m->code }}</p>@endif
+                                @if($m->isStockChecked())
+                                    <span class="inline-flex items-center rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-semibold text-brand-700 dark:bg-brand-900/40 dark:text-brand-300">Đã kiểm tồn</span>
+                                @endif
+                                @unless($m->active)<span class="text-xs text-gray-400">Ngưng dùng</span>@endunless
+                            </div>
                         </td>
                         <td class="px-4 py-3">
                             @if($isPack)
@@ -53,6 +59,7 @@
                         <td class="px-4 py-3 tabular-nums text-gray-800 dark:text-gray-200">{{ $m->last_unit_cost !== null ? number_format($m->last_unit_cost, 0, ',', '.').' đ' : '—' }}</td>
                         <td class="px-4 py-3">
                             <div class="flex items-center gap-1.5">
+                                @include('pages.food.nguyen-lieu.partials.stock-checked-toggle', ['material' => $m, 'branchId' => $branchId])
                                 <button type="button" title="Lưu tồn"
                                     @click="stockEdit = stockEdit === {{ $m->id }} ? null : {{ $m->id }}; priceEdit = null; stockOpen = null"
                                     class="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-brand-200 bg-brand-50 text-brand-600 hover:bg-brand-100 dark:border-brand-800 dark:bg-brand-900/30 dark:text-brand-400">

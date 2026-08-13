@@ -100,6 +100,8 @@ class NguyenLieuController extends Controller
             $materials = $materials->filter(fn (FoodMaterial $m) => $m->needsReorder())->values();
         }
 
+        $materials = $this->sortMaterialsForDisplay($materials);
+
         $materialUsages = $this->buildMaterialUsages($user->id, $materials->pluck('id'));
 
         $lowCount = FoodMaterialStock::query()
@@ -381,6 +383,61 @@ class NguyenLieuController extends Controller
         return redirect()
             ->route('food.nguyen-lieu', ['branch_id' => $branch->id])
             ->with('success', 'Đã điều chỉnh tồn kho.');
+    }
+
+    public function toggleStockChecked(Request $request, FoodMaterial $nguyenLieu): RedirectResponse
+    {
+        $user = $request->user();
+        if (! $user || (int) $nguyenLieu->user_id !== (int) $user->id) {
+            abort(403);
+        }
+
+        $validated = $request->validate([
+            'food_branch_id' => ['required', 'integer', 'exists:food_branches,id'],
+        ]);
+
+        $branch = FoodBranch::query()->where('user_id', $user->id)->findOrFail($validated['food_branch_id']);
+        $stock = FoodMaterialStock::forMaterialBranch($nguyenLieu->id, $branch->id);
+        $stock->stock_checked_at = $stock->stock_checked_at ? null : now();
+        $stock->save();
+
+        $msg = $stock->stock_checked_at
+            ? 'Đã đánh dấu kiểm tồn: '.$nguyenLieu->name.'. Mặt hàng được ưu tiên lên đầu.'
+            : 'Đã bỏ đánh dấu kiểm tồn: '.$nguyenLieu->name.'.';
+
+        return redirect()
+            ->route('food.nguyen-lieu', array_filter([
+                'branch_id' => $branch->id,
+                'type' => $request->input('type') ?: null,
+                'q' => filled($request->input('q')) ? $request->input('q') : null,
+                'low_only' => $request->boolean('low_only') ? 1 : null,
+            ]))
+            ->with('success', $msg);
+    }
+
+    private function sortMaterialsForDisplay(Collection $materials): Collection
+    {
+        return $materials->sort(function (FoodMaterial $a, FoodMaterial $b) {
+            $aChecked = $a->isStockChecked();
+            $bChecked = $b->isStockChecked();
+            if ($aChecked !== $bChecked) {
+                return $aChecked ? -1 : 1;
+            }
+            if ($aChecked && $bChecked) {
+                $aAt = $a->branchStock?->stock_checked_at;
+                $bAt = $b->branchStock?->stock_checked_at;
+                $cmp = ($bAt?->timestamp ?? 0) <=> ($aAt?->timestamp ?? 0);
+                if ($cmp !== 0) {
+                    return $cmp;
+                }
+            }
+            $typeCmp = strcmp((string) $a->type, (string) $b->type);
+            if ($typeCmp !== 0) {
+                return $typeCmp;
+            }
+
+            return strcasecmp((string) $a->name, (string) $b->name);
+        })->values();
     }
 
     private function applyStockMovement(Request $request, FoodMaterial $material, string $type): RedirectResponse

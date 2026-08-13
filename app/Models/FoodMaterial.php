@@ -88,6 +88,11 @@ class FoodMaterial extends Model
         return false;
     }
 
+    public function isStockChecked(): bool
+    {
+        return $this->branchStock?->stock_checked_at !== null;
+    }
+
     public function typeLabel(): string
     {
         return self::typeLabels()[$this->type] ?? $this->type;
