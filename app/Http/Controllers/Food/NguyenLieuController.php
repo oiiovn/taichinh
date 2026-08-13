@@ -569,7 +569,12 @@ class NguyenLieuController extends Controller
             return $branch;
         }
 
-        return $branches->first();
+        $preferred = $branches->first(function (FoodBranch $b) {
+            return mb_stripos((string) $b->name, 'Lê Văn Quới') !== false
+                || mb_stripos((string) $b->name, 'Le Van Quoi') !== false;
+        });
+
+        return $preferred ?? $branches->first();
     }
 
     private function ensureStocksForBranch(int $userId, int $branchId): void
