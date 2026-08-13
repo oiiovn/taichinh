@@ -28,7 +28,10 @@ class AuthController extends Controller
             return redirect()->route('dashboard');
         }
 
-        return view('pages.auth.signin', ['title' => 'Đăng nhập']);
+        return view('pages.auth.signin', [
+            'title' => 'Đăng nhập',
+            'hideFullscreenFooter' => true,
+        ]);
     }
 
     public function signupPreset(string $preset)
@@ -49,17 +52,22 @@ class AuthController extends Controller
     public function login(Request $request)
     {
         $validated = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required', 'string'],
             'password' => ['required'],
         ], [
-            'email.required' => 'Vui lòng nhập email.',
-            'email.email' => 'Email không hợp lệ.',
+            'email.required' => 'Vui lòng nhập email hoặc số điện thoại.',
             'password.required' => 'Vui lòng nhập mật khẩu.',
         ]);
 
         $remember = $request->boolean('remember');
+        $identifier = trim($validated['email']);
+        $user = User::query()->where('email', $identifier)->first();
+        if (! $user) {
+            $phone = preg_replace('/\s+/', '', $identifier);
+            $user = User::query()->where('phone', $identifier)->orWhere('phone', $phone)->first();
+        }
 
-        if (Auth::attempt($validated, $remember)) {
+        if ($user && Auth::attempt(['email' => $user->email, 'password' => $validated['password']], $remember)) {
             $request->session()->regenerate();
             $intended = $request->session()->get('url.intended');
             if (is_string($intended) && (str_contains($intended, '/login') || str_contains($intended, '/signin'))) {
@@ -80,7 +88,7 @@ class AuthController extends Controller
         }
 
         return back()->withErrors([
-            'email' => 'Email hoặc mật khẩu không đúng.',
+            'email' => 'Email, số điện thoại hoặc mật khẩu không đúng.',
         ])->onlyInput('email');
     }
 

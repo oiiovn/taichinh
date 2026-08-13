@@ -39,6 +39,8 @@ class NguyenLieuController extends Controller
                 'typeFilter' => $request->input('type'),
                 'lowOnly' => $request->boolean('low_only'),
                 'lowCount' => 0,
+                'stats' => ['total' => 0, 'below_reorder' => 0, 'low_stock' => 0, 'total_value' => 0],
+                'search' => '',
                 'typeLabels' => FoodMaterial::typeLabels(),
                 'materialUsages' => [],
             ]);
@@ -48,9 +50,16 @@ class NguyenLieuController extends Controller
         $this->ensureStocksForBranch($user->id, $branch->id);
 
         $type = $request->input('type');
+        $search = trim((string) $request->input('q', ''));
         $q = FoodMaterial::query()->where('user_id', $user->id)->orderBy('type')->orderBy('name');
         if (in_array($type, [FoodMaterial::TYPE_NGUYEN_LIEU, FoodMaterial::TYPE_BAO_BI], true)) {
             $q->where('type', $type);
+        }
+        if ($search !== '') {
+            $q->where(function ($sub) use ($search) {
+                $sub->where('name', 'like', "%{$search}%")
+                    ->orWhere('code', 'like', "%{$search}%");
+            });
         }
 
         $materials = $q->get();
@@ -63,6 +72,29 @@ class NguyenLieuController extends Controller
         foreach ($materials as $m) {
             $m->setRelation('branchStock', $stocks->get($m->id));
         }
+
+        $statsMaterials = FoodMaterial::query()
+            ->where('user_id', $user->id)
+            ->where('active', true)
+            ->orderBy('type')
+            ->orderBy('name')
+            ->get();
+        $allStocks = FoodMaterialStock::query()
+            ->where('food_branch_id', $branch->id)
+            ->whereIn('food_material_id', $statsMaterials->pluck('id'))
+            ->get()
+            ->keyBy('food_material_id');
+        foreach ($statsMaterials as $m) {
+            $m->setRelation('branchStock', $allStocks->get($m->id));
+        }
+        $stats = [
+            'total' => $statsMaterials->count(),
+            'below_reorder' => $statsMaterials->filter(fn (FoodMaterial $m) => $m->needsReorder())->count(),
+            'low_stock' => $statsMaterials->filter(fn (FoodMaterial $m) => $m->branchStockQty() <= 0)->count(),
+            'total_value' => (int) $statsMaterials->sum(
+                fn (FoodMaterial $m) => max(0, $m->branchStockQty()) * (float) ($m->last_unit_cost ?? 0)
+            ),
+        ];
 
         if ($request->boolean('low_only')) {
             $materials = $materials->filter(fn (FoodMaterial $m) => $m->needsReorder())->values();
@@ -84,6 +116,8 @@ class NguyenLieuController extends Controller
             'typeFilter' => $type,
             'lowOnly' => $request->boolean('low_only'),
             'lowCount' => $lowCount,
+            'stats' => $stats,
+            'search' => $search,
             'typeLabels' => FoodMaterial::typeLabels(),
             'materialUsages' => $materialUsages,
         ]);
